@@ -1,0 +1,351 @@
+/* app/(print)/print.css */
+
+/* ── Corps page imprimable ─────────────────────────── */
+.print-body {
+  background: #ffffff !important;
+  color:       #1a1a2e  !important;
+  font-family: var(--font-syne), sans-serif;
+  padding:     0;
+  margin:      0;
+}
+
+/* ── Conteneur document ─────────────────────────────── */
+.print-page {
+  max-width:  800px;
+  margin:     0 auto;
+  padding:    32px 40px;
+  background: #fff;
+  min-height: 100vh;
+}
+
+/* ── En-tête entreprise ─────────────────────────────── */
+.doc-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  margin-bottom:   32px;
+  padding-bottom:  20px;
+  border-bottom:   2px solid #1a1a2e;
+}
+.doc-logo {
+  font-size:   22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #1a1a2e;
+}
+.doc-logo span { color: #6d28d9; }
+.doc-meta      { text-align: right; font-size: 12px; line-height: 1.6; color: #475569; }
+.doc-meta strong { color: #1a1a2e; font-size: 15px; display: block; margin-bottom: 2px; }
+
+/* ── Infos client / fournisseur ────────────────────── */
+.doc-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.doc-party {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.doc-party-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.doc-party-name { font-size: 15px; font-weight: 800; color: #1a1a2e; }
+.doc-party-info { font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 3px; }
+
+/* ── Tableau articles ──────────────────────────────── */
+.doc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+.doc-table th {
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 10px 12px;
+  text-align: left;
+}
+.doc-table th.right, .doc-table td.right { text-align: right; }
+.doc-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+.doc-table tr:last-child td { border-bottom: none; }
+.doc-table tr:nth-child(even) td { background: #fafbfc; }
+.doc-table .mono { font-family: var(--font-dm-mono, monospace); font-size: 12px; }
+
+/* ── Totaux ────────────────────────────────────────── */
+.doc-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+.doc-totals-box { min-width: 260px; }
+.doc-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 1px solid #f1f5f9;
+}
+.doc-total-row:last-child {
+  border-bottom: none;
+  font-size: 16px;
+  font-weight: 900;
+  color: #1a1a2e;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 2px solid #1a1a2e;
+}
+.doc-total-row .mono { font-family: var(--font-dm-mono, monospace); font-weight: 700; }
+
+/* ── Statut badge ──────────────────────────────────── */
+.doc-badge {
+  display:      inline-block;
+  padding:      3px 10px;
+  border-radius: 20px;
+  font-size:    11px;
+  font-weight:  700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.doc-badge-green  { background: #dcfce7; color: #166534; }
+.doc-badge-orange { background: #ffedd5; color: #9a3412; }
+.doc-badge-red    { background: #fee2e2; color: #991b1b; }
+.doc-badge-blue   { background: #dbeafe; color: #1d4ed8; }
+
+/* ── Infos grille ──────────────────────────────────── */
+.doc-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.doc-grid-2 { grid-template-columns: 1fr 1fr; }
+.doc-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.doc-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.doc-kpi {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.doc-kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 6px; }
+.doc-kpi-value { font-size: 20px; font-weight: 900; color: #1a1a2e; font-family: var(--font-dm-mono, monospace); }
+.doc-kpi-sub   { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+/* ── Note / footer ─────────────────────────────────── */
+.doc-note {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+.doc-footer {
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* ── Barre d'actions (non imprimée) ─────────────────── */
+.print-actions {
+  position:   fixed;
+  top:        0;
+  left:       0;
+  right:      0;
+  background: #1a1a2e;
+  padding:    10px 24px;
+  display:    flex;
+  align-items: center;
+  gap:        12px;
+  z-index:    100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.print-actions-spacer { flex: 1; }
+.btn-print {
+  background: #00d4ff;
+  color:      #000;
+  border:     none;
+  padding:    8px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size:   13px;
+  cursor:      pointer;
+  transition:  opacity 0.2s;
+}
+.btn-print:hover { opacity: 0.85; }
+.btn-close-print {
+  background: transparent;
+  color:      #94a3b8;
+  border:     1px solid #334155;
+  padding:    7px 16px;
+  border-radius: 8px;
+  font-size:   13px;
+  cursor:      pointer;
+}
+.print-page { margin-top: 52px; }
+
+/* ── @media print — supprime la barre d'actions ─────── */
+@media print {
+  .print-actions { display: none !important; }
+  .print-page    { margin-top: 0; padding: 20px; }
+  .print-body    { background: white !important; }
+
+  @page {
+    margin: 15mm 15mm;
+    size: A4 portrait;
+  }
+
+  .doc-table { page-break-inside: auto; }
+  .doc-table tr { page-break-inside: avoid; }
+}
+
+/* ══════════════════════════════════════════════════════
+   TICKET DE CAISSE — Imprimante thermique 80mm / 58mm
+   ══════════════════════════════════════════════════════ */
+
+/* ── Wrapper double ticket ── */
+.tickets-wrapper {
+  display:        flex;
+  flex-direction: row;
+  gap:            20px;
+  justify-content: center;
+  padding:        60px 20px 20px; /* espace pour la barre d'actions */
+  flex-wrap:      wrap;
+}
+
+/* ── Ticket individuel ── */
+.ticket {
+  width:      80mm;
+  min-width:  80mm;
+  max-width:  80mm;
+  font-family: "Courier New", Courier, monospace;
+  font-size:  11px;
+  color:      #000;
+  background: #fff;
+  padding:    6mm 4mm;
+  line-height: 1.5;
+  border:     1px dashed #ccc; /* aperçu seulement, masqué à l'impression */
+}
+
+/* ── Éléments ticket ── */
+.ticket-center  { text-align: center; }
+.ticket-bold    { font-weight: bold; }
+.ticket-small   { font-size: 10px; }
+.ticket-mono    { font-family: "Courier New", monospace; }
+
+.ticket-sep {
+  border:     none;
+  border-top: 1px dashed #555;
+  margin:     5px 0;
+}
+
+.ticket-row {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     baseline;
+  gap:             4px;
+}
+
+.ticket-articles-header {
+  display:         flex;
+  justify-content: space-between;
+  font-size:       9px;
+  font-weight:     bold;
+  text-transform:  uppercase;
+  letter-spacing:  0.5px;
+  margin-bottom:   3px;
+  border-bottom:   1px solid #000;
+  padding-bottom:  2px;
+}
+
+.ticket-article {
+  margin-bottom: 4px;
+}
+.ticket-article-nom {
+  font-weight:   bold;
+  font-size:     10.5px;
+  white-space:   normal;
+  word-break:    break-word;
+}
+
+.ticket-total {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     baseline;
+  font-size:       13px;
+  font-weight:     900;
+  margin-top:      4px;
+  border-top:      2px solid #000;
+  padding-top:     3px;
+}
+
+.ticket-copie {
+  text-align:  center;
+  font-size:   9px;
+  font-weight: bold;
+  margin-top:  8px;
+  letter-spacing: 0.5px;
+  opacity:     0.7;
+}
+
+/* ══ @media print — ticket thermique ══════════════════ */
+@media print {
+  /* Format papier ticket 80mm */
+  body {
+    margin:  0 !important;
+    padding: 0 !important;
+  }
+
+  .print-actions  { display: none !important; }
+
+  .tickets-wrapper {
+    display:        flex;
+    flex-direction: row;
+    flex-wrap:      nowrap;
+    gap:            0;
+    padding:        0;
+    justify-content: flex-start;
+  }
+
+  /* Chaque ticket occupe sa propre largeur */
+  .ticket {
+    border:     none !important;
+    padding:    3mm 2mm;
+    min-width:  0;
+    width:      50%;
+    box-sizing: border-box;
+  }
+
+  /* Séparateur entre les deux tickets */
+  .ticket:first-child {
+    border-right: 1px dashed #999 !important;
+  }
+
+  @page {
+    margin: 0;
+    size: 160mm auto; /* 2 × 80mm côte à côte, hauteur automatique */
+  }
+
+  /* Si imprimante 58mm : décommenter et commenter le bloc ci-dessus
+  @page {
+    margin: 0;
+    size: 116mm auto;
+  }
+  */
+}
