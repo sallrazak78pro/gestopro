@@ -6,8 +6,11 @@ import clsx from "clsx";
 // ── Types ─────────────────────────────────────────────────────
 interface CatalogItem { _id: string; valeur: string; icone: string; }
 
+interface ExistingProduct { nom: string; reference: string; }
+
 interface ProductRow {
   selected: boolean;
+  duplicate?: "nom" | "reference" | null;
   form: {
     reference: string;
     nom: string;
@@ -114,22 +117,28 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
   const [mapping, setMapping]     = useState<Partial<Record<FieldKey, string>>>({});
   const [products, setProducts]   = useState<ProductRow[]>([]);
   const [current, setCurrent]     = useState(0);
-  const [categories, setCategories] = useState<CatalogItem[]>([]);
-  const [unites, setUnites]         = useState<CatalogItem[]>([]);
-  const [results, setResults]       = useState<ImportResult[]>([]);
+  const [categories, setCategories]     = useState<CatalogItem[]>([]);
+  const [unites, setUnites]             = useState<CatalogItem[]>([]);
+  const [existingProducts, setExisting] = useState<ExistingProduct[]>([]);
+  const [results, setResults]           = useState<ImportResult[]>([]);
   const [importProgress, setImportProgress] = useState(0);
   const [dragOver, setDragOver]   = useState(false);
   const [parseError, setParseError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load categories & units once
+  // Load categories, units, and existing products once
   useEffect(() => {
     Promise.all([
       fetch("/api/categories").then(r => r.json()),
       fetch("/api/unites").then(r => r.json()),
-    ]).then(([cats, units]) => {
+      fetch("/api/produits").then(r => r.json()),
+    ]).then(([cats, units, prods]) => {
       if (cats.success)  setCategories(cats.data);
       if (units.success) setUnites(units.data);
+      if (prods.success) setExisting(prods.data.map((p: any) => ({
+        nom:       p.nom.trim().toLowerCase(),
+        reference: p.reference.trim().toLowerCase(),
+      })));
     });
   }, []);
 
@@ -175,20 +184,33 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
   }
 
   // ── Apply mapping → build product rows ───────────────────────
+  function checkDuplicate(nom: string, reference: string): "nom" | "reference" | null {
+    const n = nom.trim().toLowerCase();
+    const r = reference.trim().toLowerCase();
+    if (r && existingProducts.some(p => p.reference === r)) return "reference";
+    if (n && existingProducts.some(p => p.nom === n)) return "nom";
+    return null;
+  }
+
   function applyMapping() {
-    const rows: ProductRow[] = rawRows.map(row => ({
-      selected: true,
-      form: {
-        reference:   mapping.reference   ? String(row[mapping.reference]   || "") : "",
-        nom:         mapping.nom         ? String(row[mapping.nom]         || "") : "",
-        description: mapping.description ? String(row[mapping.description] || "") : "",
-        categorie:   mapping.categorie   ? String(row[mapping.categorie]   || "") : "",
-        unite:       mapping.unite       ? String(row[mapping.unite]       || "") : "",
-        prixAchat:   mapping.prixAchat   ? String(row[mapping.prixAchat]   || "0") : "0",
-        prixVente:   mapping.prixVente   ? String(row[mapping.prixVente]   || "0") : "0",
-        seuilAlerte: mapping.seuilAlerte ? String(row[mapping.seuilAlerte] || "5") : "5",
-      },
-    }));
+    const rows: ProductRow[] = rawRows.map(row => {
+      const nom       = mapping.nom       ? String(row[mapping.nom]       || "") : "";
+      const reference = mapping.reference ? String(row[mapping.reference] || "") : "";
+      return {
+        selected:  true,
+        duplicate: checkDuplicate(nom, reference),
+        form: {
+          reference,
+          nom,
+          description: mapping.description ? String(row[mapping.description] || "") : "",
+          categorie:   mapping.categorie   ? String(row[mapping.categorie]   || "") : "",
+          unite:       mapping.unite       ? String(row[mapping.unite]       || "") : "",
+          prixAchat:   mapping.prixAchat   ? String(row[mapping.prixAchat]   || "0") : "0",
+          prixVente:   mapping.prixVente   ? String(row[mapping.prixVente]   || "0") : "0",
+          seuilAlerte: mapping.seuilAlerte ? String(row[mapping.seuilAlerte] || "5") : "5",
+        },
+      };
+    });
     setProducts(rows);
     setCurrent(0);
     setStep("review");
@@ -196,10 +218,16 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
 
   // ── Update a field in current product ────────────────────────
   const setField = useCallback((key: keyof ProductRow["form"], value: string) => {
-    setProducts(prev => prev.map((p, i) =>
-      i === current ? { ...p, form: { ...p.form, [key]: value } } : p
-    ));
-  }, [current]);
+    setProducts(prev => prev.map((p, i) => {
+      if (i !== current) return p;
+      const updatedForm = { ...p.form, [key]: value };
+      const dup = (key === "nom" || key === "reference")
+        ? checkDuplicate(updatedForm.nom, updatedForm.reference)
+        : p.duplicate;
+      return { ...p, form: updatedForm, duplicate: dup };
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, existingProducts]);
 
   const toggleSelected = useCallback(() => {
     setProducts(prev => prev.map((p, i) =>
@@ -270,7 +298,8 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
     !p.form.prixVente && "Prix de vente requis",
   ].filter(Boolean) as string[] : [];
 
-  const selectedCount = products.filter(p => p.selected).length;
+  const selectedCount  = products.filter(p => p.selected).length;
+  const duplicateCount = products.filter(p => p.selected && p.duplicate).length;
   const marge    = parseFloat(p?.form.prixVente || "0") - parseFloat(p?.form.prixAchat || "0");
   const margePct = parseFloat(p?.form.prixAchat || "0") > 0
     ? ((marge / parseFloat(p.form.prixAchat)) * 100).toFixed(1) : "0";
@@ -287,7 +316,7 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
             <p className="text-[11px] font-mono text-muted mt-0.5">
               {step === "upload"    && "Sélectionnez un fichier .xlsx, .xls ou .csv"}
               {step === "mapping"   && `${rawRows.length} ligne${rawRows.length > 1 ? "s" : ""} détectée${rawRows.length > 1 ? "s" : ""} — associez les colonnes`}
-              {step === "review"    && `Revue produit ${current + 1}/${products.length} · ${selectedCount} sélectionné${selectedCount > 1 ? "s" : ""}`}
+              {step === "review"    && `Revue produit ${current + 1}/${products.length} · ${selectedCount} sélectionné${selectedCount > 1 ? "s" : ""}${duplicateCount > 0 ? ` · ⚠ ${duplicateCount} doublon${duplicateCount > 1 ? "s" : ""}` : ""}`}
               {step === "importing" && `Import en cours... ${importProgress}%`}
               {step === "done"      && `Import terminé · ${results.filter(r => r.success).length}/${results.length} réussi${results.filter(r => r.success).length > 1 ? "s" : ""}`}
             </p>
@@ -419,8 +448,9 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                       className={clsx(
                         "w-7 h-7 rounded-lg text-[10px] font-mono font-bold border transition-all",
                         i === current ? "bg-accent text-black border-accent"
-                        : prod.selected ? "bg-success/15 text-success border-success/30"
-                        : "bg-surface2 text-muted border-border line-through"
+                        : !prod.selected ? "bg-surface2 text-muted border-border line-through"
+                        : prod.duplicate ? "bg-warning/15 text-warning border-warning/30"
+                        : "bg-success/15 text-success border-success/30"
                       )}>
                       {i + 1}
                     </button>
@@ -431,14 +461,31 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                 </span>
               </div>
 
+              {/* Duplicate warning */}
+              {p.duplicate && p.selected && (
+                <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 text-warning text-xs px-3 py-2 rounded-xl">
+                  <span>⚠</span>
+                  <span>
+                    {p.duplicate === "reference"
+                      ? `Référence "${p.form.reference}" déjà existante`
+                      : `Produit "${p.form.nom}" déjà existant`
+                    }
+                    {" — "}modifiez les champs ou ignorez ce produit.
+                  </span>
+                </div>
+              )}
+
               {/* Include/skip toggle */}
-              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface2">
+              <div className={clsx(
+                "flex items-center justify-between p-3 rounded-xl border bg-surface2",
+                p.duplicate && p.selected ? "border-warning/40" : "border-border"
+              )}>
                 <div>
                   <p className="text-sm font-semibold">
                     {p.form.nom || `Produit ${current + 1}`}
                   </p>
                   <p className="text-[10px] font-mono text-muted mt-0.5">
-                    {p.selected ? "Sera importé" : "Ignoré"}
+                    {!p.selected ? "Ignoré" : p.duplicate ? "⚠ Doublon potentiel" : "Sera importé"}
                   </p>
                 </div>
                 <button type="button" onClick={toggleSelected}
