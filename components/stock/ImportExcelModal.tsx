@@ -196,9 +196,10 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
     const rows: ProductRow[] = rawRows.map(row => {
       const nom       = mapping.nom       ? String(row[mapping.nom]       || "") : "";
       const reference = mapping.reference ? String(row[mapping.reference] || "") : "";
+      const duplicate = checkDuplicate(nom, reference);
       return {
-        selected:  true,
-        duplicate: checkDuplicate(nom, reference),
+        selected:  !duplicate,   // doublons automatiquement exclus
+        duplicate,
         form: {
           reference,
           nom,
@@ -316,7 +317,7 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
             <p className="text-[11px] font-mono text-muted mt-0.5">
               {step === "upload"    && "Sélectionnez un fichier .xlsx, .xls ou .csv"}
               {step === "mapping"   && `${rawRows.length} ligne${rawRows.length > 1 ? "s" : ""} détectée${rawRows.length > 1 ? "s" : ""} — associez les colonnes`}
-              {step === "review"    && `Revue produit ${current + 1}/${products.length} · ${selectedCount} sélectionné${selectedCount > 1 ? "s" : ""}${duplicateCount > 0 ? ` · ⚠ ${duplicateCount} doublon${duplicateCount > 1 ? "s" : ""}` : ""}`}
+              {step === "review"    && `Revue produit ${current + 1}/${products.length} · ${selectedCount} à importer${duplicateCount > 0 ? ` · 🚫 ${duplicateCount} bloqué${duplicateCount > 1 ? "s" : ""}` : ""}`}
               {step === "importing" && `Import en cours... ${importProgress}%`}
               {step === "done"      && `Import terminé · ${results.filter(r => r.success).length}/${results.length} réussi${results.filter(r => r.success).length > 1 ? "s" : ""}`}
             </p>
@@ -448,8 +449,8 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                       className={clsx(
                         "w-7 h-7 rounded-lg text-[10px] font-mono font-bold border transition-all",
                         i === current ? "bg-accent text-black border-accent"
+                        : prod.duplicate ? "bg-danger/15 text-danger border-danger/30 line-through"
                         : !prod.selected ? "bg-surface2 text-muted border-border line-through"
-                        : prod.duplicate ? "bg-warning/15 text-warning border-warning/30"
                         : "bg-success/15 text-success border-success/30"
                       )}>
                       {i + 1}
@@ -461,31 +462,30 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                 </span>
               </div>
 
-              {/* Duplicate warning */}
-              {p.duplicate && p.selected && (
-                <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 text-warning text-xs px-3 py-2 rounded-xl">
-                  <span>⚠</span>
-                  <span>
-                    {p.duplicate === "reference"
-                      ? `Référence "${p.form.reference}" déjà existante`
-                      : `Produit "${p.form.nom}" déjà existant`
-                    }
-                    {" — "}modifiez les champs ou ignorez ce produit.
-                  </span>
+              {/* Doublon bloqué */}
+              {p.duplicate ? (
+                <div className="flex items-start gap-3 bg-danger/10 border border-danger/30 text-danger px-4 py-3 rounded-xl">
+                  <span className="text-lg shrink-0">🚫</span>
+                  <div>
+                    <p className="text-sm font-semibold">Produit déjà existant — import bloqué</p>
+                    <p className="text-xs font-mono mt-0.5 text-danger/80">
+                      {p.duplicate === "reference"
+                        ? `La référence "${p.form.reference}" existe déjà dans votre catalogue.`
+                        : `Un produit nommé "${p.form.nom}" existe déjà dans votre catalogue.`
+                      }
+                    </p>
+                  </div>
                 </div>
-              )}
-
+              ) : (
+              <>
               {/* Include/skip toggle */}
-              <div className={clsx(
-                "flex items-center justify-between p-3 rounded-xl border bg-surface2",
-                p.duplicate && p.selected ? "border-warning/40" : "border-border"
-              )}>
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface2">
                 <div>
                   <p className="text-sm font-semibold">
                     {p.form.nom || `Produit ${current + 1}`}
                   </p>
                   <p className="text-[10px] font-mono text-muted mt-0.5">
-                    {!p.selected ? "Ignoré" : p.duplicate ? "⚠ Doublon potentiel" : "Sera importé"}
+                    {p.selected ? "Sera importé" : "Ignoré"}
                   </p>
                 </div>
                 <button type="button" onClick={toggleSelected}
@@ -498,8 +498,10 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                   {p.selected ? "✓ Sélectionné" : "○ Ignoré"}
                 </button>
               </div>
+              </>
+              )}
 
-              {p.selected && (
+              {!p.duplicate && p.selected && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -579,7 +581,7 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                 </div>
               )}
             </div>
-          )}
+          )}  {/* fin step review */}
 
           {/* ── STEP 4: Importing ───────────────────────────── */}
           {step === "importing" && (
