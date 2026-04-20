@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import ProduitModal from "@/components/stock/ProduitModal";
+import ImportExcelModal from "@/components/stock/ImportExcelModal";
 import ExportButton from "@/components/ui/ExportButton";
 import AjustementModal from "@/components/stock/AjustementModal";
 import clsx from "clsx";
@@ -26,6 +27,7 @@ export default function StockPage() {
   const [filtreAlerte, setFiltreAlerte] = useState(false);
   const [filtreCat, setFiltreCat] = useState("");
   const [showProduitModal, setShowProduitModal] = useState(false);
+  const [showImportModal, setShowImportModal]   = useState(false);
   const [ajustement, setAjustement] = useState<{ produit: StockRow; boutique: Boutique } | null>(null);
 
   const fetchStock = useCallback(async () => {
@@ -105,6 +107,9 @@ export default function StockPage() {
             {/* Nouveau produit */}
             <PrintButton href="/print/stock" label="🖨️ État stocks" />
             <ExportButton type="stock" />
+            <button className="btn-ghost btn-sm" onClick={() => setShowImportModal(true)}>
+              📥 Import Excel
+            </button>
             <button className="btn-primary btn-sm" onClick={() => setShowProduitModal(true)}>
               + Produit
             </button>
@@ -236,6 +241,12 @@ export default function StockPage() {
         <ProduitModal
           onClose={() => setShowProduitModal(false)}
           onSaved={() => { setShowProduitModal(false); fetchStock(); }}
+        />
+      )}
+      {showImportModal && (
+        <ImportExcelModal
+          onClose={() => setShowImportModal(false)}
+          onSaved={() => { setShowImportModal(false); fetchStock(); }}
         />
       )}
       {ajustement && (

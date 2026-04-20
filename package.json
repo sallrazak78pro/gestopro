@@ -11,28 +11,29 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "mongoose": "^8.9.0",
     "next": "15.5.15",
+    "next-auth": "^4.24.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "mongoose": "^8.9.0",
-    "next-auth": "^4.24.11",
-    "bcryptjs": "^2.4.3",
     "recharts": "^2.15.0",
-    "lucide-react": "^0.468.0",
-    "clsx": "^2.1.1",
-    "cloudinary": "^2.5.1"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.10",
     "@types/react": "^18.3.14",
     "@types/react-dom": "^18.3.5",
-    "@types/bcryptjs": "^2.4.6",
-    "tailwindcss": "^3.4.17",
-    "postcss": "^8.5.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.0.0",
-    "eslint-config-next": "15.5.15"
+    "eslint-config-next": "15.5.15",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
   },
   "overrides": {
     "glob": "^11.0.0",
