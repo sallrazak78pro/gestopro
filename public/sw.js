@@ -1,6 +1,6 @@
 // public/sw.js — GestoPro Service Worker v2.0 (Offline + Background Sync)
 
-const CACHE_NAME  = "gestopro-v2";
+const CACHE_NAME  = "gestopro-v3";
 const OFFLINE_URL = "/offline";
 const API_PREFIX  = "/api/";
 
@@ -44,7 +44,8 @@ self.addEventListener("fetch", event => {
       fetch(request)
         .then(res => {
           if (res.ok) {
-            caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(request, clone));
           }
           return res;
         })
@@ -65,7 +66,10 @@ self.addEventListener("fetch", event => {
       url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(request).then(cached => cached ?? fetch(request).then(res => {
-        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(request, clone));
+        }
         return res;
       }))
     );
@@ -76,7 +80,10 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     fetch(request)
       .then(res => {
-        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(request, clone));
+        }
         return res;
       })
       .catch(async () => {
