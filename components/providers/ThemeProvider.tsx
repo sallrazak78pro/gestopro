@@ -5,17 +5,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light";
 const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({
-  theme: "dark", toggle: () => {},
+  theme: "light", toggle: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
-  // Lecture initiale (localStorage ou préférence système)
+  // Lecture initiale — défaut : clair
   useEffect(() => {
     const saved = localStorage.getItem("gestopro-theme") as Theme | null;
-    const preferred = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-    const initial = saved ?? preferred;
+    const initial = saved ?? "light";
     setTheme(initial);
     applyTheme(initial);
   }, []);

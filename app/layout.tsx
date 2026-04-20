@@ -72,10 +72,11 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){
             try {
-              var t = localStorage.getItem('gestopro-theme');
-              if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+              var t = localStorage.getItem('gestopro-theme') || 'light';
               if (t === 'light') document.documentElement.classList.add('light');
-            } catch(e) {}
+            } catch(e) {
+              document.documentElement.classList.add('light');
+            }
           })();
         `}} />
       </head>
