@@ -28,6 +28,7 @@ export default function StockPage() {
   const [filtreCat, setFiltreCat] = useState("");
   const [showProduitModal, setShowProduitModal] = useState(false);
   const [showImportModal, setShowImportModal]   = useState(false);
+  const [editProduit, setEditProduit]           = useState<any>(null);
   const [ajustement, setAjustement] = useState<{ produit: StockRow; boutique: Boutique } | null>(null);
 
   const fetchStock = useCallback(async () => {
@@ -214,7 +215,14 @@ export default function StockPage() {
                       )}
                     </td>
                     <td>
-                      <button className="btn-ghost btn-sm">✏️</button>
+                      <button
+                        className="btn-ghost btn-sm"
+                        onClick={async () => {
+                          const res  = await fetch(`/api/produits/${row._id}`);
+                          const json = await res.json();
+                          if (json.success) setEditProduit(json.data.produit ?? json.data);
+                        }}
+                      >✏️</button>
                     </td>
                   </tr>
                 ))}
@@ -241,6 +249,13 @@ export default function StockPage() {
         <ProduitModal
           onClose={() => setShowProduitModal(false)}
           onSaved={() => { setShowProduitModal(false); fetchStock(); }}
+        />
+      )}
+      {editProduit && (
+        <ProduitModal
+          produit={editProduit}
+          onClose={() => setEditProduit(null)}
+          onSaved={() => { setEditProduit(null); fetchStock(); }}
         />
       )}
       {showImportModal && (
