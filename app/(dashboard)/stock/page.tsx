@@ -29,6 +29,9 @@ export default function StockPage() {
   const [showProduitModal, setShowProduitModal] = useState(false);
   const [showImportModal, setShowImportModal]   = useState(false);
   const [editProduit, setEditProduit]           = useState<any>(null);
+  const [editingId, setEditingId]               = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete]       = useState<StockRow | null>(null);
+  const [deleting, setDeleting]                 = useState(false);
   const [ajustement, setAjustement] = useState<{ produit: StockRow; boutique: Boutique } | null>(null);
 
   const fetchStock = useCallback(async () => {
@@ -215,14 +218,29 @@ export default function StockPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className="btn-ghost btn-sm"
-                        onClick={async () => {
-                          const res  = await fetch(`/api/produits/${row._id}`);
-                          const json = await res.json();
-                          if (json.success) setEditProduit(json.data.produit ?? json.data);
-                        }}
-                      >✏️</button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="btn-ghost btn-sm"
+                          disabled={editingId === row._id}
+                          title="Modifier le produit"
+                          onClick={async () => {
+                            setEditingId(row._id);
+                            const res  = await fetch(`/api/produits/${row._id}`);
+                            const json = await res.json();
+                            setEditingId(null);
+                            if (json.success) setEditProduit(json.data.produit ?? json.data);
+                          }}
+                        >
+                          {editingId === row._id
+                            ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            : "✏️"}
+                        </button>
+                        <button
+                          className="btn-ghost btn-sm text-danger/70 hover:text-danger"
+                          title="Supprimer le produit"
+                          onClick={() => setConfirmDelete(row)}
+                        >🗑️</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -263,6 +281,46 @@ export default function StockPage() {
           onClose={() => setShowImportModal(false)}
           onSaved={() => { setShowImportModal(false); fetchStock(); }}
         />
+      )}
+
+      {/* Confirmation suppression */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+          <div className="card w-full max-w-sm p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center text-lg shrink-0">🗑️</div>
+              <div>
+                <h3 className="font-bold text-sm" style={{ color: "var(--color-fg)" }}>Supprimer le produit ?</h3>
+                <p className="text-xs text-muted mt-0.5">Cette action est irréversible.</p>
+              </div>
+            </div>
+            <div className="bg-surface2 rounded-xl px-4 py-3 text-sm">
+              <p className="font-semibold">{confirmDelete.nom}</p>
+              <p className="font-mono text-xs text-accent mt-0.5">{confirmDelete.reference}</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="btn-ghost btn-sm"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+              >Annuler</button>
+              <button
+                className="btn-sm bg-danger/90 hover:bg-danger text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-60"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await fetch(`/api/produits/${confirmDelete._id}`, { method: "DELETE" });
+                  setDeleting(false);
+                  setConfirmDelete(null);
+                  fetchStock();
+                }}
+              >
+                {deleting ? "Suppression..." : "Oui, supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {ajustement && (
         <AjustementModal
