@@ -215,7 +215,7 @@ export default function StockPage() {
                         onClick={async () => {
                           const res = await fetch(`/api/produits/${row._id}`);
                           const json = await res.json();
-                          if (json.success) setEditProduit(json.data);
+                          if (json.success) setEditProduit(json.data.produit ?? json.data);
                         }}
                       >✏️</button>
                     </td>
