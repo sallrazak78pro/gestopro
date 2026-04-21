@@ -10,6 +10,7 @@ import clsx from "clsx";
 const NAV = [
   { href: "/admin",             icon: "⚡", label: "Dashboard" },
   { href: "/admin/entreprises", icon: "🏢", label: "Entreprises" },
+  { href: "/admin/erreurs",     icon: "🐛", label: "Erreurs signalées" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

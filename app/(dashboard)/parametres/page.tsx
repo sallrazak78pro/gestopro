@@ -16,7 +16,7 @@ const PAYS = [
   { code: "AU", nom: "Autre" },
 ];
 
-type Tab = "entreprise" | "securite" | "plan";
+type Tab = "entreprise" | "securite" | "plan" | "signaler";
 
 export default function ParametresPage() {
   const { data: session } = useSession();
@@ -39,6 +39,10 @@ export default function ParametresPage() {
   // Sécurité form
   const [secForm, setSecForm] = useState({ ancienPassword: "", nouveauPassword: "", confirmer: "" });
   const [showPwd, setShowPwd] = useState(false);
+
+  // Signaler un problème
+  const [sigForm, setSigForm] = useState({ type: "bug", description: "" });
+  const [sigSaving, setSigSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/parametres")
@@ -99,10 +103,34 @@ export default function ParametresPage() {
     } else flash(json.message, true);
   }
 
+  async function signalerProbleme(e: React.FormEvent) {
+    e.preventDefault();
+    if (!sigForm.description.trim()) return;
+    setSigSaving(true);
+    const res = await fetch("/api/erreurs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: sigForm.type,
+        description: sigForm.description,
+        page: typeof window !== "undefined" ? window.location.pathname : "/parametres",
+      }),
+    });
+    const json = await res.json();
+    setSigSaving(false);
+    if (json.success) {
+      flash("Problème signalé avec succès. Merci !");
+      setSigForm({ type: "bug", description: "" });
+    } else {
+      flash(json.message || "Erreur lors de l'envoi.", true);
+    }
+  }
+
   const TABS: { id: Tab; icon: string; label: string }[] = [
     { id: "entreprise", icon: "🏢", label: "Mon entreprise" },
     { id: "securite",   icon: "🔒", label: "Sécurité" },
     { id: "plan",       icon: "📋", label: "Mon plan" },
+    { id: "signaler",   icon: "🐛", label: "Signaler un problème" },
   ];
 
   if (loading) return (
@@ -350,6 +378,81 @@ export default function ParametresPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ── TAB : SIGNALER UN PROBLÈME ─────────────────── */}
+      {tab === "signaler" && (
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Signaler un problème</h2>
+              <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
+                Votre retour aide à améliorer l'application
+              </p>
+            </div>
+            <span className="text-2xl">🐛</span>
+          </div>
+          <form onSubmit={signalerProbleme} className="p-6 space-y-5">
+            <div>
+              <label className="input-label">Type de problème *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+                {[
+                  { value: "bug",       icon: "🐛", label: "Bug" },
+                  { value: "donnees",   icon: "📊", label: "Données incorrectes" },
+                  { value: "affichage", icon: "🖥️", label: "Affichage" },
+                  { value: "autre",     icon: "💬", label: "Autre" },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSigForm(f => ({ ...f, type: opt.value }))}
+                    className={clsx(
+                      "flex flex-col items-center gap-2 p-3 rounded-2xl border-2 text-sm font-semibold transition-all",
+                      sigForm.type === opt.value
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border bg-surface2 text-muted hover:border-border2 hover:text-fg"
+                    )}
+                  >
+                    <span className="text-xl">{opt.icon}</span>
+                    <span className="text-xs text-center leading-tight">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="input-label">Description du problème *</label>
+              <textarea
+                className="input min-h-[120px] resize-y"
+                placeholder="Décrivez le problème en détail : ce que vous faisiez, ce qui s'est passé, ce que vous attendiez..."
+                value={sigForm.description}
+                onChange={e => setSigForm(f => ({ ...f, description: e.target.value }))}
+                required
+                minLength={10}
+              />
+              <p className="text-[11px] font-mono text-muted mt-1">
+                Minimum 10 caractères · {sigForm.description.length} saisi{sigForm.description.length > 1 ? "s" : ""}
+              </p>
+            </div>
+
+            <div className="bg-surface2 rounded-2xl p-4 text-xs font-mono text-muted space-y-1">
+              <p className="font-semibold text-muted2">ℹ Informations envoyées automatiquement :</p>
+              <p>· Votre nom et rôle</p>
+              <p>· La page où vous vous trouvez</p>
+              <p>· La date et l'heure</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={sigSaving || sigForm.description.trim().length < 10}
+                className="btn-primary disabled:opacity-50"
+              >
+                {sigSaving ? "Envoi en cours..." : "📨 Envoyer le signalement"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
