@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
+import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { randomUUID } from "crypto";
 
