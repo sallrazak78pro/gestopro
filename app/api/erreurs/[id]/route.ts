@@ -5,8 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import ErreurSignalee from "@/lib/models/ErreurSignalee";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ success: false, message: "Non authentifié" }, { status: 401 });
 
@@ -22,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.adminNote !== undefined) update.adminNote = body.adminNote;
 
     const erreur = await ErreurSignalee.findByIdAndUpdate(
-      params.id,
+      id,
       { $set: update },
       { new: true }
     ).lean();
