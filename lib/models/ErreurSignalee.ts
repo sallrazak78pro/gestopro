@@ -1,5 +1,5 @@
 // lib/models/ErreurSignalee.ts
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IErreurSignalee extends Document {
   tenantId?:  mongoose.Types.ObjectId;
@@ -32,5 +32,8 @@ const schema = new Schema<IErreurSignalee>(
   { timestamps: true }
 );
 
-export default mongoose.models.ErreurSignalee ||
+const ErreurSignalee: Model<IErreurSignalee> =
+  mongoose.models.ErreurSignalee ||
   mongoose.model<IErreurSignalee>("ErreurSignalee", schema);
+
+export default ErreurSignalee;
