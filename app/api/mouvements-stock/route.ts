@@ -3,24 +3,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import Produit from "@/lib/models/Produit";
 import Tenant from "@/lib/models/Tenant";
+import { getTenantContext } from "@/lib/utils/tenant";
+import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
     await connectDB();
-    // Vérifier si les mouvements sont activés
+
     const tenant = await Tenant.findById(ctx.tenantId).lean() as any;
-    if (tenant && tenant.mouvementsActifs === false) {
-      return NextResponse.json({ success: false, message: "Mouvements de marchandise désactivés." }, { status: 403 });
-    }
+    if (tenant?.mouvementsActifs === false)
+      return NextResponse.json({ success: false, message: "Mouvements désactivés." }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const query: any = { tenantId: ctx.tenantId };
-    if (searchParams.get("type"))        query.type        = searchParams.get("type");
-    if (searchParams.get("statut"))      query.statut      = searchParams.get("statut");
+
+    if (searchParams.get("boutique")) query.boutique = searchParams.get("boutique");
+    if (searchParams.get("type"))     query.type     = searchParams.get("type");
+
+    // Date filter
     const dateDebut = searchParams.get("dateDebut");
     const dateFin   = searchParams.get("dateFin");
     if (dateDebut || dateFin) {
@@ -29,20 +33,8 @@ export async function GET(req: NextRequest) {
       if (dateFin)   { const fin = new Date(dateFin); fin.setHours(23, 59, 59, 999); query.createdAt.$lte = fin; }
     }
 
-    // Filtre boutique (source OU destination) + restriction de rôle combinés avec $and si besoin
-    const boutiqueFiltreId = searchParams.get("boutique");
-    const boutiqueRoleId   = ctx.boutiqueAssignee;
-
-    if (boutiqueFiltreId && boutiqueRoleId) {
-      query.$and = [
-        { $or: [{ source: boutiqueFiltreId  }, { destination: boutiqueFiltreId  }] },
-        { $or: [{ source: boutiqueRoleId    }, { destination: boutiqueRoleId    }] },
-      ];
-    } else if (boutiqueFiltreId) {
-      query.$or = [{ source: boutiqueFiltreId }, { destination: boutiqueFiltreId }];
-    } else if (boutiqueRoleId) {
-      query.$or = [{ source: boutiqueRoleId   }, { destination: boutiqueRoleId   }];
-    }
+    // Restrict caissier to their boutique
+    if (ctx.boutiqueAssignee) query.boutique = ctx.boutiqueAssignee;
 
     const page  = parseInt(searchParams.get("page")  || "1");
     const limit = parseInt(searchParams.get("limit") || "25");
@@ -50,38 +42,35 @@ export async function GET(req: NextRequest) {
 
     const [mouvements, total, statsAgg] = await Promise.all([
       MouvementStock.find(query)
-        .populate("produit",     "nom reference unite prixAchat")
-        .populate("source",      "nom type")
-        .populate("destination", "nom type")
-        .populate("createdBy",   "nom")
+        .populate("boutique", "nom type")
+        .populate("produit",  "nom reference unite prixAchat")
+        .populate("createdBy","nom")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
       MouvementStock.countDocuments(query),
       MouvementStock.aggregate([
         { $match: query },
-        { $lookup: { from: "produits", localField: "produit", foreignField: "_id", as: "_p" } },
-        { $addFields: { _prix: { $ifNull: [{ $arrayElemAt: ["$_p.prixAchat", 0] }, 0] } } },
         { $group: {
-          _id:          null,
-          nbEnTransit:  { $sum: { $cond: [{ $eq: ["$statut", "en_cours"] }, 1, 0] } },
-          nbEntrees:    { $sum: { $cond: [{ $eq: ["$type", "entree_fournisseur"] }, 1, 0] } },
-          totalUnites:  { $sum: "$quantite" },
-          totalMontant: { $sum: { $multiply: ["$quantite", "$_prix"] } },
+          _id:            "$type",
+          count:          { $sum: 1 },
+          totalQuantite:  { $sum: "$quantite" },
+          totalMontant:   { $sum: "$montant" },
         }},
       ]),
     ]);
 
-    const s = statsAgg[0] ?? { nbEnTransit: 0, nbEntrees: 0, totalUnites: 0, totalMontant: 0 };
+    const entrees = statsAgg.find((s: any) => s._id === "entree") ?? { count: 0, totalQuantite: 0, totalMontant: 0 };
+    const sorties = statsAgg.find((s: any) => s._id === "sortie") ?? { count: 0, totalQuantite: 0, totalMontant: 0 };
+
     return NextResponse.json({
-      success: true, data: mouvements,
+      success: true,
+      data: mouvements,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: {
-        total:        total,
-        nbEnTransit:  s.nbEnTransit,
-        nbEntrees:    s.nbEntrees,
-        totalUnites:  s.totalUnites,
-        totalMontant: s.totalMontant,
+        entrees: { count: entrees.count, totalQuantite: entrees.totalQuantite, totalMontant: entrees.totalMontant },
+        sorties: { count: sorties.count, totalQuantite: sorties.totalQuantite, totalMontant: sorties.totalMontant },
+        balance: entrees.totalMontant - sorties.totalMontant,
       },
     });
   } catch (err: any) {
@@ -97,58 +86,92 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
 
     await connectDB();
-    const { type, produitId, sourceId, destinationId, quantite, motif } = await req.json();
-    if (!produitId || !quantite || quantite < 0)
-      return NextResponse.json({ success: false, message: "Données invalides" }, { status: 400 });
+    const body = await req.json();
+    const { type, boutiqueId, produitId, quantite, motif, boutiqueDestId } = body;
 
-    // Vérifier l'accès aux boutiques concernées
-    if (sourceId && !canAccessBoutique(ctx, sourceId))
-      return NextResponse.json({ success: false, message: "Accès refusé à la boutique source." }, { status: 403 });
-    if (destinationId && !canAccessBoutique(ctx, destinationId))
-      return NextResponse.json({ success: false, message: "Accès refusé à la boutique destination." }, { status: 403 });
+    if (!type || !boutiqueId || !produitId || !quantite || quantite <= 0)
+      return NextResponse.json({ success: false, message: "Données manquantes" }, { status: 400 });
 
-    if (sourceId) {
-      const stockSource = await Stock.findOne({ produit: produitId, boutique: sourceId, tenantId: ctx.tenantId });
-      if (!stockSource || stockSource.quantite < quantite)
+    // Fetch product price
+    const produit = await Produit.findOne({ _id: produitId, tenantId: ctx.tenantId }).lean() as any;
+    if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
+
+    const prixUnitaire = produit.prixAchat ?? 0;
+    const montant      = quantite * prixUnitaire;
+
+    // For sortie: check stock availability
+    if (type === "sortie") {
+      const stock = await Stock.findOne({ produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId });
+      if (!stock || stock.quantite < quantite)
         return NextResponse.json({
           success: false,
-          message: `Stock insuffisant à la source (disponible : ${stockSource?.quantite ?? 0})`,
+          message: `Stock insuffisant (disponible : ${stock?.quantite ?? 0})`,
         }, { status: 400 });
     }
 
-    const count     = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
-    const reference = `MV-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    // Reference counter
+    const count = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
+    const makeRef = (n: number) => `MV-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
 
-    const mouvement = await MouvementStock.create({
-      tenantId: ctx.tenantId, reference, type,
-      produit: produitId, source: sourceId || null,
-      destination: destinationId || null, quantite,
-      motif: motif || "", statut: "en_cours", createdBy: ctx.userId,
+    // Is this a transfer? (sortie + boutiqueDestId)
+    const isTransfer = type === "sortie" && !!boutiqueDestId;
+    const transfertRef = isTransfer ? randomUUID() : undefined;
+
+    // Create the primary movement
+    const mvt = await MouvementStock.create({
+      tenantId: ctx.tenantId,
+      reference: makeRef(count + 1),
+      boutique: boutiqueId,
+      type,
+      produit: produitId,
+      quantite,
+      prixUnitaire,
+      montant,
+      motif: motif || "",
+      transfertRef: transfertRef ?? null,
+      createdBy: ctx.userId,
     });
 
-    if (sourceId)
+    // Update stock for primary boutique
+    if (type === "entree") {
       await Stock.findOneAndUpdate(
-        { produit: produitId, boutique: sourceId, tenantId: ctx.tenantId },
-        { $inc: { quantite: -quantite } }
-      );
-
-    if (destinationId) {
-      await Stock.findOneAndUpdate(
-        { produit: produitId, boutique: destinationId, tenantId: ctx.tenantId },
+        { produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
         { $inc: { quantite: +quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
         { upsert: true }
       );
-      mouvement.statut = "livre"; await mouvement.save();
+    } else {
+      await Stock.findOneAndUpdate(
+        { produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
+        { $inc: { quantite: -quantite } }
+      );
     }
 
-    if (["sortie_perte", "entree_fournisseur"].includes(type)) {
-      mouvement.statut = "livre"; await mouvement.save();
+    // For transfers: create the paired entree movement
+    if (isTransfer) {
+      const count2 = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
+      await MouvementStock.create({
+        tenantId: ctx.tenantId,
+        reference: makeRef(count2 + 1),
+        boutique: boutiqueDestId,
+        type: "entree",
+        produit: produitId,
+        quantite,
+        prixUnitaire,
+        montant,
+        motif: motif || "",
+        transfertRef,
+        createdBy: ctx.userId,
+      });
+      await Stock.findOneAndUpdate(
+        { produit: produitId, boutique: boutiqueDestId, tenantId: ctx.tenantId },
+        { $inc: { quantite: +quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
+        { upsert: true }
+      );
     }
 
-    const populated = await MouvementStock.findById(mouvement._id)
-      .populate("produit", "nom reference")
-      .populate("source", "nom type")
-      .populate("destination", "nom type");
+    const populated = await MouvementStock.findById(mvt._id)
+      .populate("boutique", "nom type")
+      .populate("produit",  "nom reference unite");
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {
