@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       MouvementStock.find(query)
         .populate("boutique",        "nom type")
         .populate("lignes.produit",  "nom reference unite prixAchat")
+        .populate("produit",         "nom reference unite prixAchat")  // rétrocompat ancien schéma
         .populate("createdBy",       "nom")
         .sort({ createdAt: -1 })
         .skip(skip)

@@ -73,6 +73,7 @@ export default function MouvementsPage() {
     return (
       m.reference?.toLowerCase().includes(q) ||
       m.boutique?.nom?.toLowerCase().includes(q) ||
+      m.produit?.nom?.toLowerCase().includes(q) ||          // fallback ancien schéma
       m.lignes?.some((l: any) => l.produit?.nom?.toLowerCase().includes(q))
     );
   });
@@ -247,7 +248,12 @@ export default function MouvementsPage() {
               </thead>
               <tbody>
                 {filtered.map(m => {
-                  const lignes: any[] = m.lignes ?? [];
+                  // Rétrocompat : anciens docs sans lignes[] mais avec produit top-level
+                  const lignes: any[] = (m.lignes && m.lignes.length > 0)
+                    ? m.lignes
+                    : m.produit
+                      ? [{ produit: m.produit, quantite: m.quantite, prixUnitaire: m.prixUnitaire, montant: m.montant }]
+                      : [];
                   const isOpen        = !!expanded[m._id];
                   const showToggle    = lignes.length > 1;
 
