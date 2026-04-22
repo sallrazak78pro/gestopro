@@ -41,6 +41,11 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "25");
     const skip  = (page - 1) * limit;
 
+    // La query stats ignore le filtre "type" → les KPIs montrent toujours
+    // entrées ET sorties pour la période/boutique sélectionnée.
+    const statsQuery: any = { ...query };
+    delete statsQuery.type;
+
     const [mouvements, total, statsAgg] = await Promise.all([
       MouvementStock.find(query)
         .populate("boutique",        "nom type")
@@ -50,12 +55,14 @@ export async function GET(req: NextRequest) {
         .skip(skip)
         .limit(limit),
       MouvementStock.countDocuments(query),
+      // $sum: { $sum: "$lignes.montant" } recalcule depuis les lignes réelles,
+      // ce qui fonctionne même si le champ montant top-level est mal typé en DB.
       MouvementStock.aggregate([
-        { $match: query },
+        { $match: statsQuery },
         { $group: {
           _id:          "$type",
           count:        { $sum: 1 },
-          totalMontant: { $sum: "$montant" },
+          totalMontant: { $sum: { $sum: "$lignes.montant" } },
         }},
       ]),
     ]);

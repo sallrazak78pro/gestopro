@@ -317,11 +317,19 @@ export default function MouvementsPage() {
                         )}
                       </td>
 
-                      {/* Montant total */}
+                      {/* Montant total — calculé depuis les lignes si montant top-level est 0 */}
                       <td className="text-right">
-                        <span className="font-mono font-bold text-sm">
-                          {m.montant > 0 ? `${fmt(m.montant)} F` : "—"}
-                        </span>
+                        {(() => {
+                          const montantLignes = lignes.reduce(
+                            (s: number, l: any) => s + (l.quantite ?? 0) * (l.produit?.prixAchat ?? l.prixUnitaire ?? 0), 0
+                          );
+                          const montantAff = m.montant > 0 ? m.montant : montantLignes;
+                          return (
+                            <span className="font-mono font-bold text-sm">
+                              {montantAff > 0 ? `${fmt(montantAff)} F` : "—"}
+                            </span>
+                          );
+                        })()}
                         {lignes.length > 1 && (
                           <p className="text-[10px] font-mono text-muted">{lignes.length} lignes</p>
                         )}
