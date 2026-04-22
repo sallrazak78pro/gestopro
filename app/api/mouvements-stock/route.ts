@@ -19,8 +19,17 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const query: any = { tenantId: ctx.tenantId };
-    if (searchParams.get("type"))   query.type   = searchParams.get("type");
-    if (searchParams.get("statut")) query.statut = searchParams.get("statut");
+    if (searchParams.get("type"))        query.type        = searchParams.get("type");
+    if (searchParams.get("statut"))      query.statut      = searchParams.get("statut");
+    if (searchParams.get("destination")) query.destination = searchParams.get("destination");
+
+    const dateDebut = searchParams.get("dateDebut");
+    const dateFin   = searchParams.get("dateFin");
+    if (dateDebut || dateFin) {
+      query.createdAt = {};
+      if (dateDebut) query.createdAt.$gte = new Date(dateDebut);
+      if (dateFin)   { const fin = new Date(dateFin); fin.setHours(23, 59, 59, 999); query.createdAt.$lte = fin; }
+    }
 
     // Restriction boutique : ne voir que les mouvements qui impliquent sa boutique
     if (ctx.boutiqueAssignee) {
@@ -36,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     const [mouvements, total] = await Promise.all([
       MouvementStock.find(query)
-        .populate("produit",     "nom reference unite")
+        .populate("produit",     "nom reference unite prixAchat")
         .populate("source",      "nom type")
         .populate("destination", "nom type")
         .populate("createdBy",   "nom")

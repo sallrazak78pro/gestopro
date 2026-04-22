@@ -22,36 +22,54 @@ const STATUT_CONFIG: Record<string, { label: string; badge: string }> = {
   annule:   { label: "Annulé",    badge: "badge-red" },
 };
 
+function defaultDebut() {
+  const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+}
+function defaultFin() {
+  return new Date().toISOString().split("T")[0];
+}
+
 export default function MouvementsPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role ?? "";
   const peutAnnuler = ["admin", "superadmin", "gestionnaire"].includes(role);
 
   const [mouvements, setMouvements] = useState<any[]>([]);
+  const [boutiques, setBoutiques]   = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const LIMIT = 25;
   const [stats, setStats] = useState({ nbAujourdhui: 0, nbEnTransit: 0, nbEntrees: 0, totalUnites: 0 });
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [filtreType, setFiltreType] = useState("");
-  const [filtreStatut, setFiltreStatut] = useState("");
+  const [filtreType,        setFiltreType]        = useState("");
+  const [filtreStatut,      setFiltreStatut]      = useState("");
+  const [filtreDestination, setFiltreDestination] = useState("");
+  const [dateDebut,         setDateDebut]         = useState(defaultDebut);
+  const [dateFin,           setDateFin]           = useState(defaultFin);
   const [search, setSearch] = useState("");
   const [annulLoading, setAnnulLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/boutiques").then(r => r.json()).then(j => { if (j.success) setBoutiques(j.data); });
+  }, []);
 
   const fetchMouvements = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
-    if (filtreType)   params.set("type",   filtreType);
-    if (filtreStatut) params.set("statut", filtreStatut);
+    if (filtreType)        params.set("type",        filtreType);
+    if (filtreStatut)      params.set("statut",      filtreStatut);
+    if (filtreDestination) params.set("destination", filtreDestination);
+    if (dateDebut)         params.set("dateDebut",   dateDebut);
+    if (dateFin)           params.set("dateFin",     dateFin);
     const res  = await fetch(`/api/mouvements-stock?${params}`);
     const json = await res.json();
     if (json.success) { setMouvements(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
     setLoading(false);
-  }, [filtreType, filtreStatut, page]);
+  }, [filtreType, filtreStatut, filtreDestination, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchMouvements(); }, [fetchMouvements]);
-  useEffect(() => { setPage(1); }, [filtreType, filtreStatut]);
+  useEffect(() => { setPage(1); }, [filtreType, filtreStatut, filtreDestination, dateDebut, dateFin]);
 
   const filtered = mouvements.filter(m =>
     m.reference?.toLowerCase().includes(search.toLowerCase()) ||
@@ -59,6 +77,8 @@ export default function MouvementsPage() {
     m.source?.nom?.toLowerCase().includes(search.toLowerCase()) ||
     m.destination?.nom?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalMontant = filtered.reduce((s, m) => s + (m.quantite * (m.produit?.prixAchat ?? 0)), 0);
 
   async function annuler(id: string) {
     if (!confirm("Annuler ce mouvement ? Le stock sera remis en place.")) return;
@@ -91,9 +111,23 @@ export default function MouvementsPage() {
               Tous les déplacements de marchandise
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input className="input w-44" placeholder="🔍  Réf., produit, lieu..."
+          <button className="btn-primary btn-sm ml-auto" onClick={() => setShowModal(true)}>
+            + Nouveau mouvement
+          </button>
+        </div>
+
+        {/* ── Filtres ─────────────────────────────────────────── */}
+        <div className="px-5 py-4 border-b border-border bg-surface2/30 flex flex-wrap gap-3 items-end">
+          {/* Recherche */}
+          <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Recherche</label>
+            <input className="input" placeholder="Réf., produit, lieu..."
               value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+
+          {/* Type */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Type</label>
             <select className="select w-44" value={filtreType} onChange={e => setFiltreType(e.target.value)}>
               <option value="">Tous les types</option>
               <option value="depot_vers_boutique">Dépôt → Boutique</option>
@@ -101,16 +135,51 @@ export default function MouvementsPage() {
               <option value="entree_fournisseur">Entrée fournisseur</option>
               <option value="sortie_perte">Sortie / Perte</option>
             </select>
+          </div>
+
+          {/* Destination */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Destination</label>
+            <select className="select w-44" value={filtreDestination} onChange={e => setFiltreDestination(e.target.value)}>
+              <option value="">Toutes destinations</option>
+              {boutiques.map(b => (
+                <option key={b._id} value={b._id}>{b.nom}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Statut */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Statut</label>
             <select className="select w-36" value={filtreStatut} onChange={e => setFiltreStatut(e.target.value)}>
               <option value="">Tous statuts</option>
               <option value="en_cours">En cours</option>
               <option value="livre">Livré</option>
               <option value="annule">Annulé</option>
             </select>
-            <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>
-              + Nouveau mouvement
-            </button>
           </div>
+
+          {/* Période */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Du</label>
+            <input type="date" className="input w-38"
+              value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Au</label>
+            <input type="date" className="input w-38"
+              value={dateFin} onChange={e => setDateFin(e.target.value)} />
+          </div>
+
+          {/* Reset */}
+          <button
+            className="btn-ghost btn-sm self-end"
+            onClick={() => {
+              setFiltreType(""); setFiltreStatut(""); setFiltreDestination("");
+              setDateDebut(defaultDebut()); setDateFin(defaultFin()); setSearch("");
+            }}
+            title="Réinitialiser les filtres"
+          >↺ Reset</button>
         </div>
 
         <div className="table-wrapper">
@@ -141,6 +210,7 @@ export default function MouvementsPage() {
                   <th>De</th>
                   <th>Vers</th>
                   <th>Qté</th>
+                  <th>Montant</th>
                   <th>Statut</th>
                   <th>Actions</th>
                 </tr>
@@ -187,6 +257,11 @@ export default function MouvementsPage() {
                         <span className="font-mono font-bold text-lg text-accent">{m.quantite}</span>
                         <span className="text-[10px] text-muted block font-mono">{m.produit?.unite}</span>
                       </td>
+                      <td>
+                        {m.produit?.prixAchat
+                          ? <span className="font-mono font-semibold text-sm">{fmt(m.quantite * m.produit.prixAchat)} F</span>
+                          : <span className="text-muted font-mono text-xs">—</span>}
+                      </td>
                       <td><span className={sc?.badge}>{sc?.label}</span></td>
                       <td>
                         {m.statut !== "annule" && peutAnnuler && (
@@ -208,10 +283,16 @@ export default function MouvementsPage() {
         </div>
 
         {!loading && filtered.length > 0 && (
-          <div className="px-5 py-3 border-t border-border flex items-center justify-between">
-            <p className="text-xs font-mono text-muted">
-              {filtered.length} mouvement{filtered.length > 1 ? "s" : ""}
-            </p>
+          <div className="px-5 py-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-6">
+              <p className="text-xs font-mono text-muted">
+                {filtered.length} mouvement{filtered.length > 1 ? "s" : ""} affichés
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted uppercase tracking-wider">Montant total :</span>
+                <span className="font-mono font-bold text-accent">{fmt(totalMontant)} F</span>
+              </div>
+            </div>
             <button onClick={fetchMouvements} className="btn-ghost btn-sm">🔄 Actualiser</button>
           </div>
         )}
