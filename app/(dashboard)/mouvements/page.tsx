@@ -38,6 +38,8 @@ export default function MouvementsPage() {
   const [search,         setSearch]         = useState("");
   const [confirmDel,     setConfirmDel]     = useState<string | null>(null);
   const [deleting,       setDeleting]       = useState(false);
+  const [migrating,      setMigrating]      = useState(false);
+  const [migrateMsg,     setMigrateMsg]     = useState("");
   const LIMIT = 25;
 
   useEffect(() => {
@@ -67,6 +69,15 @@ export default function MouvementsPage() {
     m.boutique?.nom?.toLowerCase().includes(search.toLowerCase())
   );
 
+  async function migrer() {
+    setMigrating(true); setMigrateMsg("");
+    const res  = await fetch("/api/mouvements-stock/migrate", { method: "POST" });
+    const json = await res.json();
+    setMigrating(false);
+    setMigrateMsg(json.message ?? (json.success ? "OK" : "Erreur"));
+    if (json.success) fetchMouvements();
+  }
+
   async function supprimer(id: string) {
     setDeleting(true);
     await fetch(`/api/mouvements-stock/${id}`, { method: "DELETE" });
@@ -79,6 +90,21 @@ export default function MouvementsPage() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── Bandeau migration ancien schéma ──────────────────── */}
+      {["admin","superadmin"].includes(role) && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl px-5 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-warning text-sm">⚠</span>
+          <p className="text-sm text-warning flex-1">
+            Des mouvements créés avec l'ancien schéma peuvent manquer de boutique et de montant.
+          </p>
+          {migrateMsg && <span className="text-xs font-mono text-success">{migrateMsg}</span>}
+          <button onClick={migrer} disabled={migrating}
+            className="btn-sm bg-warning/20 hover:bg-warning/30 text-warning font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-50 text-xs">
+            {migrating ? "Migration en cours..." : "🔄 Migrer les anciens mouvements"}
+          </button>
+        </div>
+      )}
 
       {/* ── KPIs ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
