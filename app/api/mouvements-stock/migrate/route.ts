@@ -1,5 +1,6 @@
 // app/api/mouvements-stock/migrate/route.ts
-// Migre les anciens mouvements (schéma source/destination) vers le nouveau (boutique)
+// Migre les anciens mouvements (schéma produit/quantite/prixUnitaire mono-produit)
+// vers le nouveau schéma multi-produits (lignes: []).
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
@@ -17,9 +18,8 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    // Trouver tous les anciens documents qui ont source/destination (ancien schéma)
-    // On les détecte par l'absence du champ "boutique" ou par la présence de "statut" (ancien champ)
-    const anciens = await (MouvementStock as any).collection.find({
+    // ── Cas 1 : ancien schéma source/destination (très ancien) ──────────
+    const vieux = await (MouvementStock as any).collection.find({
       tenantId: ctx.tenantId,
       $or: [
         { boutique: { $exists: false } },
@@ -27,88 +27,108 @@ export async function POST(req: NextRequest) {
       ],
     }).toArray();
 
-    if (anciens.length === 0)
-      return NextResponse.json({ success: true, message: "Aucun ancien mouvement à migrer.", migrated: 0 });
+    // ── Cas 2 : nouveau schéma boutique mais encore mono-produit (pas de lignes[]) ──
+    const monoProduit = await (MouvementStock as any).collection.find({
+      tenantId: ctx.tenantId,
+      boutique: { $exists: true },
+      produit:  { $exists: true },   // champ mono-produit présent
+      lignes:   { $exists: false },  // mais pas encore migré en lignes
+    }).toArray();
 
-    const mongoose = (await import("mongoose")).default;
+    const total = vieux.length + monoProduit.length;
+    if (total === 0)
+      return NextResponse.json({ success: true, message: "Aucun document à migrer.", migrated: 0 });
+
+    const year    = new Date().getFullYear();
+    const makeRef = async (tenantId: any) => {
+      const n = await MouvementStock.countDocuments({ tenantId });
+      return `MV-${year}-${String(n + 1).padStart(4, "0")}`;
+    };
+
     let migrated = 0;
     let deleted  = 0;
 
-    for (const old of anciens) {
-      // Récupérer le prix d'achat du produit
-      const produit = await Produit.findById(old.produit).lean() as any;
-      const prixUnitaire = produit?.prixAchat ?? 0;
+    // ── Migrer les très anciens (source/destination) ─────────────────────
+    for (const old of vieux) {
+      const produitDoc = await Produit.findById(old.produit).lean() as any;
+      const prixUnitaire = produitDoc?.prixAchat ?? 0;
       const quantite     = old.quantite ?? 0;
       const montant      = quantite * prixUnitaire;
-      const createdBy    = old.createdBy;
-      const tenantId     = old.tenantId;
-      const produitId    = old.produit;
-      const motif        = old.motif || "";
-      const createdAt    = old.createdAt;
       const transfertRef = (old.source && old.destination) ? randomUUID() : null;
 
-      // Supprimer l'ancien document
       await (MouvementStock as any).collection.deleteOne({ _id: old._id });
       deleted++;
 
-      // Créer le(s) nouveau(x) document(s)
-      const makeRef = async () => {
-        const count = await MouvementStock.countDocuments({ tenantId });
-        return `MV-${new Date(createdAt).getFullYear()}-${String(count + 1).padStart(4, "0")}`;
-      };
+      const ligne = { produit: old.produit, quantite, prixUnitaire, montant };
 
-      if (old.type === "entree_fournisseur") {
-        // entree dans destination
-        if (old.destination) {
-          await MouvementStock.create({
-            tenantId, reference: await makeRef(),
-            boutique: old.destination, type: "entree",
-            produit: produitId, quantite, prixUnitaire, montant,
-            motif: motif || "Réception fournisseur (migré)",
-            transfertRef: null, createdBy, createdAt,
-          });
-          migrated++;
-        }
-      } else if (old.type === "sortie_perte") {
-        // sortie depuis source
-        if (old.source) {
-          await MouvementStock.create({
-            tenantId, reference: await makeRef(),
-            boutique: old.source, type: "sortie",
-            produit: produitId, quantite, prixUnitaire, montant,
-            motif: motif || "Sortie/Perte (migré)",
-            transfertRef: null, createdBy, createdAt,
-          });
-          migrated++;
-        }
+      if (old.type === "entree_fournisseur" && old.destination) {
+        await MouvementStock.create({
+          tenantId: old.tenantId, reference: await makeRef(old.tenantId),
+          boutique: old.destination, type: "entree",
+          lignes: [ligne], montant,
+          motif: old.motif || "Réception fournisseur (migré)",
+          transfertRef: null, createdBy: old.createdBy, createdAt: old.createdAt,
+        });
+        migrated++;
+      } else if (old.type === "sortie_perte" && old.source) {
+        await MouvementStock.create({
+          tenantId: old.tenantId, reference: await makeRef(old.tenantId),
+          boutique: old.source, type: "sortie",
+          lignes: [ligne], montant,
+          motif: old.motif || "Sortie/Perte (migré)",
+          transfertRef: null, createdBy: old.createdBy, createdAt: old.createdAt,
+        });
+        migrated++;
       } else {
-        // depot_vers_boutique ou boutique_vers_boutique → 2 mouvements liés
         if (old.source) {
           await MouvementStock.create({
-            tenantId, reference: await makeRef(),
+            tenantId: old.tenantId, reference: await makeRef(old.tenantId),
             boutique: old.source, type: "sortie",
-            produit: produitId, quantite, prixUnitaire, montant,
-            motif: motif || "Transfert (migré)",
-            transfertRef, createdBy, createdAt,
+            lignes: [ligne], montant,
+            motif: old.motif || "Transfert (migré)",
+            transfertRef, createdBy: old.createdBy, createdAt: old.createdAt,
           });
           migrated++;
         }
         if (old.destination) {
           await MouvementStock.create({
-            tenantId, reference: await makeRef(),
+            tenantId: old.tenantId, reference: await makeRef(old.tenantId),
             boutique: old.destination, type: "entree",
-            produit: produitId, quantite, prixUnitaire, montant,
-            motif: motif || "Transfert (migré)",
-            transfertRef, createdBy, createdAt,
+            lignes: [ligne], montant,
+            motif: old.motif || "Transfert (migré)",
+            transfertRef, createdBy: old.createdBy, createdAt: old.createdAt,
           });
           migrated++;
         }
       }
     }
 
+    // ── Migrer les mono-produits (boutique OK mais pas de lignes[]) ───────
+    for (const old of monoProduit) {
+      const prixUnitaire = old.prixUnitaire ?? 0;
+      const quantite     = old.quantite ?? 0;
+      const montant      = old.montant ?? quantite * prixUnitaire;
+
+      const ligne = {
+        produit:      old.produit,
+        quantite,
+        prixUnitaire,
+        montant,
+      };
+
+      await (MouvementStock as any).collection.updateOne(
+        { _id: old._id },
+        {
+          $set:   { lignes: [ligne], montant },
+          $unset: { produit: "", quantite: "", prixUnitaire: "" },
+        }
+      );
+      migrated++;
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Migration terminée : ${deleted} ancien(s) supprimé(s), ${migrated} nouveau(x) créé(s).`,
+      message: `Migration terminée : ${deleted} ancien(s) reconverti(s), ${migrated} document(s) mis à jour.`,
       deleted,
       migrated,
     });

@@ -43,9 +43,9 @@ export async function GET(req: NextRequest) {
 
     const [mouvements, total, statsAgg] = await Promise.all([
       MouvementStock.find(query)
-        .populate("boutique", "nom type")
-        .populate("produit",  "nom reference unite prixAchat")
-        .populate("createdBy","nom")
+        .populate("boutique",        "nom type")
+        .populate("lignes.produit",  "nom reference unite prixAchat")
+        .populate("createdBy",       "nom")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -53,24 +53,23 @@ export async function GET(req: NextRequest) {
       MouvementStock.aggregate([
         { $match: query },
         { $group: {
-          _id:            "$type",
-          count:          { $sum: 1 },
-          totalQuantite:  { $sum: "$quantite" },
-          totalMontant:   { $sum: "$montant" },
+          _id:          "$type",
+          count:        { $sum: 1 },
+          totalMontant: { $sum: "$montant" },
         }},
       ]),
     ]);
 
-    const entrees = statsAgg.find((s: any) => s._id === "entree") ?? { count: 0, totalQuantite: 0, totalMontant: 0 };
-    const sorties = statsAgg.find((s: any) => s._id === "sortie") ?? { count: 0, totalQuantite: 0, totalMontant: 0 };
+    const entrees = statsAgg.find((s: any) => s._id === "entree") ?? { count: 0, totalMontant: 0 };
+    const sorties = statsAgg.find((s: any) => s._id === "sortie") ?? { count: 0, totalMontant: 0 };
 
     return NextResponse.json({
       success: true,
       data: mouvements,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: {
-        entrees: { count: entrees.count, totalQuantite: entrees.totalQuantite, totalMontant: entrees.totalMontant },
-        sorties: { count: sorties.count, totalQuantite: sorties.totalQuantite, totalMontant: sorties.totalMontant },
+        entrees: { count: entrees.count, totalMontant: entrees.totalMontant },
+        sorties: { count: sorties.count, totalMontant: sorties.totalMontant },
         balance: entrees.totalMontant - sorties.totalMontant,
       },
     });
@@ -79,6 +78,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ── POST ─────────────────────────────────────────────────────────────────────
+// Body: { sourceId, destId, lignes: [{ produitId, quantite }], motif }
+//   sourceId = null  → réception fournisseur (pas de boutique source)
+//   destId   = null  → perte / casse (pas de boutique dest)
+//   both set         → transfert entre boutiques (2 docs liés par transfertRef)
 export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
@@ -88,91 +92,110 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const body = await req.json();
-    const { type, boutiqueId, produitId, quantite, motif, boutiqueDestId } = body;
+    const { sourceId, destId, lignes, motif } = body;
 
-    if (!type || !boutiqueId || !produitId || !quantite || quantite <= 0)
-      return NextResponse.json({ success: false, message: "Données manquantes" }, { status: 400 });
-
-    // Fetch product price
-    const produit = await Produit.findOne({ _id: produitId, tenantId: ctx.tenantId }).lean() as any;
-    if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
-
-    const prixUnitaire = produit.prixAchat ?? 0;
-    const montant      = quantite * prixUnitaire;
-
-    // For sortie: check stock availability
-    if (type === "sortie") {
-      const stock = await Stock.findOne({ produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId });
-      if (!stock || stock.quantite < quantite)
-        return NextResponse.json({
-          success: false,
-          message: `Stock insuffisant (disponible : ${stock?.quantite ?? 0})`,
-        }, { status: 400 });
+    // ── Validation ────────────────────────────────────────────────────────
+    if (!lignes || !Array.isArray(lignes) || lignes.length === 0)
+      return NextResponse.json({ success: false, message: "Au moins une ligne produit est requise." }, { status: 400 });
+    if (!sourceId && !destId)
+      return NextResponse.json({ success: false, message: "Au moins une boutique (source ou destination) est requise." }, { status: 400 });
+    for (const l of lignes) {
+      if (!l.produitId || !l.quantite || l.quantite <= 0)
+        return NextResponse.json({ success: false, message: "Chaque ligne doit avoir un produit et une quantité > 0." }, { status: 400 });
     }
 
-    // Reference counter
-    const count = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
-    const makeRef = (n: number) => `MV-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
-
-    // Is this a transfer? (sortie + boutiqueDestId)
-    const isTransfer = type === "sortie" && !!boutiqueDestId;
-    const transfertRef = isTransfer ? randomUUID() : undefined;
-
-    // Create the primary movement
-    const mvt = await MouvementStock.create({
-      tenantId: ctx.tenantId,
-      reference: makeRef(count + 1),
-      boutique: boutiqueId,
-      type,
-      produit: produitId,
-      quantite,
-      prixUnitaire,
-      montant,
-      motif: motif || "",
-      transfertRef: transfertRef ?? null,
-      createdBy: ctx.userId,
-    });
-
-    // Update stock for primary boutique
-    if (type === "entree") {
-      await Stock.findOneAndUpdate(
-        { produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
-        { $inc: { quantite: +quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
-        { upsert: true }
-      );
-    } else {
-      await Stock.findOneAndUpdate(
-        { produit: produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
-        { $inc: { quantite: -quantite } }
-      );
+    // ── Résoudre prix d'achat pour chaque ligne ───────────────────────────
+    const lignesResolues: { produitId: string; quantite: number; prixUnitaire: number; montant: number }[] = [];
+    for (const l of lignes) {
+      const produit = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId }).lean() as any;
+      if (!produit)
+        return NextResponse.json({ success: false, message: `Produit introuvable : ${l.produitId}` }, { status: 404 });
+      const prixUnitaire = produit.prixAchat ?? 0;
+      lignesResolues.push({ produitId: l.produitId, quantite: l.quantite, prixUnitaire, montant: l.quantite * prixUnitaire });
     }
 
-    // For transfers: create the paired entree movement
-    if (isTransfer) {
-      const count2 = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
-      await MouvementStock.create({
-        tenantId: ctx.tenantId,
-        reference: makeRef(count2 + 1),
-        boutique: boutiqueDestId,
-        type: "entree",
-        produit: produitId,
-        quantite,
-        prixUnitaire,
-        montant,
-        motif: motif || "",
+    // ── Vérification stock source (si boutique réelle) ─────────────────
+    if (sourceId) {
+      for (const l of lignesResolues) {
+        const stock = await Stock.findOne({ produit: l.produitId, boutique: sourceId, tenantId: ctx.tenantId });
+        if (!stock || stock.quantite < l.quantite) {
+          const produit = await Produit.findById(l.produitId).lean() as any;
+          return NextResponse.json({
+            success: false,
+            message: `Stock insuffisant pour « ${produit?.nom ?? l.produitId} » (disponible : ${stock?.quantite ?? 0})`,
+          }, { status: 400 });
+        }
+      }
+    }
+
+    const montantTotal  = lignesResolues.reduce((s, l) => s + l.montant, 0);
+    const isTransfer    = !!sourceId && !!destId;
+    const transfertRef  = isTransfer ? randomUUID() : null;
+    const year          = new Date().getFullYear();
+
+    const makeRef = async () => {
+      const n = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
+      return `MV-${year}-${String(n + 1).padStart(4, "0")}`;
+    };
+
+    const buildLignes = () => lignesResolues.map(l => ({
+      produit:      l.produitId,
+      quantite:     l.quantite,
+      prixUnitaire: l.prixUnitaire,
+      montant:      l.montant,
+    }));
+
+    let firstMvt: any = null;
+
+    // ── Jambe SORTIE (si source boutique) ────────────────────────────────
+    if (sourceId) {
+      firstMvt = await MouvementStock.create({
+        tenantId:    ctx.tenantId,
+        reference:   await makeRef(),
+        boutique:    sourceId,
+        type:        "sortie",
+        lignes:      buildLignes(),
+        montant:     montantTotal,
+        motif:       motif || (isTransfer ? "Transfert" : "Sortie / Perte"),
         transfertRef,
-        createdBy: ctx.userId,
+        createdBy:   ctx.userId,
       });
-      await Stock.findOneAndUpdate(
-        { produit: produitId, boutique: boutiqueDestId, tenantId: ctx.tenantId },
-        { $inc: { quantite: +quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
-        { upsert: true }
-      );
+      // Décrémenter le stock pour chaque ligne
+      for (const l of lignesResolues) {
+        await Stock.findOneAndUpdate(
+          { produit: l.produitId, boutique: sourceId, tenantId: ctx.tenantId },
+          { $inc: { quantite: -l.quantite } }
+        );
+      }
     }
 
-    const populated = await MouvementStock.findById(mvt._id)
-      .populate("boutique", "nom type")
-      .populate("produit",  "nom reference unite");
+    // ── Jambe ENTREE (si dest boutique) ──────────────────────────────────
+    if (destId) {
+      const entree = await MouvementStock.create({
+        tenantId:    ctx.tenantId,
+        reference:   await makeRef(),
+        boutique:    destId,
+        type:        "entree",
+        lignes:      buildLignes(),
+        montant:     montantTotal,
+        motif:       motif || (isTransfer ? "Transfert" : "Réception fournisseur"),
+        transfertRef,
+        createdBy:   ctx.userId,
+      });
+      // Incrémenter le stock pour chaque ligne
+      for (const l of lignesResolues) {
+        await Stock.findOneAndUpdate(
+          { produit: l.produitId, boutique: destId, tenantId: ctx.tenantId },
+          { $inc: { quantite: +l.quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
+          { upsert: true }
+        );
+      }
+      if (!firstMvt) firstMvt = entree;
+    }
+
+    const populated = await MouvementStock.findById(firstMvt._id)
+      .populate("boutique",       "nom type")
+      .populate("lignes.produit", "nom reference unite");
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {

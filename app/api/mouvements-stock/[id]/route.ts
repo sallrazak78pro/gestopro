@@ -13,9 +13,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error) return error;
     await connectDB();
     const m = await MouvementStock.findOne({ _id: id, tenantId: ctx.tenantId })
-      .populate("boutique", "nom type")
-      .populate("produit",  "nom reference unite prixAchat")
-      .populate("createdBy","nom");
+      .populate("boutique",       "nom type")
+      .populate("lignes.produit", "nom reference unite prixAchat")
+      .populate("createdBy",      "nom");
     if (!m) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
     return NextResponse.json({ success: true, data: m });
   } catch (err: any) {
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-// DELETE — annule le mouvement en inversant le stock
+// DELETE — annule le mouvement en inversant le stock pour toutes les lignes
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -36,14 +36,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const m = await MouvementStock.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!m) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
 
-    // Reverse stock
-    const delta = m.type === "entree" ? -m.quantite : +m.quantite;
-    await Stock.findOneAndUpdate(
-      { produit: m.produit, boutique: m.boutique, tenantId: ctx.tenantId },
-      { $inc: { quantite: delta } }
-    );
+    // Inverser le stock pour chaque ligne
+    for (const ligne of m.lignes) {
+      const delta = m.type === "entree" ? -ligne.quantite : +ligne.quantite;
+      await Stock.findOneAndUpdate(
+        { produit: ligne.produit, boutique: m.boutique, tenantId: ctx.tenantId },
+        { $inc: { quantite: delta } }
+      );
+    }
 
-    // If part of a transfer, also reverse the paired movement
+    // Si c'est un transfert, inverser aussi la jambe liée
     if (m.transfertRef) {
       const paired = await MouvementStock.findOne({
         transfertRef: m.transfertRef,
@@ -51,11 +53,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         tenantId: ctx.tenantId,
       });
       if (paired) {
-        const deltaP = paired.type === "entree" ? -paired.quantite : +paired.quantite;
-        await Stock.findOneAndUpdate(
-          { produit: paired.produit, boutique: paired.boutique, tenantId: ctx.tenantId },
-          { $inc: { quantite: deltaP } }
-        );
+        for (const ligne of paired.lignes) {
+          const deltaP = paired.type === "entree" ? -ligne.quantite : +ligne.quantite;
+          await Stock.findOneAndUpdate(
+            { produit: ligne.produit, boutique: paired.boutique, tenantId: ctx.tenantId },
+            { $inc: { quantite: deltaP } }
+          );
+        }
         await paired.deleteOne();
       }
     }
