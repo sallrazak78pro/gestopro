@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "25");
     const skip  = (page - 1) * limit;
 
-    const [mouvements, total] = await Promise.all([
+    const [mouvements, total, statsAgg] = await Promise.all([
       MouvementStock.find(query)
         .populate("produit",     "nom reference unite prixAchat")
         .populate("source",      "nom type")
@@ -58,17 +58,30 @@ export async function GET(req: NextRequest) {
         .skip(skip)
         .limit(limit),
       MouvementStock.countDocuments(query),
+      MouvementStock.aggregate([
+        { $match: query },
+        { $lookup: { from: "produits", localField: "produit", foreignField: "_id", as: "_p" } },
+        { $addFields: { _prix: { $ifNull: [{ $arrayElemAt: ["$_p.prixAchat", 0] }, 0] } } },
+        { $group: {
+          _id:          null,
+          nbEnTransit:  { $sum: { $cond: [{ $eq: ["$statut", "en_cours"] }, 1, 0] } },
+          nbEntrees:    { $sum: { $cond: [{ $eq: ["$type", "entree_fournisseur"] }, 1, 0] } },
+          totalUnites:  { $sum: "$quantite" },
+          totalMontant: { $sum: { $multiply: ["$quantite", "$_prix"] } },
+        }},
+      ]),
     ]);
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const s = statsAgg[0] ?? { nbEnTransit: 0, nbEntrees: 0, totalUnites: 0, totalMontant: 0 };
     return NextResponse.json({
       success: true, data: mouvements,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: {
-        nbAujourdhui: mouvements.filter(m => new Date(m.createdAt) >= today).length,
-        nbEnTransit:  mouvements.filter(m => m.statut === "en_cours").length,
-        nbEntrees:    mouvements.filter(m => m.type === "entree_fournisseur").length,
-        totalUnites:  mouvements.reduce((s, m) => s + m.quantite, 0),
+        total:        total,
+        nbEnTransit:  s.nbEnTransit,
+        nbEntrees:    s.nbEntrees,
+        totalUnites:  s.totalUnites,
+        totalMontant: s.totalMontant,
       },
     });
   } catch (err: any) {
