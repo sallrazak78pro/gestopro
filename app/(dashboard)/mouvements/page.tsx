@@ -44,7 +44,7 @@ export default function MouvementsPage() {
   const [showModal, setShowModal] = useState(false);
   const [filtreType,        setFiltreType]        = useState("");
   const [filtreStatut,      setFiltreStatut]      = useState("");
-  const [filtreDestination, setFiltreDestination] = useState("");
+  const [filtreBoutique,    setFiltreBoutique]    = useState("");
   const [dateDebut,         setDateDebut]         = useState(defaultDebut);
   const [dateFin,           setDateFin]           = useState(defaultFin);
   const [search, setSearch] = useState("");
@@ -57,19 +57,19 @@ export default function MouvementsPage() {
   const fetchMouvements = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
-    if (filtreType)        params.set("type",        filtreType);
-    if (filtreStatut)      params.set("statut",      filtreStatut);
-    if (filtreDestination) params.set("destination", filtreDestination);
+    if (filtreType)     params.set("type",     filtreType);
+    if (filtreStatut)   params.set("statut",   filtreStatut);
+    if (filtreBoutique) params.set("boutique", filtreBoutique);
     if (dateDebut)         params.set("dateDebut",   dateDebut);
     if (dateFin)           params.set("dateFin",     dateFin);
     const res  = await fetch(`/api/mouvements-stock?${params}`);
     const json = await res.json();
     if (json.success) { setMouvements(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
     setLoading(false);
-  }, [filtreType, filtreStatut, filtreDestination, dateDebut, dateFin, page]);
+  }, [filtreType, filtreStatut, filtreBoutique, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchMouvements(); }, [fetchMouvements]);
-  useEffect(() => { setPage(1); }, [filtreType, filtreStatut, filtreDestination, dateDebut, dateFin]);
+  useEffect(() => { setPage(1); }, [filtreType, filtreStatut, filtreBoutique, dateDebut, dateFin]);
 
   const filtered = mouvements.filter(m =>
     m.reference?.toLowerCase().includes(search.toLowerCase()) ||
@@ -137,11 +137,11 @@ export default function MouvementsPage() {
             </select>
           </div>
 
-          {/* Destination */}
+          {/* Boutique (source ou destination) */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Destination</label>
-            <select className="select w-44" value={filtreDestination} onChange={e => setFiltreDestination(e.target.value)}>
-              <option value="">Toutes destinations</option>
+            <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Boutique</label>
+            <select className="select w-44" value={filtreBoutique} onChange={e => setFiltreBoutique(e.target.value)}>
+              <option value="">Toutes boutiques</option>
               {boutiques.map(b => (
                 <option key={b._id} value={b._id}>{b.nom}</option>
               ))}
@@ -175,7 +175,7 @@ export default function MouvementsPage() {
           <button
             className="btn-ghost btn-sm self-end"
             onClick={() => {
-              setFiltreType(""); setFiltreStatut(""); setFiltreDestination("");
+              setFiltreType(""); setFiltreStatut(""); setFiltreBoutique("");
               setDateDebut(defaultDebut()); setDateFin(defaultFin()); setSearch("");
             }}
             title="Réinitialiser les filtres"

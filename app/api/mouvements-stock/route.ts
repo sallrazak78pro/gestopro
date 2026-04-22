@@ -21,8 +21,6 @@ export async function GET(req: NextRequest) {
     const query: any = { tenantId: ctx.tenantId };
     if (searchParams.get("type"))        query.type        = searchParams.get("type");
     if (searchParams.get("statut"))      query.statut      = searchParams.get("statut");
-    if (searchParams.get("destination")) query.destination = searchParams.get("destination");
-
     const dateDebut = searchParams.get("dateDebut");
     const dateFin   = searchParams.get("dateFin");
     if (dateDebut || dateFin) {
@@ -31,12 +29,19 @@ export async function GET(req: NextRequest) {
       if (dateFin)   { const fin = new Date(dateFin); fin.setHours(23, 59, 59, 999); query.createdAt.$lte = fin; }
     }
 
-    // Restriction boutique : ne voir que les mouvements qui impliquent sa boutique
-    if (ctx.boutiqueAssignee) {
-      query.$or = [
-        { source: ctx.boutiqueAssignee },
-        { destination: ctx.boutiqueAssignee },
+    // Filtre boutique (source OU destination) + restriction de rôle combinés avec $and si besoin
+    const boutiqueFiltreId = searchParams.get("boutique");
+    const boutiqueRoleId   = ctx.boutiqueAssignee;
+
+    if (boutiqueFiltreId && boutiqueRoleId) {
+      query.$and = [
+        { $or: [{ source: boutiqueFiltreId  }, { destination: boutiqueFiltreId  }] },
+        { $or: [{ source: boutiqueRoleId    }, { destination: boutiqueRoleId    }] },
       ];
+    } else if (boutiqueFiltreId) {
+      query.$or = [{ source: boutiqueFiltreId }, { destination: boutiqueFiltreId }];
+    } else if (boutiqueRoleId) {
+      query.$or = [{ source: boutiqueRoleId   }, { destination: boutiqueRoleId   }];
     }
 
     const page  = parseInt(searchParams.get("page")  || "1");
