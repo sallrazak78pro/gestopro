@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
-import Boutique from "@/lib/models/Boutique";
+import "@/lib/models/Boutique"; // enregistre le schéma Mongoose pour .populate()
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { randomUUID } from "crypto";

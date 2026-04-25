@@ -1,6 +1,6 @@
 // components/mouvements/NouveauMouvementModal.tsx
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import clsx from "clsx";
 
 interface Boutique { _id: string; nom: string; type: string; }
