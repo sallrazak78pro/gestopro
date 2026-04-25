@@ -1,7 +1,7 @@
 // lib/offline/sync.ts
 // Moteur de synchronisation — envoie les opérations en attente au serveur
 
-import { getPendingOps, updateOp, deleteOp, PendingOp } from "./db";
+import { getPendingOps, updateOp, deleteOp } from "./db";
 
 export type SyncResult = {
   synced:  number;

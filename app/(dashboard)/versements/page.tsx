@@ -264,7 +264,7 @@ export default function VersementsPage() {
             <form onSubmit={handleCreate}>
               <div className="modal-body space-y-4">
                 <div className="bg-accent/5 border border-accent/20 rounded-xl px-4 py-3 text-xs font-mono text-muted leading-relaxed">
-                  💡 Ce versement sera soumis à la validation de l'administrateur avant d'être comptabilisé.
+                  💡 Ce versement sera soumis à la validation de l&apos;administrateur avant d&apos;être comptabilisé.
                 </div>
 
                 {/* Boutique (admin seulement) */}

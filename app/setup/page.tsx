@@ -96,7 +96,7 @@ export default function SetupPage() {
               </h2>
               <p className="text-sm text-muted leading-relaxed">
                 Ce compte gère uniquement la plateforme — activation des entreprises clientes, statistiques globales.
-                Il n'a accès à aucune donnée d'entreprise.
+                Il n&apos;a accès à aucune donnée d&apos;entreprise.
               </p>
             </div>
 
@@ -104,7 +104,7 @@ export default function SetupPage() {
             <div className="mb-6 bg-accent/5 border border-accent/20 rounded-xl px-4 py-3 flex gap-3">
               <span className="text-lg shrink-0">ℹ️</span>
               <div className="text-xs font-mono text-muted leading-relaxed">
-                Chaque entreprise créera son propre compte admin via la page d'inscription.
+                Chaque entreprise créera son propre compte admin via la page d&apos;inscription.
                 Le Super Admin ne gère que les accès et abonnements.
               </div>
             </div>

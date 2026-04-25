@@ -32,6 +32,7 @@ export default function ProfilPage() {
       setNom(parts.slice(1).join(" ") ?? "");
       setTelephone(user.telephone ?? "");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.name]);
 
   async function saveProfil(e: React.FormEvent) {
@@ -130,7 +131,7 @@ export default function ProfilPage() {
           <div>
             <label className="input-label">Email</label>
             <input className="input opacity-60 cursor-not-allowed" value={user?.email ?? ""} readOnly disabled />
-            <p className="text-[10px] font-mono text-muted mt-1">L'email ne peut pas être modifié.</p>
+            <p className="text-[10px] font-mono text-muted mt-1">L&apos;email ne peut pas être modifié.</p>
           </div>
 
           {msg && (

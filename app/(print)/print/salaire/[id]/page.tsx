@@ -51,7 +51,7 @@ export default function PrintSalairePage() {
           <div className="doc-meta">
             <strong>BULLETIN DE SALAIRE</strong>
             Période : {periode}<br/>
-            Date d'émission : {new Date(salaire.createdAt).toLocaleDateString("fr-FR")}<br/>
+            Date d&apos;émission : {new Date(salaire.createdAt).toLocaleDateString("fr-FR")}<br/>
             <span className={`doc-badge ${salaire.statut === "paye" ? "doc-badge-green" : "doc-badge-orange"}`}>
               {salaire.statut === "paye" ? "Payé" : "En attente"}
             </span>
@@ -126,11 +126,11 @@ export default function PrintSalairePage() {
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24, marginTop:40, marginBottom:20 }}>
           <div style={{ borderTop:"2px solid #1a1a2e", paddingTop:10 }}>
-            <div style={{ fontSize:12, color:"#64748b" }}>Signature de l'employeur</div>
+            <div style={{ fontSize:12, color:"#64748b" }}>Signature de l&apos;employeur</div>
             <div style={{ fontSize:11, color:"#94a3b8", marginTop:4 }}>{tenant?.nomEntreprise}</div>
           </div>
           <div style={{ borderTop:"2px solid #1a1a2e", paddingTop:10 }}>
-            <div style={{ fontSize:12, color:"#64748b" }}>Signature de l'employé</div>
+            <div style={{ fontSize:12, color:"#64748b" }}>Signature de l&apos;employé</div>
             <div style={{ fontSize:11, color:"#94a3b8", marginTop:4 }}>{employe?.prenom} {employe?.nom}</div>
           </div>
         </div>

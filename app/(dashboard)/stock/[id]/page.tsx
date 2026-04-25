@@ -118,7 +118,7 @@ export default function ProduitDetailPage() {
                   {s.quantite}
                 </p>
                 <p className="text-xs text-muted font-mono mt-1">
-                  Seuil d'alerte : {produit.seuilAlerte}
+                  Seuil d&apos;alerte : {produit.seuilAlerte}
                 </p>
               </div>
             );

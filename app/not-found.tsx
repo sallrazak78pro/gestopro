@@ -20,7 +20,7 @@ export default function NotFound() {
           Page introuvable
         </h1>
         <p className="text-muted text-sm mb-8 leading-relaxed">
-          La page que tu cherches n'existe pas ou a été déplacée.
+          La page que tu cherches n&apos;existe pas ou a été déplacée.
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link href="/dashboard"

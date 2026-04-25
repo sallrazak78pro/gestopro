@@ -61,7 +61,7 @@ export default function PrintCaissePage() {
         {/* KPIs */}
         <div className="doc-grid doc-grid-4" style={{ marginBottom:28 }}>
           <div className="doc-kpi">
-            <div className="doc-kpi-label">Fond d'ouverture</div>
+            <div className="doc-kpi-label">Fond d&apos;ouverture</div>
             <div className="doc-kpi-value">{fmt(session.fondOuverture ?? 0)} F</div>
           </div>
           <div className="doc-kpi">
@@ -127,7 +127,7 @@ export default function PrintCaissePage() {
         <div className="doc-totals" style={{ marginTop:20 }}>
           <div className="doc-totals-box">
             <div className="doc-total-row">
-              <span>Fond d'ouverture</span>
+              <span>Fond d&apos;ouverture</span>
               <span className="mono">{fmt(session.fondOuverture ?? 0)} F</span>
             </div>
             <div className="doc-total-row">

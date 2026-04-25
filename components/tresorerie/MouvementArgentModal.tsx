@@ -168,7 +168,7 @@ export default function MouvementArgentModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-surface z-10">
           <div>
-            <h2 className="text-lg font-bold">Mouvement d'argent</h2>
+            <h2 className="text-lg font-bold">Mouvement d&apos;argent</h2>
             <div className="flex items-center gap-2 mt-1">
               {["type", "details"].map((s, i) => (
                 <div key={s} className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export default function MouvementArgentModal({
         {/* STEP 1 — type */}
         {step === "type" && (
           <div className="p-5 space-y-2.5">
-            <p className="text-sm text-muted mb-3">Quel type d'opération veux-tu enregistrer ?</p>
+            <p className="text-sm text-muted mb-3">Quel type d&apos;opération veux-tu enregistrer ?</p>
             {TYPES.map(t => (
               <button key={t.value} type="button"
                 onClick={() => { setType(t.value); setStep("details"); }}
@@ -298,7 +298,7 @@ export default function MouvementArgentModal({
                 <p className="text-xs font-semibold text-warning mb-1">⚠️ Achat local occasionnel</p>
                 <p className="text-xs text-muted">
                   Réservé aux achats urgents quand le stock manque. Précisez le détail dans le motif.
-                  N'oubliez pas d'ajuster le stock manuellement après.
+                  N&apos;oubliez pas d&apos;ajuster le stock manuellement après.
                 </p>
               </div>
             )}
@@ -387,7 +387,7 @@ export default function MouvementArgentModal({
             {/* Référence avance */}
             {showAvanceRef && (
               <div>
-                <label className="input-label">Référence de l'avance remboursée</label>
+                <label className="input-label">Référence de l&apos;avance remboursée</label>
                 <input className="input" placeholder="ex: AVN-2026-0001"
                   value={form.avanceRef} onChange={e => set("avanceRef", e.target.value)} />
               </div>

@@ -1,7 +1,6 @@
 // app/(dashboard)/marges/page.tsx
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Legend,
@@ -11,7 +10,7 @@ import clsx from "clsx";
 const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const pct  = (n: number) => `${n.toFixed(1)}%`;
 const fmtDate = (d: string) => {
-  const [y, m, j] = d.split("-");
+  const [, m, j] = d.split("-");
   return `${j}/${m}`;
 };
 
@@ -54,8 +53,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function MargesPage() {
-  const { data: session } = useSession();
-  const role = (session?.user as any)?.role ?? "";
 
   const [mode,    setMode]    = useState<Mode>("jour");
   const [debut,   setDebut]   = useState("");
@@ -159,7 +156,7 @@ export default function MargesPage() {
 
             <div className="card p-5 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-accent" />
-              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Chiffre d'affaires</p>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Chiffre d&apos;affaires</p>
               <p className="text-2xl font-extrabold" style={{ color: "var(--color-fg)" }}>
                 {fmt(stats.totalCA)} <span className="text-sm font-mono text-muted">F</span>
               </p>
@@ -168,7 +165,7 @@ export default function MargesPage() {
 
             <div className="card p-5 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-warning" />
-              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Coût d'achat</p>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Coût d&apos;achat</p>
               <p className="text-2xl font-extrabold text-warning">
                 {fmt(stats.totalCout)} <span className="text-sm font-mono text-muted">F</span>
               </p>

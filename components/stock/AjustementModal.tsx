@@ -99,7 +99,7 @@ export default function AjustementModal({ produit, boutique, quantiteActuelle, o
           )}
 
           <div>
-            <label className="input-label">Motif de l'ajustement</label>
+            <label className="input-label">Motif de l&apos;ajustement</label>
             <input className="input" placeholder="ex: inventaire physique, casse, vol..."
               value={motif} onChange={e => setMotif(e.target.value)} />
           </div>

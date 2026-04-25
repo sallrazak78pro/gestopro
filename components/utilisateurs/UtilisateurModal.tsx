@@ -171,7 +171,7 @@ export default function UtilisateurModal({ user, boutiques, currentRole, onClose
               ))}
             </select>
             <p className="text-[10px] font-mono text-muted mt-1">
-              💡 Si vous assignez une boutique, l'utilisateur ne verra QUE les données de cette boutique (ventes, stock, mouvements, trésorerie).
+              💡 Si vous assignez une boutique, l&apos;utilisateur ne verra QUE les données de cette boutique (ventes, stock, mouvements, trésorerie).
             </p>
           </div>
 

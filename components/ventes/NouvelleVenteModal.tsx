@@ -67,6 +67,7 @@ export default function NouvelleVenteModal({
           }
         }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   // Vérifier la session de caisse dès qu'une boutique est choisie
@@ -263,7 +264,7 @@ export default function NouvelleVenteModal({
                     <div>
                       <p className="text-xs font-bold text-danger">Caisse fermée</p>
                       <p className="text-[10px] text-muted mt-0.5">
-                        Impossible de vendre. Ouvrez la caisse depuis le menu <strong className="text-white">Caisse</strong> d'abord.
+                        Impossible de vendre. Ouvrez la caisse depuis le menu <strong className="text-white">Caisse</strong> d&apos;abord.
                       </p>
                     </div>
                   </div>
@@ -340,7 +341,7 @@ export default function NouvelleVenteModal({
                   <div className="flex flex-col items-center justify-center h-full text-muted">
                     <p className="text-5xl mb-3 opacity-30">🛒</p>
                     <p className="font-mono text-sm">Panier vide</p>
-                    <p className="font-mono text-xs mt-1 text-muted/70">Clique sur un produit pour l'ajouter</p>
+                    <p className="font-mono text-xs mt-1 text-muted/70">Clique sur un produit pour l&apos;ajouter</p>
                   </div>
                 ) : panier.map(l => (
                   <div key={l.produitId}

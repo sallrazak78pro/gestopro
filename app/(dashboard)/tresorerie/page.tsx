@@ -224,7 +224,7 @@ export default function TresoreriePage() {
       {/* Graphique */}
       <div className="card p-5">
         <h3 className="card-title mb-1">Flux de trésorerie — 7 derniers jours</h3>
-        <p className="text-[11px] font-mono text-muted mb-5 uppercase tracking-widest">Entrées et sorties d'argent · FCFA</p>
+        <p className="text-[11px] font-mono text-muted mb-5 uppercase tracking-widest">Entrées et sorties d&apos;argent · FCFA</p>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -244,7 +244,7 @@ export default function TresoreriePage() {
           <div>
             <h2 className="card-title">Journal de trésorerie</h2>
             <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
-              Tous les mouvements d'argent
+              Tous les mouvements d&apos;argent
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

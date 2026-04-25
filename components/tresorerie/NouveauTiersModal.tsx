@@ -61,7 +61,7 @@ export default function NouveauTiersModal({
           </div>
           <div className="bg-surface2 rounded-xl px-4 py-3">
             <p className="text-xs text-muted font-mono">
-              💡 Le solde démarre à <strong>0 F</strong>. La personne pourra déposer de l'argent depuis la page Comptes Tiers.
+              💡 Le solde démarre à <strong>0 F</strong>. La personne pourra déposer de l&apos;argent depuis la page Comptes Tiers.
             </p>
           </div>
           {error && (

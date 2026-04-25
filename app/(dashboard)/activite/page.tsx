@@ -76,7 +76,7 @@ export default function ActivitePage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-extrabold" style={{ color: "var(--color-fg)" }}>
-          📋 Journal d'activité
+          📋 Journal d&apos;activité
         </h1>
         <p className="text-sm text-muted mt-1">{total} action{total > 1 ? "s" : ""} enregistrée{total > 1 ? "s" : ""}</p>
       </div>

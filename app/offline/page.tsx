@@ -72,7 +72,7 @@ export default function OfflinePage() {
           <p>Les données récemment consultées restent accessibles depuis le cache.</p>
           <a href="/dashboard" className="btn">↩ Réessayer</a>
           <div className="tip">
-            <strong>Astuce :</strong> Installez GestoPro sur votre écran d'accueil pour un accès rapide même avec une connexion limitée.
+            <strong>Astuce :</strong> Installez GestoPro sur votre écran d&apos;accueil pour un accès rapide même avec une connexion limitée.
           </div>
         </div>
       </body>

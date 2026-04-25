@@ -206,7 +206,7 @@ export default function RapportCaissePage() {
       {mouvements.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">Mouvements d'argent</h2>
+            <h2 className="card-title">Mouvements d&apos;argent</h2>
             <span className="badge-blue">{mouvements.length} mouvement{mouvements.length > 1 ? "s" : ""}</span>
           </div>
           <div className="table-wrapper">

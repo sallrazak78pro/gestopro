@@ -62,7 +62,7 @@ export default function ResetPasswordPage() {
           ) : (
             <>
               <h2 className="text-xl font-extrabold mb-1" style={{ color: "var(--color-fg)" }}>Nouveau mot de passe</h2>
-              <p className="text-sm text-muted mb-6">Choisissez un mot de passe sécurisé d'au moins 8 caractères.</p>
+              <p className="text-sm text-muted mb-6">Choisissez un mot de passe sécurisé d&apos;au moins 8 caractères.</p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

@@ -16,7 +16,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           Une erreur est survenue
         </h1>
         <p className="text-muted text-sm mb-2 leading-relaxed">
-          Quelque chose s'est mal passé. Tu peux réessayer ou retourner au tableau de bord.
+          Quelque chose s&apos;est mal passé. Tu peux réessayer ou retourner au tableau de bord.
         </p>
         {error.digest && (
           <p className="text-[11px] font-mono text-muted mb-6">Code : {error.digest}</p>

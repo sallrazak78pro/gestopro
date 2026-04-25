@@ -128,7 +128,7 @@ export default function EmployeModal({ employe, boutiques, onClose, onSaved }: P
           {/* Date embauche + Salaire */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="input-label">Date d'embauche *</label>
+              <label className="input-label">Date d&apos;embauche *</label>
               <input type="date" className="input"
                 value={form.dateEmbauche} onChange={e => set("dateEmbauche", e.target.value)} required />
             </div>

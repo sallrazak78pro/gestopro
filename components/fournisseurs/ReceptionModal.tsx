@@ -9,10 +9,6 @@ interface Props {
 }
 
 export default function ReceptionModal({ commande, onClose, onSaved }: Props) {
-  const lignesPossibles = commande.lignes.filter(
-    (l: any) => l.quantiteRecue < l.quantiteCommandee
-  );
-
   const [qtesRecues, setQtesRecues] = useState<Record<number, number>>(
     Object.fromEntries(
       commande.lignes.map((l: any, i: number) => [

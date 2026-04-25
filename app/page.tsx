@@ -234,7 +234,7 @@ export default function LandingPage() {
             marginBottom: 12, fontWeight: 600,
           }}>12 modules intégrés</p>
           <h2 style={{ fontSize: "clamp(26px, 3.5vw, 40px)", fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: "-0.3px" }}>
-            Tout ce qu'il vous faut, rien de superflu
+            Tout ce qu&apos;il vous faut, rien de superflu
           </h2>
           <p style={{ color: "#64748b", fontSize: 16, maxWidth: 480, margin: "0 auto" }}>
             Une suite pensée pour votre réalité terrain — pas pour une multinationale.
@@ -378,7 +378,7 @@ export default function LandingPage() {
           </h2>
           <p style={{ color: "#94a3b8", fontSize: 16, marginBottom: 36, lineHeight: 1.7 }}>
             Rejoignez les commerçants qui pilotent leur business avec précision.
-            C'est gratuit, et ça le reste.
+            C&apos;est gratuit, et ça le reste.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/register" style={{
@@ -422,7 +422,7 @@ export default function LandingPage() {
         </p>
         <div style={{ display: "flex", gap: 20 }}>
           <Link href="/login"    style={{ color: "#64748b", textDecoration: "none", fontSize: 13 }}>Connexion</Link>
-          <Link href="/register" style={{ color: "#00d4ff", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>S'inscrire</Link>
+          <Link href="/register" style={{ color: "#00d4ff", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>S&apos;inscrire</Link>
         </div>
       </footer>
     </div>

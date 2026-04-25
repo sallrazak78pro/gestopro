@@ -133,11 +133,11 @@ export default function RegisterPage() {
           {step === "entreprise" && (
             <>
               <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Votre entreprise</h2>
-              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>Dites-nous comment s'appelle votre commerce.</p>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>Dites-nous comment s&apos;appelle votre commerce.</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
-                  <label style={labelStyle}>Nom de l'entreprise *</label>
+                  <label style={labelStyle}>Nom de l&apos;entreprise *</label>
                   <input style={inputStyle} placeholder="ex: Tech Plus, Commerce Awa..." value={entreprise} onChange={e => setEntreprise(e.target.value)} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -233,7 +233,7 @@ export default function RegisterPage() {
               <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Vos boutiques</h2>
               <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>
                 La <span style={{ color: "#00d4ff" }}>1ère boutique</span> sera votre boutique principale.
-                Vous pourrez en ajouter d'autres après.
+                Vous pourrez en ajouter d&apos;autres après.
               </p>
 
               <div style={{ marginBottom: 20 }}>
@@ -246,7 +246,7 @@ export default function RegisterPage() {
                   marginBottom: avecDepot ? 12 : 0, cursor: "pointer",
                 }} onClick={() => setAvecDepot(!avecDepot)}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0" }}>📦 J'ai un dépôt / entrepôt</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0" }}>📦 J&apos;ai un dépôt / entrepôt</div>
                     <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                       Lieu de stockage central séparé de vos boutiques
                     </div>

@@ -24,6 +24,7 @@ export default function CaissePage() {
     if (boutiqueAssignee && !boutiqueId) {
       setBoutiqueId(boutiqueAssignee);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boutiqueAssignee]);
   const [loading, setLoading]             = useState(false);
   const [showOuverture, setShowOuverture] = useState(false);
@@ -39,6 +40,7 @@ export default function CaissePage() {
           if (!boutiqueId && j.data.length === 1) setBoutiqueId(j.data[0]._id);
         }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Charger la session active + historique

@@ -279,7 +279,7 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
                   value={form.reference} onChange={e => set("reference", e.target.value)} />
               </div>
               <div>
-                <label className="input-label">Seuil d'alerte</label>
+                <label className="input-label">Seuil d&apos;alerte</label>
                 <input type="number" min={0} step="0.01" className="input"
                   value={form.seuilAlerte} onChange={e => set("seuilAlerte", +e.target.value)} />
                 <p className="text-[10px] font-mono text-muted mt-1">Alerte si stock ≤ {form.seuilAlerte}</p>
@@ -334,7 +334,7 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
                   {imagePreview && (
                     <button type="button" onClick={removeImage}
                       className="text-[11px] font-mono text-danger hover:underline">
-                      ✕ Supprimer l'image
+                      ✕ Supprimer l&apos;image
                     </button>
                   )}
                 </div>
@@ -373,7 +373,7 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="input-label">Prix d'achat (F) *</label>
+                <label className="input-label">Prix d&apos;achat (F) *</label>
                 <input type="number" min={0} step="1" className="input" placeholder="0"
                   value={form.prixAchat} onChange={e => set("prixAchat", +e.target.value)} required />
               </div>

@@ -58,13 +58,13 @@ export default function AvanceModal({ employe, boutiques, onClose, onSaved }: Pr
         <form onSubmit={handleSubmit} className="space-y-4">
 
           <div>
-            <label className="input-label">Montant de l'avance (F) *</label>
+            <label className="input-label">Montant de l&apos;avance (F) *</label>
             <input type="number" min={1} step="1" className="input text-lg font-bold font-mono"
               placeholder="0" value={form.montant}
               onChange={e => set("montant", e.target.value)} required />
             {form.montant && +form.montant > employe.salaireBase && (
               <p className="text-xs font-mono text-warning mt-1">
-                ⚠ L'avance dépasse le salaire de base
+                ⚠ L&apos;avance dépasse le salaire de base
               </p>
             )}
           </div>

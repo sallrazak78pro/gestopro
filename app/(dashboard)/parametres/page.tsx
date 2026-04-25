@@ -178,7 +178,7 @@ export default function ParametresPage() {
         <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Informations de l'entreprise</h2>
+              <h2 className="card-title">Informations de l&apos;entreprise</h2>
               <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
                 Visible dans vos factures et rapports
               </p>
@@ -194,7 +194,7 @@ export default function ParametresPage() {
           <form onSubmit={saveEntreprise} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="input-label">Nom de l'entreprise *</label>
+                <label className="input-label">Nom de l&apos;entreprise *</label>
                 <input className="input" value={entForm.nom}
                   onChange={e => setEntForm(f => ({ ...f, nom: e.target.value }))}
                   disabled={!isAdmin} required />
@@ -229,7 +229,7 @@ export default function ParametresPage() {
 
             {!isAdmin && (
               <p className="text-xs font-mono text-warning bg-warning/10 border border-warning/20 px-4 py-2.5 rounded-lg">
-                ⚠ Seul l'administrateur peut modifier ces informations.
+                ⚠ Seul l&apos;administrateur peut modifier ces informations.
               </p>
             )}
 
@@ -388,7 +388,7 @@ export default function ParametresPage() {
             <div>
               <h2 className="card-title">Signaler un problème</h2>
               <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
-                Votre retour aide à améliorer l'application
+                Votre retour aide à améliorer l&apos;application
               </p>
             </div>
             <span className="text-2xl">🐛</span>
@@ -440,7 +440,7 @@ export default function ParametresPage() {
               <p className="font-semibold text-muted2">ℹ Informations envoyées automatiquement :</p>
               <p>· Votre nom et rôle</p>
               <p>· La page où vous vous trouvez</p>
-              <p>· La date et l'heure</p>
+              <p>· La date et l&apos;heure</p>
             </div>
 
             <div className="flex justify-end">

@@ -511,7 +511,7 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
                         onChange={e => setField("reference", e.target.value)} />
                     </div>
                     <div>
-                      <label className="input-label">Seuil d'alerte</label>
+                      <label className="input-label">Seuil d&apos;alerte</label>
                       <input type="number" min={0} className="input"
                         value={p.form.seuilAlerte}
                         onChange={e => setField("seuilAlerte", e.target.value)} />
@@ -548,7 +548,7 @@ export default function ImportExcelModal({ onClose, onSaved }: Props) {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">Prix d'achat (F)</label>
+                      <label className="input-label">Prix d&apos;achat (F)</label>
                       <input type="number" min={0} step="1" className="input" placeholder="0"
                         value={p.form.prixAchat}
                         onChange={e => setField("prixAchat", e.target.value)} />

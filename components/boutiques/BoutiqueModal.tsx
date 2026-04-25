@@ -116,7 +116,7 @@ export default function BoutiqueModal({ boutique, onClose, onSaved }: Props) {
               <span className="text-2xl">⭐</span>
               <div className="flex-1">
                 <p className="text-sm font-bold">Boutique principale</p>
-                <p className="text-[11px] text-muted">Centralise l'argent des versements hebdomadaires</p>
+                <p className="text-[11px] text-muted">Centralise l&apos;argent des versements hebdomadaires</p>
               </div>
               <div className={clsx(
                 "w-10 h-6 rounded-full transition-all relative",

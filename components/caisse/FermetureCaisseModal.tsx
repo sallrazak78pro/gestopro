@@ -233,7 +233,7 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
           {etape === "comptage" && (
             <div className="space-y-5">
               <p className="text-sm text-muted">
-                Comptez l'argent réellement présent en caisse et saisissez les montants.
+                Comptez l&apos;argent réellement présent en caisse et saisissez les montants.
               </p>
 
               {MODES.map(m => {
@@ -289,7 +289,7 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
           {/* ── ÉTAPE 3 : CONFIRMATION ───────────────────── */}
           {etape === "confirmation" && (
             <div className="space-y-5">
-              <p className="text-sm text-muted">Vérifiez l'écart avant de fermer définitivement la caisse.</p>
+              <p className="text-sm text-muted">Vérifiez l&apos;écart avant de fermer définitivement la caisse.</p>
 
               {/* Comparaison attendu vs réel */}
               <div className="grid grid-cols-2 gap-4">

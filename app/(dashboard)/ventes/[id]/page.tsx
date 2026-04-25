@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);

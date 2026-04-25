@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-accent flex items-center justify-center text-lg font-extrabold text-white">G</div>
           <div>
             <div className="font-extrabold text-lg">GestoPro</div>
-            <div className="text-[10px] font-mono text-muted tracking-widest uppercase">Récupérer l'accès</div>
+            <div className="text-[10px] font-mono text-muted tracking-widest uppercase">Récupérer l&apos;accès</div>
           </div>
         </div>
 

@@ -95,7 +95,7 @@ export default function LoginPage() {
             en temps réel
           </h2>
           <p className="text-slate-400 text-base leading-relaxed max-w-sm">
-            ERP complet pour gérer vos ventes, stocks, trésorerie et équipes — depuis n'importe où.
+            ERP complet pour gérer vos ventes, stocks, trésorerie et équipes — depuis n&apos;importe où.
           </p>
         </div>
 
@@ -204,7 +204,7 @@ export default function LoginPage() {
 
           {/* Rôles */}
           <div className="mt-8 pt-6 border-t" style={{ borderColor: "var(--color-border)" }}>
-            <p className="text-[10px] font-mono text-muted uppercase tracking-[0.2em] mb-3">Niveaux d'accès</p>
+            <p className="text-[10px] font-mono text-muted uppercase tracking-[0.2em] mb-3">Niveaux d&apos;accès</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { role: "Admin",        icon: "👑", desc: "Accès complet" },

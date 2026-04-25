@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export default function PWAProvider({ children }: { children: React.ReactNode }) {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [showBanner, setShowBanner]       = useState(false);
-  const [swReady, setSwReady]             = useState(false);
+  const [, setSwReady]             = useState(false);
 
   // Enregistrement du Service Worker
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm">Installer GestoPro</p>
             <p className="text-xs text-muted mt-0.5 leading-relaxed">
-              Accès rapide depuis votre écran d'accueil, fonctionne hors ligne.
+              Accès rapide depuis votre écran d&apos;accueil, fonctionne hors ligne.
             </p>
             <div className="flex gap-2 mt-3">
               <button

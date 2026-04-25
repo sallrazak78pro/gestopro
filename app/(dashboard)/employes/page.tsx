@@ -4,10 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { KpiCard } from "@/components/ui/KpiCard";
 import EmployeModal from "@/components/employes/EmployeModal";
-import clsx from "clsx";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
-const MOIS_NOM = ["","Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
 
 export default function EmployesPage() {
   const [employes, setEmployes]   = useState<any[]>([]);
@@ -101,7 +99,7 @@ export default function EmployesPage() {
                   <th>Poste</th>
                   <th>Boutique</th>
                   <th>Téléphone</th>
-                  <th>Date d'embauche</th>
+                  <th>Date d&apos;embauche</th>
                   <th>Salaire de base</th>
                   <th>Statut</th>
                   <th>Actions</th>

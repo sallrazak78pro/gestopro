@@ -157,7 +157,7 @@ export default function OuvertureCaisseModal({ boutiqueId, boutiqueName, onClose
           </div>
 
           <div>
-            <label className="input-label">Note d'ouverture (optionnel)</label>
+            <label className="input-label">Note d&apos;ouverture (optionnel)</label>
             <input
               type="text" className="input"
               placeholder="Observation..."

@@ -107,7 +107,7 @@ export default function MouvementsPage() {
         <div className="bg-warning/10 border border-warning/30 rounded-xl px-5 py-3 flex flex-wrap items-center gap-3">
           <span className="text-warning text-sm">⚠</span>
           <p className="text-sm text-warning flex-1">
-            Des mouvements créés avec l'ancien schéma peuvent manquer de boutique et de montant.
+            Des mouvements créés avec l&apos;ancien schéma peuvent manquer de boutique et de montant.
           </p>
           {migrateMsg && <span className="text-xs font-mono text-success">{migrateMsg}</span>}
           <button onClick={migrer} disabled={migrating}

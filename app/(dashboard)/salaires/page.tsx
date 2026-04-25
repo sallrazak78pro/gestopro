@@ -104,7 +104,7 @@ export default function SalairesPage() {
           </div>
         ) : employes.length === 0 ? (
           <div className="text-center py-16 text-muted font-mono text-sm">
-            Aucun employé actif. Ajoutez des employés d'abord.
+            Aucun employé actif. Ajoutez des employés d&apos;abord.
           </div>
         ) : (
           <div className="table-wrapper">
