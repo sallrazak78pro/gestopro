@@ -40,12 +40,18 @@ export default function MouvementsPage() {
   const [deleting,       setDeleting]       = useState(false);
   const [migrating,      setMigrating]      = useState(false);
   const [migrateMsg,     setMigrateMsg]     = useState("");
+  const [toMigrate,      setToMigrate]      = useState<number | null>(null);
   const [expanded,       setExpanded]       = useState<Record<string, boolean>>({});
   const LIMIT = 25;
 
   useEffect(() => {
     fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data));
   }, []);
+
+  useEffect(() => {
+    if (!["admin", "superadmin"].includes(role)) return;
+    fetch("/api/mouvements-stock/migrate").then(r => r.json()).then(j => j.success && setToMigrate(j.count));
+  }, [role]);
 
   const fetchMouvements = useCallback(async () => {
     setLoading(true);
@@ -83,7 +89,7 @@ export default function MouvementsPage() {
     const json = await res.json();
     setMigrating(false);
     setMigrateMsg(json.message ?? (json.success ? "OK" : "Erreur"));
-    if (json.success) fetchMouvements();
+    if (json.success) { setToMigrate(0); fetchMouvements(); }
   }
 
   async function supprimer(id: string) {
@@ -103,11 +109,11 @@ export default function MouvementsPage() {
     <div className="space-y-6">
 
       {/* ── Bandeau migration ──────────────────────────────────────────── */}
-      {["admin","superadmin"].includes(role) && (
+      {["admin","superadmin"].includes(role) && !!toMigrate && (
         <div className="bg-warning/10 border border-warning/30 rounded-xl px-5 py-3 flex flex-wrap items-center gap-3">
           <span className="text-warning text-sm">⚠</span>
           <p className="text-sm text-warning flex-1">
-            Des mouvements créés avec l&apos;ancien schéma peuvent manquer de boutique et de montant.
+            {toMigrate} mouvement(s) créé(s) avec l&apos;ancien schéma peuvent manquer de boutique et de montant.
           </p>
           {migrateMsg && <span className="text-xs font-mono text-success">{migrateMsg}</span>}
           <button onClick={migrer} disabled={migrating}

@@ -9,6 +9,35 @@ import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { randomUUID } from "crypto";
 
+export async function GET(req: NextRequest) {
+  try {
+    const { ctx, error } = await getTenantContext();
+    if (error) return error;
+    if (!["admin", "superadmin"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Accès refusé" }, { status: 403 });
+
+    await connectDB();
+
+    const vieuxCount = await (MouvementStock as any).collection.countDocuments({
+      tenantId: ctx.tenantId,
+      $or: [
+        { boutique: { $exists: false } },
+        { statut:   { $exists: true  } },
+      ],
+    });
+    const monoProduitCount = await (MouvementStock as any).collection.countDocuments({
+      tenantId: ctx.tenantId,
+      boutique: { $exists: true },
+      produit:  { $exists: true },
+      lignes:   { $exists: false },
+    });
+
+    return NextResponse.json({ success: true, count: vieuxCount + monoProduitCount });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
