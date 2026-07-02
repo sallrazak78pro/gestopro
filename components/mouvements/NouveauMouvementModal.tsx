@@ -341,6 +341,11 @@ interface LigneRowProps {
 }
 
 function LigneRow({ ligne, idx, allProduits, stockMap, showStock, canRemove, onUpdate, onSelect, onClear, onRemove }: LigneRowProps) {
+  // État texte local — permet de vider le champ pour ressaisir sans qu'il soit
+  // immédiatement recollé à 0,001 (voir onChange/onBlur ci-dessous)
+  const [qtyText, setQtyText] = useState(String(ligne.quantite));
+  useEffect(() => { setQtyText(String(ligne.quantite)); }, [ligne.quantite]);
+
   const filtered = ligne.search
     ? allProduits.filter(p =>
         p.nom.toLowerCase().includes(ligne.search.toLowerCase()) ||
@@ -407,9 +412,20 @@ function LigneRow({ ligne, idx, allProduits, stockMap, showStock, canRemove, onU
           <button type="button" onClick={() => onUpdate({ quantite: Math.max(0.001, ligne.quantite - 1) })}
             className="btn-ghost w-8 h-8 justify-center text-lg shrink-0">−</button>
           <input type="number" min={0.001} step="any"
-            className="input w-20 text-center font-bold font-mono text-sm"
-            value={ligne.quantite}
-            onChange={e => onUpdate({ quantite: Math.max(0.001, +e.target.value) })} />
+            className="input w-24 text-center font-bold font-mono text-sm"
+            value={qtyText}
+            onChange={e => {
+              const v = e.target.value;
+              setQtyText(v);
+              const n = parseFloat(v.replace(",", "."));
+              if (!isNaN(n) && n > 0) onUpdate({ quantite: n });
+            }}
+            onBlur={() => {
+              const n = parseFloat(qtyText.replace(",", "."));
+              const clamped = !isNaN(n) && n > 0 ? n : 0.001;
+              setQtyText(String(clamped));
+              if (clamped !== ligne.quantite) onUpdate({ quantite: clamped });
+            }} />
           <button type="button" onClick={() => onUpdate({ quantite: ligne.quantite + 1 })}
             className="btn-ghost w-8 h-8 justify-center text-lg shrink-0">+</button>
         </div>
