@@ -10,6 +10,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import Employe from "@/lib/models/Employe";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
@@ -98,24 +99,12 @@ export async function GET(req: NextRequest) {
 
     const masseSalariale = employeRes.reduce((s, e) => s + e.salaireBase, 0);
 
-    // ── 2. Solde trésorerie global (agrégation unique) ─────────
-    const [ventesSoldeRes, mvtSoldeRes] = await Promise.all([
-      Vente.aggregate([
-        { $match: { tenantId: tid, statut: "payee", ...boutiqueFilter } },
-        { $group: { _id: null, total: { $sum: "$montantTotal" } } },
-      ]),
-      MouvementArgent.aggregate([
-        { $match: { tenantId: tid } },
-        { $group: { _id: "$type", total: { $sum: "$montant" } } },
-      ]),
-    ]);
-    const totalVentesSolde = ventesSoldeRes[0]?.total ?? 0;
-    const mvtMap: Record<string, number> = {};
-    mvtSoldeRes.forEach((m: any) => { mvtMap[m._id] = m.total; });
-    const totalEntreesMvt = (mvtMap.depot_tiers ?? 0) + (mvtMap.avance_caisse ?? 0);
-    const totalSortiesMvt = ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"]
-      .reduce((s, t) => s + (mvtMap[t] ?? 0), 0);
-    const soldeTresorerie = totalVentesSolde + totalEntreesMvt - totalSortiesMvt;
+    // ── 2. Solde trésorerie global (formule centralisée) ───────
+    // Additionne le solde de caisse réel (calculerSoldesCaisseParBoutique)
+    // de chaque boutique visible — cohérent avec les soldes par boutique
+    // affichés plus bas (mêmes règles de statut confirmé/en_attente/rejeté).
+    const soldesGlobauxMap = await calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueIds);
+    const soldeTresorerie  = Object.values(soldesGlobauxMap).reduce((s, v) => s + v, 0);
 
     // ── 3. Alertes stock — 1 seule agrégation $lookup ──────────
     const alertesAgg = await Stock.aggregate([
@@ -243,31 +232,12 @@ export async function GET(req: NextRequest) {
       valeurStockAgg.forEach((v: any) => { valeurParBoutique[v._id.toString()] = v.valeur; });
       const valeurStockTotal = Object.values(valeurParBoutique).reduce((s, v) => s + v, 0);
 
-      // Soldes caisse par boutique — agrégations parallèles groupées
+      // Soldes caisse par boutique — formule centralisée (lib/utils/tresorerie)
       const boutiquesPrincipales = boutiquesAll.filter(b => b.type === "boutique");
       const boutiqueBids = boutiquesPrincipales.map(b => b._id);
 
-      const [ventesParBoutiqueAll, sortiesParBoutique, entreesParBoutique, versRecusParBoutique,
-             cmdRes, banqueRes] = await Promise.all([
-        Vente.aggregate([
-          { $match: { tenantId: tid, statut: "payee", boutique: { $in: boutiqueBids } } },
-          { $group: { _id: "$boutique", total: { $sum: "$montantTotal" } } },
-        ]),
-        MouvementArgent.aggregate([
-          { $match: { tenantId: tid, type: { $in: ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"] },
-              boutique: { $in: boutiqueBids } } },
-          { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
-        ]),
-        MouvementArgent.aggregate([
-          { $match: { tenantId: tid, type: { $in: ["depot_tiers","avance_caisse"] },
-              boutique: { $in: boutiqueBids } } },
-          { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
-        ]),
-        MouvementArgent.aggregate([
-          { $match: { tenantId: tid, type: "versement_boutique",
-              boutiqueDestination: { $in: boutiqueBids } } },
-          { $group: { _id: "$boutiqueDestination", total: { $sum: "$montant" } } },
-        ]),
+      const [soldesMap, cmdRes, banqueRes] = await Promise.all([
+        calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueBids),
         CommandeFournisseur.aggregate([
           { $match: { tenantId: tid, statut: { $in: ["envoyee","recue_partiellement"] }, montantDu: { $gt: 0 } } },
           { $group: { _id: null, totalDu: { $sum: "$montantDu" }, nb: { $sum: 1 } } },
@@ -279,22 +249,9 @@ export async function GET(req: NextRequest) {
         ]),
       ]);
 
-      // Construire les maps
-      const toMap = (arr: any[]) => {
-        const m: Record<string, number> = {};
-        arr.forEach(r => { m[r._id.toString()] = r.total; });
-        return m;
-      };
-      const ventesMap   = toMap(ventesParBoutiqueAll);
-      const sortiesMap  = toMap(sortiesParBoutique);
-      const entreesMap  = toMap(entreesParBoutique);
-      const versRecusMap= toMap(versRecusParBoutique);
-
-      const soldesCaisseRes = boutiquesPrincipales.map(b => {
-        const bid = b._id.toString();
-        const solde = (ventesMap[bid] ?? 0) + (entreesMap[bid] ?? 0) + (versRecusMap[bid] ?? 0) - (sortiesMap[bid] ?? 0);
-        return { nom: b.nom, solde: Math.max(0, Math.round(solde)), estPrincipale: b.estPrincipale };
-      });
+      const soldesCaisseRes = boutiquesPrincipales.map(b => ({
+        nom: b.nom, solde: soldesMap[b._id.toString()] ?? 0, estPrincipale: b.estPrincipale,
+      }));
 
       const soldeCaisseTotal = soldesCaisseRes.reduce((s, b) => s + b.solde, 0);
       const soldeBanqueTotal = (banqueRes as any[]).reduce((s: number, b: any) => s + b.total, 0);

@@ -6,6 +6,7 @@ import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
 
 export async function GET() {
@@ -89,39 +90,10 @@ export async function GET() {
         .sort({ createdAt: -1 }).lean(),
     ]);
 
-    // ── 2. Soldes par boutique — 4 agrégations en parallèle ───
+    // ── 2. Soldes par boutique — formule centralisée ───────────
     const boutiqueBids = boutiques.map(b => b._id);
+    const soldesMap = await calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueBids);
 
-    const [ventesTotales, sortiesTotal, entreesTotal, versRecusTotal] = await Promise.all([
-      Vente.aggregate([
-        { $match: { tenantId: tid, statut: "payee", boutique: { $in: boutiqueBids } } },
-        { $group: { _id: "$boutique", total: { $sum: "$montantTotal" } } },
-      ]),
-      MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: { $in: ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"] },
-            boutique: { $in: boutiqueBids } } },
-        { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
-      ]),
-      MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: { $in: ["depot_tiers","avance_caisse"] },
-            boutique: { $in: boutiqueBids } } },
-        { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
-      ]),
-      MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: "versement_boutique", boutiqueDestination: { $in: boutiqueBids } } },
-        { $group: { _id: "$boutiqueDestination", total: { $sum: "$montant" } } },
-      ]),
-    ]);
-
-    const toMap = (arr: any[]) => {
-      const m: Record<string, number> = {};
-      arr.forEach(r => { m[r._id.toString()] = r.total; });
-      return m;
-    };
-    const vMap  = toMap(ventesTotales);
-    const sMap  = toMap(sortiesTotal);
-    const eMap  = toMap(entreesTotal);
-    const vrMap = toMap(versRecusTotal);
     const dvMap: Record<string, Record<string, number> | undefined> = {};
     const sessionsActifMap: Record<string, boolean> = {};
     sessionsActives.forEach(s => { sessionsActifMap[s.boutique.toString()] = true; });
@@ -158,11 +130,10 @@ export async function GET() {
     const moisCour = buildComp("moisCour"), moisPrec = buildComp("moisPrec");
 
     const soldesParBoutique = boutiques.map(b => {
-      const bid   = b._id.toString();
-      const solde = (vMap[bid] ?? 0) + (eMap[bid] ?? 0) + (vrMap[bid] ?? 0) - (sMap[bid] ?? 0);
+      const bid = b._id.toString();
       return {
         _id: b._id, nom: b.nom, estPrincipale: b.estPrincipale,
-        solde: Math.max(0, Math.round(solde)),
+        solde: soldesMap[bid] ?? 0,
         sessionActive: sessionsActifMap[bid] ?? false,
         dernierVersement: dernVersMap[bid] ?? null,
       };

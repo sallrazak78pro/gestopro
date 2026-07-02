@@ -171,7 +171,7 @@ export default function DashboardPage() {
                 { icon: "🧾", label: "CA de la période",   value: fmt(kpis.caPeriode) + " F",  sub: `${kpis.caNb} vente${kpis.caNb > 1 ? "s" : ""}`, evo: kpis.caEvolution, color: "text-accent" },
                 { icon: "💳", label: "Dépenses",           value: fmt(kpis.depenses)  + " F",  sub: "Sur la période",    evo: kpis.depEvolution,    color: "text-danger"  },
                 { icon: "💸", label: "Versements reçus",   value: fmt(kpis.versements) + " F", sub: `${kpis.versementsNb} versement${kpis.versementsNb > 1 ? "s" : ""}`, evo: kpis.versEvolution, color: "text-success" },
-                { icon: "💰", label: "Solde trésorerie",   value: fmt(kpis.soldeTresorerie) + " F", sub: "Tous temps", evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
+                { icon: "💰", label: "Solde trésorerie",   value: fmt(kpis.soldeTresorerie) + " F", sub: "Cash physique en caisse, toutes boutiques", evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
               ].map((k, i) => (
                 <div key={i} className="kpi-card">
                   <span className="kpi-icon">{k.icon}</span>
@@ -219,17 +219,22 @@ export default function DashboardPage() {
                   <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted">Vue financière globale</p>
                   <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
                 </div>
+                <p className="text-[11px] font-mono text-muted -mt-2">
+                  Ces montants n&apos;incluent que l&apos;argent confirmé : un versement en attente de validation admin
+                  est déjà déduit de la boutique source mais pas encore ajouté à la destination.
+                </p>
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                   {[
-                    { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", color: "" },
-                    { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", color: "text-success" },
-                    { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
-                    { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", color: "text-accent" },
+                    { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", sub: "Stock au prix d'achat",           color: "" },
+                    { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: "Espèces confirmées, boutiques",  color: "text-success" },
+                    { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: "À payer aux fournisseurs", color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
+                    { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", sub: "Dépôts bancaires cumulés",       color: "text-accent" },
                   ].map((k, i) => (
                     <div key={i} className="kpi-card">
                       <span className="kpi-icon">{k.icon}</span>
                       <p className="kpi-label">{k.label}</p>
                       <p className={clsx("kpi-value", k.color)}>{k.value}</p>
+                      <p className="text-[11px] text-muted font-mono mt-1">{k.sub}</p>
                     </div>
                   ))}
                 </div>

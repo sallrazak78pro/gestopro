@@ -5,6 +5,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -64,21 +65,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const ventesCheque      = ventes.filter(v => v.modePaiement === "cheque").reduce((s, v) => s + v.montantTotal, 0);
 
     // Mouvements de la session (inclut la dépense transport qu'on vient de créer)
+    // Un versement rejeté n'est jamais compté comme une sortie de caisse.
     const mouvements = await MouvementArgent.find({
       tenantId: ctx.tenantId,
       boutique: boutiqueId,
       createdAt: { $gte: depuis },
+      statut: { $ne: "rejete" },
     });
 
-    const TYPES_ENTREE = ["depot_tiers", "avance_caisse"];
-    const TYPES_SORTIE = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers"];
-    const totalEntrees = mouvements.filter(m => TYPES_ENTREE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const totalSorties = mouvements.filter(m => TYPES_SORTIE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const totalEntrees = mouvements.filter(m => TYPES_ENTREE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const totalSorties = mouvements.filter(m => TYPES_SORTIE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
 
-    // Versements reçus vers cette boutique
+    // Versements reçus vers cette boutique — seuls les versements confirmés comptent
     const versementsRecusRes = await MouvementArgent.find({
       tenantId: ctx.tenantId,
       type: "versement_boutique",
+      statut: "confirme",
       boutiqueDestination: boutiqueId,
       createdAt: { $gte: depuis },
     });

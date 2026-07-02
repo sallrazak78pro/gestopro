@@ -87,7 +87,7 @@ export default function TresoreriePage() {
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">💰 Soldes en temps réel</h2>
-            <span className="text-[11px] font-mono text-muted">Caisse disponible par boutique</span>
+            <span className="text-[11px] font-mono text-muted">Caisse disponible · versements en attente exclus jusqu&apos;à confirmation</span>
           </div>
           <div className="divide-y" style={{ borderColor: "var(--color-border)" }}>
             {rapport.soldesParBoutique.map((b: any) => (
