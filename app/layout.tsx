@@ -23,11 +23,25 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://gestopro-lake.vercel.app"),
   title: {
-    default:  "GestoPro — ERP de gestion",
+    default:  "GestoPro — ERP de gestion commerciale",
     template: "%s · GestoPro",
   },
-  description: "Gestion des ventes, stocks, trésorerie, fournisseurs et employés",
+  description: "Logiciel de gestion pour boutiques et commerces : ventes, stock, trésorerie, fournisseurs, employés et multi-boutiques en temps réel.",
+  keywords: ["ERP", "gestion commerciale", "gestion de stock", "logiciel caisse", "gestion boutique", "multi-boutiques", "GestoPro"],
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    title: "GestoPro — ERP de gestion commerciale",
+    description: "Gestion des ventes, stocks, trésorerie, fournisseurs et employés pour vos boutiques.",
+    siteName: "GestoPro",
+  },
+  twitter: {
+    card: "summary",
+    title: "GestoPro — ERP de gestion commerciale",
+    description: "Gestion des ventes, stocks, trésorerie, fournisseurs et employés pour vos boutiques.",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

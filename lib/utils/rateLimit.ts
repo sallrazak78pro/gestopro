@@ -32,6 +32,13 @@ export function resetRateLimit(key: string) {
   attempts.delete(key);
 }
 
+// Extrait l'IP du client depuis les headers (Vercel/proxy-friendly)
+export function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
 // Nettoyage périodique des entrées expirées (évite les fuites mémoire)
 setInterval(() => {
   const now = Date.now();

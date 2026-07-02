@@ -189,7 +189,7 @@ export default function RegisterPage() {
                   <input type="email" style={inputStyle} placeholder="vous@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Mot de passe * (min. 6 caractères)</label>
+                  <label style={labelStyle}>Mot de passe * (min. 8 caractères)</label>
                   <input type="password" style={inputStyle} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
                 <div>
@@ -210,7 +210,7 @@ export default function RegisterPage() {
                   fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>← Retour</button>
                 <button
-                  disabled={!nom || !email || !password || password !== confirm || password.length < 6}
+                  disabled={!nom || !email || !password || password !== confirm || password.length < 8}
                   onClick={() => setStep("boutiques")}
                   style={{
                     flex: 2, padding: "12px", borderRadius: 12,

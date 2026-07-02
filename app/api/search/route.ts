@@ -15,9 +15,11 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
-    if (q.length < 2) return NextResponse.json({ success: true, data: [] });
+    if (q.length < 2 || q.length > 100) return NextResponse.json({ success: true, data: [] });
 
-    const regex = { $regex: q, $options: "i" };
+    // Échapper les caractères spéciaux regex pour éviter tout ReDoS / injection
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = { $regex: escaped, $options: "i" };
     const tid   = ctx.tenantId;
     const limit = 5;
 

@@ -59,8 +59,8 @@ export default function ProfilPage() {
     if (pwdForm.nouveau !== pwdForm.confirm) {
       setPwdMsg({ type: "err", text: "Les mots de passe ne correspondent pas." }); return;
     }
-    if (pwdForm.nouveau.length < 6) {
-      setPwdMsg({ type: "err", text: "Minimum 6 caractères." }); return;
+    if (pwdForm.nouveau.length < 8) {
+      setPwdMsg({ type: "err", text: "Minimum 8 caractères." }); return;
     }
     setPwdSaving(true);
     const res  = await fetch("/api/parametres/password", {

@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
     if (!nom || !email || !password)
       return NextResponse.json({ success: false, message: "Nom, email et mot de passe sont obligatoires." }, { status: 400 });
 
-    if (password.length < 6)
-      return NextResponse.json({ success: false, message: "Mot de passe minimum 6 caractères." }, { status: 400 });
+    if (password.length < 8)
+      return NextResponse.json({ success: false, message: "Mot de passe minimum 8 caractères." }, { status: 400 });
 
     // Un admin ne peut pas créer un autre admin (seulement gestionnaire/caissier)
     if (ctx.role === "admin" && role === "admin")

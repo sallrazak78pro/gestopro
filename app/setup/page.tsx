@@ -12,7 +12,7 @@ export default function SetupPage() {
   const [done,       setDone]       = useState(false);
   const [showPwd,    setShowPwd]    = useState(false);
 
-  const [form, setForm] = useState({ nom: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ nom: "", email: "", password: "", confirm: "", token: "" });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function SetupPage() {
     const res  = await fetch("/api/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nom: form.nom, email: form.email, password: form.password }),
+      body: JSON.stringify({ nom: form.nom, email: form.email, password: form.password, token: form.token }),
     });
     const json = await res.json();
     setSubmitting(false);
@@ -136,6 +136,11 @@ export default function SetupPage() {
                 <label className="input-label">Confirmer le mot de passe</label>
                 <input type="password" className="input" placeholder="Répète le mot de passe" value={form.confirm}
                   onChange={e => set("confirm", e.target.value)} required />
+              </div>
+              <div>
+                <label className="input-label">Token de setup</label>
+                <input type="password" className="input" placeholder="Défini dans SETUP_TOKEN (variable d'env serveur)"
+                  value={form.token} onChange={e => set("token", e.target.value)} required />
               </div>
 
               {error && (

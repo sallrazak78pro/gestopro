@@ -13,8 +13,8 @@ export async function PUT(req: NextRequest) {
     const { ancienPassword, nouveauPassword } = await req.json();
     if (!ancienPassword || !nouveauPassword)
       return NextResponse.json({ success: false, message: "Tous les champs sont requis." }, { status: 400 });
-    if (nouveauPassword.length < 6)
-      return NextResponse.json({ success: false, message: "Nouveau mot de passe minimum 6 caractères." }, { status: 400 });
+    if (nouveauPassword.length < 8)
+      return NextResponse.json({ success: false, message: "Nouveau mot de passe minimum 8 caractères." }, { status: 400 });
 
     const user = await User.findById(ctx.userId);
     if (!user)

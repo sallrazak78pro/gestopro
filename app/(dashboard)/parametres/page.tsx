@@ -353,7 +353,7 @@ export default function ParametresPage() {
                 <div>
                   <label className="input-label">Nouveau mot de passe *</label>
                   <input type={showPwd ? "text" : "password"} className="input"
-                    placeholder="••••••••" minLength={6}
+                    placeholder="••••••••" minLength={8}
                     value={secForm.nouveauPassword}
                     onChange={e => setSecForm(f => ({ ...f, nouveauPassword: e.target.value }))}
                     required />
@@ -371,7 +371,7 @@ export default function ParametresPage() {
               </div>
               <div className="flex justify-end">
                 <button type="submit"
-                  disabled={saving || !secForm.ancienPassword || secForm.nouveauPassword.length < 6 || secForm.nouveauPassword !== secForm.confirmer}
+                  disabled={saving || !secForm.ancienPassword || secForm.nouveauPassword.length < 8 || secForm.nouveauPassword !== secForm.confirmer}
                   className="btn-primary disabled:opacity-50">
                   {saving ? "Modification..." : "🔒 Changer le mot de passe"}
                 </button>

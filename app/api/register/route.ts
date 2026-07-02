@@ -4,6 +4,9 @@ import { connectDB } from "@/lib/mongodb";
 import Tenant from "@/lib/models/Tenant";
 import User from "@/lib/models/User";
 import Boutique from "@/lib/models/Boutique";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rateLimit";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function toSlug(str: string) {
   return str
@@ -15,6 +18,16 @@ function toSlug(str: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit par IP — anti spam/brute-force sur la création de comptes
+    const rl = checkRateLimit(`register:${getClientIp(req)}`);
+    if (!rl.allowed) {
+      const minutes = Math.ceil((rl.retryAfter ?? 1800) / 60);
+      return NextResponse.json(
+        { success: false, message: `Trop de tentatives. Réessayez dans ${minutes} min.` },
+        { status: 429 }
+      );
+    }
+
     await connectDB();
     const {
       entreprise, pays, ville, telephone,
@@ -25,8 +38,16 @@ export async function POST(req: NextRequest) {
     // Validations de base
     if (!entreprise || !email || !password || !nom)
       return NextResponse.json({ success: false, message: "Tous les champs obligatoires doivent être remplis." }, { status: 400 });
-    if (password.length < 6)
-      return NextResponse.json({ success: false, message: "Mot de passe minimum 6 caractères." }, { status: 400 });
+    if (typeof email !== "string" || !EMAIL_RE.test(email) || email.length > 254)
+      return NextResponse.json({ success: false, message: "Email invalide." }, { status: 400 });
+    if (typeof password !== "string" || password.length < 8)
+      return NextResponse.json({ success: false, message: "Mot de passe minimum 8 caractères." }, { status: 400 });
+    if (typeof entreprise !== "string" || entreprise.trim().length < 2 || entreprise.length > 100)
+      return NextResponse.json({ success: false, message: "Nom d'entreprise invalide." }, { status: 400 });
+    if (typeof nom !== "string" || nom.trim().length < 2 || nom.length > 100)
+      return NextResponse.json({ success: false, message: "Nom invalide." }, { status: 400 });
+    if (boutiquesNoms !== undefined && (!Array.isArray(boutiquesNoms) || boutiquesNoms.length > 20 || boutiquesNoms.some((b: any) => typeof b !== "string" || b.length > 100)))
+      return NextResponse.json({ success: false, message: "Liste de boutiques invalide." }, { status: 400 });
 
     // Email déjà utilisé ?
     const emailExist = await User.findOne({ email: email.toLowerCase() });

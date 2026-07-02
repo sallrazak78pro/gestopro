@@ -20,9 +20,10 @@ export async function POST(req: NextRequest) {
     if (!file)
       return NextResponse.json({ success: false, message: "Aucun fichier." }, { status: 400 });
 
-    // Vérifications
-    if (!file.type.startsWith("image/"))
-      return NextResponse.json({ success: false, message: "Fichier doit être une image." }, { status: 400 });
+    // Vérifications — liste blanche stricte (exclut notamment image/svg+xml, vecteur de XSS stocké)
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!ALLOWED_TYPES.includes(file.type))
+      return NextResponse.json({ success: false, message: "Format d'image non supporté (jpg, png, webp, gif)." }, { status: 400 });
 
     if (file.size > 5 * 1024 * 1024)
       return NextResponse.json({ success: false, message: "Image trop lourde (max 5 Mo)." }, { status: 400 });

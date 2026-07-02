@@ -4,11 +4,26 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import ResetToken from "@/lib/models/ResetToken";
 import crypto from "crypto";
+import { checkRateLimit, getClientIp } from "@/lib/utils/rateLimit";
+
+function hashToken(raw: string) {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
 
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
     if (!email) return NextResponse.json({ success: false, message: "Email requis." }, { status: 400 });
+
+    // Rate limit par IP + email — anti spam de demandes de reset
+    const rl = checkRateLimit(`forgot:${getClientIp(req)}:${email.toLowerCase()}`);
+    if (!rl.allowed) {
+      const minutes = Math.ceil((rl.retryAfter ?? 1800) / 60);
+      return NextResponse.json(
+        { success: false, message: `Trop de tentatives. Réessayez dans ${minutes} min.` },
+        { status: 429 }
+      );
+    }
 
     await connectDB();
     const user = await User.findOne({ email: email.toLowerCase(), actif: true });
@@ -19,11 +34,12 @@ export async function POST(req: NextRequest) {
     // Supprimer les anciens tokens de cet utilisateur
     await ResetToken.deleteMany({ userId: user._id });
 
-    // Générer token sécurisé — stocké en MongoDB (persistant)
+    // Générer token sécurisé — seul le hash est stocké en base (le token en clair
+    // n'existe que dans l'URL envoyée à l'utilisateur, jamais en DB)
     const rawToken  = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
 
-    await ResetToken.create({ userId: user._id, token: rawToken, expiresAt });
+    await ResetToken.create({ userId: user._id, token: hashToken(rawToken), expiresAt });
 
     const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${rawToken}`;
 
@@ -66,8 +82,8 @@ export async function PUT(req: NextRequest) {
 
     await connectDB();
 
-    // Récupérer le token depuis MongoDB
-    const entry = await ResetToken.findOne({ token, used: false });
+    // Récupérer le token depuis MongoDB (comparaison sur le hash)
+    const entry = await ResetToken.findOne({ token: hashToken(token), used: false });
     if (!entry)
       return NextResponse.json({ success: false, message: "Lien invalide ou déjà utilisé." }, { status: 400 });
     if (new Date() > entry.expiresAt) {
