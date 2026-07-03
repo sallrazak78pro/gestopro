@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import clsx from "clsx";
+import { formatMontant } from "@/lib/utils/devise";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -11,13 +12,27 @@ export default function ProduitDetailPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [editPrixId, setEditPrixId] = useState<string | null>(null);
+  const [prixSaving, setPrixSaving] = useState(false);
 
-  useEffect(() => {
-    fetch(`/api/produits/${id}`)
-      .then(r => r.json())
-      .then(json => { if (json.success) setData(json.data); })
-      .finally(() => setLoading(false));
-  }, [id]);
+  const fetchData = () => fetch(`/api/produits/${id}`)
+    .then(r => r.json())
+    .then(json => { if (json.success) setData(json.data); })
+    .finally(() => setLoading(false));
+
+  useEffect(() => { fetchData(); }, [id]);
+
+  async function savePrixVente(boutiqueId: string, prixVente: number) {
+    setPrixSaving(true);
+    await fetch("/api/stock/prix", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ produitId: id, boutiqueId, prixVente }),
+    });
+    await fetchData();
+    setPrixSaving(false);
+    setEditPrixId(null);
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted font-mono text-sm">
@@ -95,6 +110,7 @@ export default function ProduitDetailPage() {
           ) : stocks.map((s: any) => {
             const alerte = s.quantite > 0 && s.quantite <= produit.seuilAlerte;
             const vide = s.quantite === 0;
+            const devise = s.boutique.devise || "FCFA";
             return (
               <div key={s._id}
                 className={clsx("rounded-xl border px-5 py-4 transition-all",
@@ -106,7 +122,7 @@ export default function ProduitDetailPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="text-sm font-bold">{s.boutique.nom}</p>
-                    <p className="text-[10px] font-mono text-muted uppercase">{s.boutique.type}</p>
+                    <p className="text-[10px] font-mono text-muted uppercase">{s.boutique.type} · {devise}</p>
                   </div>
                   {vide ? <span className="badge-orange">Vide</span>
                     : alerte ? <span className="badge-red">⚠ Alerte</span>
@@ -120,6 +136,29 @@ export default function ProduitDetailPage() {
                 <p className="text-xs text-muted font-mono mt-1">
                   Seuil d&apos;alerte : {produit.seuilAlerte}
                 </p>
+
+                {/* Prix de vente propre à cette boutique */}
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Prix de vente</p>
+                  {editPrixId === s._id ? (
+                    <input type="number" min={0} step={devise === "FCFA" ? 1 : 0.01} autoFocus
+                      className="input text-sm font-mono py-1.5"
+                      defaultValue={s.prixVente ?? 0}
+                      disabled={prixSaving}
+                      onBlur={e => savePrixVente(s.boutique._id, parseFloat(e.target.value) || 0)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") savePrixVente(s.boutique._id, parseFloat((e.target as HTMLInputElement).value) || 0);
+                        if (e.key === "Escape") setEditPrixId(null);
+                      }}
+                    />
+                  ) : (
+                    <button type="button" onClick={() => setEditPrixId(s._id)}
+                      className="font-mono font-bold text-sm hover:text-accent transition-colors">
+                      {s.prixVente != null ? formatMontant(s.prixVente, devise) : "— définir"}
+                      <span className="ml-2 text-[10px] font-normal text-muted">✏️</span>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

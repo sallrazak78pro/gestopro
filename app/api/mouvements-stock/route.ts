@@ -4,9 +4,10 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
-import "@/lib/models/Boutique"; // enregistre le schéma Mongoose pour .populate()
+import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -189,13 +190,29 @@ export async function POST(req: NextRequest) {
         transfertRef,
         createdBy:   ctx.userId,
       });
+
+      // La marchandise part d'un coût en FCFA — convertit vers la devise de
+      // la boutique destinataire si elle en utilise une autre.
+      const [destBoutique, tenant] = await Promise.all([
+        Boutique.findById(destId).lean() as any,
+        Tenant.findById(ctx.tenantId).lean() as any,
+      ]);
+      const deviseDest = destBoutique?.devise || "FCFA";
+      const taux = getTaux(tenant, deviseDest);
+
       // Incrémenter le stock pour chaque ligne
       for (const l of lignesResolues) {
-        await Stock.findOneAndUpdate(
+        const prixAchatLocal = fcfaVersDevise(l.prixUnitaire, deviseDest, taux);
+        const stock = await Stock.findOneAndUpdate(
           { produit: l.produitId, boutique: destId, tenantId: ctx.tenantId },
-          { $inc: { quantite: +l.quantite }, $setOnInsert: { tenantId: ctx.tenantId } },
-          { upsert: true }
+          { $inc: { quantite: +l.quantite }, $set: { prixAchatLocal }, $setOnInsert: { tenantId: ctx.tenantId } },
+          { upsert: true, new: true }
         );
+        if (stock.prixVente == null) {
+          const produitRef = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId }, "prixVente").lean() as any;
+          const prixVenteSuggere = fcfaVersDevise(produitRef?.prixVente ?? 0, deviseDest, taux);
+          await Stock.updateOne({ _id: stock._id }, { prixVente: prixVenteSuggere });
+        }
       }
       if (!firstMvt) firstMvt = entree;
     }

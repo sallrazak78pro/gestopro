@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
+import Stock from "@/lib/models/Stock";
+import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest) {
@@ -17,6 +19,32 @@ export async function GET(req: NextRequest) {
     ];
     if (searchParams.get("categorie")) query.categorie = searchParams.get("categorie");
     const produits = await Produit.find(query).sort({ nom: 1 });
+
+    // Si une boutique est précisée, on surcharge le prix de vente avec celui
+    // propre à cette boutique (et sa devise) — sinon on garde le prix de
+    // référence FCFA du produit tel quel (comportement inchangé).
+    const boutiqueId = searchParams.get("boutiqueId");
+    if (boutiqueId) {
+      const boutique = await Boutique.findOne({ _id: boutiqueId, tenantId: ctx.tenantId }).lean() as any;
+      const devise = boutique?.devise || "FCFA";
+      const stocks = await Stock.find({
+        tenantId: ctx.tenantId,
+        boutique: boutiqueId,
+        produit: { $in: produits.map(p => p._id) },
+      }).lean();
+      const stockMap: Record<string, any> = {};
+      stocks.forEach((s: any) => { stockMap[s.produit.toString()] = s; });
+
+      const produitsAvecPrix = produits.map(p => {
+        const s = stockMap[p._id.toString()];
+        const obj: any = p.toObject();
+        obj.devise = devise;
+        obj.prixVente = s?.prixVente ?? (devise === "FCFA" ? p.prixVente : null);
+        return obj;
+      });
+      return NextResponse.json({ success: true, data: produitsAvecPrix });
+    }
+
     return NextResponse.json({ success: true, data: produits });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

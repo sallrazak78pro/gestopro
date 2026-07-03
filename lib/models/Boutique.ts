@@ -9,6 +9,7 @@ export interface IBoutique extends Document {
   adresse?: string;
   telephone?: string;
   actif: boolean;
+  devise: string; // devise de vente de cette boutique — FCFA par défaut
   createdAt: Date;
 }
 
@@ -21,6 +22,7 @@ const BoutiqueSchema = new Schema<IBoutique>(
     adresse: { type: String, default: "" },
     telephone: { type: String, default: "" },
     actif: { type: Boolean, default: true },
+    devise: { type: String, default: "FCFA" },
   },
   { timestamps: true }
 );

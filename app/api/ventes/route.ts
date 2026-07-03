@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
+import Boutique from "@/lib/models/Boutique";
 import User from "@/lib/models/User";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
@@ -125,10 +126,13 @@ export async function POST(req: NextRequest) {
     const count        = await Vente.countDocuments({ tenantId: ctx.tenantId });
     const reference    = `FCT-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
+    const boutiqueVente = await Boutique.findOne({ _id: boutiqueId, tenantId: ctx.tenantId }, "devise").lean() as any;
+
     const vente = await Vente.create({
       tenantId: ctx.tenantId,
       reference,
       boutique: boutiqueId,
+      devise: boutiqueVente?.devise || "FCFA",
       client: client || "Client comptoir",
       employe: employe._id,
       employeNom: employe.nom,
