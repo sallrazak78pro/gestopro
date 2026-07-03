@@ -21,6 +21,7 @@ export default function CommandeDetailPage() {
   const { id } = useParams();
   const router  = useRouter();
   const [commande, setCommande]   = useState<any>(null);
+  const [paiements, setPaiements] = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showReception, setShowReception]   = useState(false);
   const [showPaiement, setShowPaiement]     = useState(false);
@@ -29,7 +30,7 @@ export default function CommandeDetailPage() {
   const fetchCommande = useCallback(async () => {
     const res = await fetch(`/api/commandes/${id}`);
     const json = await res.json();
-    if (json.success) setCommande(json.data);
+    if (json.success) { setCommande(json.data); setPaiements(json.paiements || []); }
     setLoading(false);
   }, [id]);
 
@@ -183,6 +184,37 @@ export default function CommandeDetailPage() {
           </div>
         </div>
       </div>
+
+      {paiements.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Historique des paiements</h2>
+            <span className="badge-blue">{paiements.length} versement{paiements.length>1?"s":""}</span>
+          </div>
+          <table className="table">
+            <thead>
+              <tr><th>Date</th><th>Boutique</th><th>Type</th><th>Montant</th><th>Par</th></tr>
+            </thead>
+            <tbody>
+              {paiements.map((p: any) => (
+                <tr key={p._id}>
+                  <td className="font-mono text-xs text-muted">
+                    {new Date(p.createdAt).toLocaleDateString("fr-FR")} {new Date(p.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </td>
+                  <td className="text-sm">{p.boutique?.nom}</td>
+                  <td className="text-sm">
+                    {p.type === "depense"
+                      ? <span className="badge-green">Paiement direct</span>
+                      : <span className="badge-orange">Avance (à reverser)</span>}
+                  </td>
+                  <td className="font-mono font-bold text-sm">{fmt(p.montant)} F</td>
+                  <td className="text-sm text-muted2">{p.createdBy?.nom || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {commande.note && (
         <div className="card p-4">

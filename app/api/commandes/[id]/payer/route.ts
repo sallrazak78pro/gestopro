@@ -51,6 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           montant:          montantAPayer,
           categorieDepense: "achat_marchandise",
           motif:            motifBase,
+          commandeId:       commande._id,
           createdBy:        ctx.userId,
         });
       } else {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           boutiqueDestination: principale?._id ?? null,
           montant:             montantAPayer,
           motif:               `Avance commande — ${motifBase}`,
+          commandeId:          commande._id,
           createdBy:           ctx.userId,
         });
       }

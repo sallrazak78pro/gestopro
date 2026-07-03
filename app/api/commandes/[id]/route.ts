@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
+import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +17,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       .populate("destination", "nom type adresse")
       .populate("createdBy", "nom");
     if (!c) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
-    return NextResponse.json({ success: true, data: c });
+
+    const paiements = await MouvementArgent.find({ tenantId: ctx.tenantId, commandeId: c._id })
+      .populate("boutique", "nom")
+      .populate("createdBy", "nom")
+      .sort({ createdAt: 1 });
+
+    return NextResponse.json({ success: true, data: c, paiements });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
