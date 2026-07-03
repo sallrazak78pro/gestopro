@@ -316,8 +316,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── CONTENU PRINCIPAL ────────────────────────── */}
       <div className={clsx(
         "flex-1 flex flex-col min-h-screen transition-all duration-300",
-        "md:ml-60",
-        !sidebarOpen && "md:ml-16"
+        sidebarOpen ? "md:ml-60" : "md:ml-16"
       )}>
 
         {/* Topbar */}
