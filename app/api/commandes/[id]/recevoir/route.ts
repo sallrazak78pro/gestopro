@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (commande.statut === "recue" || commande.statut === "annulee")
       return NextResponse.json({ success: false, message: "Commande déjà clôturée." }, { status: 400 });
 
-    const countMv = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
+    const lignesMouvement: { produit: any; quantite: number; prixUnitaire: number; montant: number }[] = [];
 
     for (const rec of receptions) {
       const ligne = commande.lignes[rec.ligneIndex];
@@ -51,18 +51,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         { prixAchat: ligne.prixUnitaire }
       );
 
-      // Créer un mouvement de stock (entrée fournisseur)
-      const refMv = `MV-${new Date().getFullYear()}-${String(countMv + rec.ligneIndex + 1).padStart(4,"0")}`;
-      await MouvementStock.create({
-        tenantId: ctx.tenantId,
-        reference: refMv,
-        type: "entree_fournisseur",
+      lignesMouvement.push({
         produit: ligne.produit,
-        source: null,
-        destination: commande.destination,
         quantite: qteARecevoir,
-        motif: `Réception commande ${commande.reference}${note ? ` — ${note}` : ""}`,
-        statut: "livre",
+        prixUnitaire: ligne.prixUnitaire,
+        montant: qteARecevoir * ligne.prixUnitaire,
+      });
+    }
+
+    // Créer un mouvement de stock unique (entrée) pour cette réception
+    if (lignesMouvement.length > 0) {
+      const countMv = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
+      const refMv = `MV-${new Date().getFullYear()}-${String(countMv + 1).padStart(4, "0")}`;
+      await MouvementStock.create({
+        tenantId:  ctx.tenantId,
+        reference: refMv,
+        boutique:  commande.destination,
+        type:      "entree",
+        lignes:    lignesMouvement,
+        montant:   lignesMouvement.reduce((s, l) => s + l.montant, 0),
+        motif:     `Réception commande ${commande.reference}${note ? ` — ${note}` : ""}`,
         createdBy: ctx.userId,
       });
     }

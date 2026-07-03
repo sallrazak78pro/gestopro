@@ -20,7 +20,7 @@ export interface IProduit extends Document {
 const ProduitSchema = new Schema<IProduit>(
   {
     tenantId:    { type: Schema.Types.ObjectId, ref: "Tenant", required: true },
-    reference:   { type: String, required: true, unique: true, uppercase: true },
+    reference:   { type: String, required: true, uppercase: true },
     nom:         { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     categorie:   { type: String, required: true },
@@ -34,6 +34,8 @@ const ProduitSchema = new Schema<IProduit>(
   },
   { timestamps: true }
 );
+
+ProduitSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const Produit: Model<IProduit> =
   mongoose.models.Produit ||

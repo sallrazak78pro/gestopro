@@ -58,13 +58,14 @@ const PaiementSalaireSchema = new Schema<IPaiementSalaire>(
 
     mouvementArgentId: { type: Schema.Types.ObjectId, ref: "MouvementArgent", default: null },
     createdBy:         { type: Schema.Types.ObjectId, ref: "User", required: true },
-    reference:         { type: String, required: true, unique: true },
+    reference:         { type: String, required: true },
   },
   { timestamps: true }
 );
 
 // Un seul paiement par employé par mois/année
 PaiementSalaireSchema.index({ employe: 1, mois: 1, annee: 1 }, { unique: true });
+PaiementSalaireSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const PaiementSalaire: Model<IPaiementSalaire> =
   mongoose.models.PaiementSalaire ||

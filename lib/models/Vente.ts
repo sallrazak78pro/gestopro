@@ -39,7 +39,7 @@ const LigneVenteSchema = new Schema<ILigneVente>({
 const VenteSchema = new Schema<IVente>(
   {
     tenantId:     { type: Schema.Types.ObjectId, ref: "Tenant", required: true },
-    reference:    { type: String, required: true, unique: true },
+    reference:    { type: String, required: true },
     boutique:     { type: Schema.Types.ObjectId, ref: "Boutique", required: true },
     client:       { type: String, default: "Client comptoir" },
     employe:      { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -63,6 +63,8 @@ const VenteSchema = new Schema<IVente>(
   },
   { timestamps: true }
 );
+
+VenteSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const Vente: Model<IVente> =
   mongoose.models.Vente || mongoose.model<IVente>("Vente", VenteSchema);

@@ -37,7 +37,7 @@ export interface IMouvementStock extends Document {
 const schema = new Schema<IMouvementStock>(
   {
     tenantId:     { type: Schema.Types.ObjectId, ref: "Tenant",   required: true },
-    reference:    { type: String, required: true, unique: true },
+    reference:    { type: String, required: true },
     boutique:     { type: Schema.Types.ObjectId, ref: "Boutique", required: true },
     type:         { type: String, enum: ["entree", "sortie"],     required: true },
     lignes:       { type: [ligneSchema], required: true, default: [] },
@@ -51,6 +51,7 @@ const schema = new Schema<IMouvementStock>(
 
 schema.index({ tenantId: 1, boutique: 1, createdAt: -1 });
 schema.index({ transfertRef: 1 });
+schema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const MouvementStock: Model<IMouvementStock> =
   mongoose.models.MouvementStock ||

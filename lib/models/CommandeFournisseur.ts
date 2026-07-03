@@ -42,7 +42,7 @@ const LigneCommandeSchema = new Schema<ILigneCommande>({
 const CommandeFournisseurSchema = new Schema<ICommandeFournisseur>(
   {
     tenantId:     { type: Schema.Types.ObjectId, ref: "Tenant",      required: true },
-    reference:    { type: String, required: true, unique: true },
+    reference:    { type: String, required: true },
     fournisseur:  { type: Schema.Types.ObjectId, ref: "Fournisseur", required: true },
     destination:  { type: Schema.Types.ObjectId, ref: "Boutique",    required: true },
     lignes:       [LigneCommandeSchema],
@@ -58,6 +58,8 @@ const CommandeFournisseurSchema = new Schema<ICommandeFournisseur>(
   },
   { timestamps: true }
 );
+
+CommandeFournisseurSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const CommandeFournisseur: Model<ICommandeFournisseur> =
   mongoose.models.CommandeFournisseur ||

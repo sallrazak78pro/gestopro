@@ -37,6 +37,7 @@ export interface IMouvementArgent extends Document {
   motif?: string;
   avanceRef?: string;
   banqueNom?: string;
+  commandeId?: mongoose.Types.ObjectId; // lien vers la commande fournisseur payée (si applicable)
   // ── Workflow versement ───────────────────────────
   statut: "confirme" | "en_attente" | "rejete";   // défaut "confirme" pour rétrocompatibilité
   confirmedBy?: mongoose.Types.ObjectId;           // admin qui a validé
@@ -50,7 +51,7 @@ export interface IMouvementArgent extends Document {
 const MouvementArgentSchema = new Schema<IMouvementArgent>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", required: true },
-    reference: { type: String, required: true, unique: true },
+    reference: { type: String, required: true },
     type: {
       type: String,
       enum: ["versement_boutique","versement_banque","avance_caisse","remboursement","depense","achat_direct","depot_tiers","retrait_tiers"],
@@ -69,6 +70,7 @@ const MouvementArgentSchema = new Schema<IMouvementArgent>(
     tiersNom: { type: String, default: "" },
     motif:    { type: String, default: "" },
     avanceRef:{ type: String, default: "" },
+    commandeId: { type: Schema.Types.ObjectId, ref: "CommandeFournisseur", default: null },
     // Workflow versement
     statut:       { type: String, enum: ["confirme","en_attente","rejete"], default: "confirme" },
     confirmedBy:  { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -78,6 +80,8 @@ const MouvementArgentSchema = new Schema<IMouvementArgent>(
   },
   { timestamps: true }
 );
+
+MouvementArgentSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
 
 const MouvementArgent: Model<IMouvementArgent> =
   mongoose.models.MouvementArgent ||
