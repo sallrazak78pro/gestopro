@@ -13,6 +13,7 @@ export interface IProduit extends Document {
   unite: string;
   image?: string; // base64 ou URL
   actif: boolean;
+  suiviStock: boolean;
   createdAt: Date;
 }
 
@@ -29,6 +30,7 @@ const ProduitSchema = new Schema<IProduit>(
     unite:       { type: String, default: "pièce" },
     image:       { type: String, default: "" }, // base64 ou URL externe
     actif:       { type: Boolean, default: true },
+    suiviStock:  { type: Boolean, default: true },
   },
   { timestamps: true }
 );

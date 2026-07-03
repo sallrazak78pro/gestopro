@@ -13,7 +13,6 @@ export interface ITenant extends Document {
   dateExpiration?: Date;
   nbBoutiquesMax: number;
   nbUsersMax: number;
-  gestionStockStricte: boolean;
   mouvementsActifs: boolean; // transferts entre boutiques activés
   createdAt: Date;
 }
@@ -31,8 +30,7 @@ const TenantSchema = new Schema<ITenant>(
     dateExpiration: { type: Date, default: null },
     nbBoutiquesMax: { type: Number, default: 5 },
     nbUsersMax:     { type: Number, default: 10 },
-    gestionStockStricte: { type: Boolean, default: false },
-    mouvementsActifs:    { type: Boolean, default: true }, // activé par défaut
+    mouvementsActifs: { type: Boolean, default: true }, // activé par défaut
   },
   { timestamps: true }
 );

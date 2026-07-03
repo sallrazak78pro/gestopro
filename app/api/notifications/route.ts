@@ -29,8 +29,8 @@ export async function GET() {
       ? [ctx.boutiqueAssignee]
       : (await Boutique.find({ tenantId: ctx.tenantId, actif: true })).map(b => b._id.toString());
 
-    // ── 1. Alertes stock ───────────────────────────────────────
-    const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true });
+    // ── 1. Alertes stock (produits avec suivi de stock activé) ─
+    const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true, suiviStock: { $ne: false } });
 
     for (const p of produits) {
       const stocks   = await Stock.find({ produit: p._id, boutique: { $in: boutiqueFilter } });

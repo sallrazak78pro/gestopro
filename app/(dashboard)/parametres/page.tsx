@@ -33,8 +33,7 @@ export default function ParametresPage() {
 
   // Entreprise form
   const [entForm, setEntForm] = useState({ nom: "", email: "", telephone: "", ville: "", pays: "CI" });
-  const [gestionStockStricte, setGestionStockStricte] = useState(false);
-  const [mouvementsActifs,    setMouvementsActifs]    = useState(true);
+  const [mouvementsActifs, setMouvementsActifs] = useState(true);
 
   // Sécurité form
   const [secForm, setSecForm] = useState({ ancienPassword: "", nouveauPassword: "", confirmer: "" });
@@ -58,7 +57,6 @@ export default function ParametresPage() {
             ville:     j.data.ville     || "",
             pays:      j.data.pays      || "CI",
           });
-          setGestionStockStricte(j.data.gestionStockStricte ?? false);
           setMouvementsActifs(j.data.mouvementsActifs ?? true);
         }
       })
@@ -77,7 +75,7 @@ export default function ParametresPage() {
     const res  = await fetch("/api/parametres", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...entForm, gestionStockStricte, mouvementsActifs }),
+      body: JSON.stringify({ ...entForm, mouvementsActifs }),
     });
     const json = await res.json();
     setSaving(false);
@@ -235,39 +233,6 @@ export default function ParametresPage() {
 
             {isAdmin && (
               <>
-                {/* Toggle gestion stock */}
-                <div className="border rounded-2xl p-5" style={{ borderColor: "var(--color-border)" }}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-bold" style={{ color: "var(--color-fg)" }}>
-                        📦 Contrôle strict du stock
-                      </p>
-                      <p className="text-xs text-muted mt-1 leading-relaxed">
-                        {gestionStockStricte
-                          ? "Activé — une vente est bloquée si le stock est insuffisant."
-                          : "Désactivé — les ventes sont possibles même si le stock est à zéro ou non configuré."}
-                      </p>
-                    </div>
-                    {/* Toggle switch */}
-                    <button type="button"
-                      onClick={() => setGestionStockStricte(!gestionStockStricte)}
-                      className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
-                        gestionStockStricte ? "bg-accent" : "bg-surface3"
-                      }`}
-                      style={{ border: "1px solid var(--color-border2)" }}>
-                      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        gestionStockStricte ? "translate-x-6" : "translate-x-0.5"
-                      }`} />
-                    </button>
-                  </div>
-                  {!gestionStockStricte && (
-                    <div className="mt-3 flex items-center gap-2 text-xs font-mono text-warning bg-warning/5 border border-warning/20 rounded-xl px-3 py-2">
-                      <span>⚠</span>
-                      <span>Le stock ne sera pas déduit automatiquement lors des ventes si les produits ne sont pas en stock.</span>
-                    </div>
-                  )}
-                </div>
-
                 {/* Toggle mouvements de marchandise */}
                 <div className="border rounded-2xl p-5" style={{ borderColor: "var(--color-border)" }}>
                   <div className="flex items-start justify-between gap-4">

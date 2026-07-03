@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest) {
     await connectDB();
 
     const body = await req.json();
-    const allowed = ["nom", "telephone", "ville", "pays", "email", "gestionStockStricte", "mouvementsActifs"];
+    const allowed = ["nom", "telephone", "ville", "pays", "email", "mouvementsActifs"];
     const update: any = {};
     allowed.forEach(k => { if (body[k] !== undefined) update[k] = body[k]; });
 

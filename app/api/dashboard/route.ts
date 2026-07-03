@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
           stocks: { $push: { boutique: "$boutique", quantite: "$quantite" } } } },
       { $lookup: { from: "produits", localField: "_id", foreignField: "_id", as: "produit" } },
       { $unwind: "$produit" },
-      { $match: { "produit.actif": true, $expr: { $lte: ["$totalQte", "$produit.seuilAlerte"] } } },
+      { $match: { "produit.actif": true, "produit.suiviStock": { $ne: false }, $expr: { $lte: ["$totalQte", "$produit.seuilAlerte"] } } },
       { $project: {
           _id: "$produit._id",
           nom: "$produit.nom",

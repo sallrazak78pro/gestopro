@@ -132,6 +132,7 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
     seuilAlerte: produit?.seuilAlerte ?? 5,
     unite:       produit?.unite       || "",
     image:       produit?.image       || "",
+    suiviStock:  produit?.suiviStock  ?? true,
   });
   const [imagePreview, setImagePreview] = useState<string>(produit?.image || "");
   const [imageLoading, setImageLoading] = useState(false);
@@ -278,11 +279,39 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
                 <input className="input" placeholder="Auto si vide"
                   value={form.reference} onChange={e => set("reference", e.target.value)} />
               </div>
-              <div>
-                <label className="input-label">Seuil d&apos;alerte</label>
-                <input type="number" min={0} step="0.01" className="input"
-                  value={form.seuilAlerte} onChange={e => set("seuilAlerte", +e.target.value)} />
-                <p className="text-[10px] font-mono text-muted mt-1">Alerte si stock ≤ {form.seuilAlerte}</p>
+              {form.suiviStock && (
+                <div>
+                  <label className="input-label">Seuil d&apos;alerte</label>
+                  <input type="number" min={0} step="0.01" className="input"
+                    value={form.seuilAlerte} onChange={e => set("seuilAlerte", +e.target.value)} />
+                  <p className="text-[10px] font-mono text-muted mt-1">Alerte si stock ≤ {form.seuilAlerte}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Toggle suivi de stock */}
+            <div className="border rounded-2xl p-4" style={{ borderColor: "var(--color-border)" }}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: "var(--color-fg)" }}>
+                    📦 Suivi de stock
+                  </p>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    {form.suiviStock
+                      ? "Activé — le stock de ce produit est vérifié et déduit à chaque vente."
+                      : "Désactivé — ce produit peut être vendu sans quantité en stock (ex : service, sur-mesure)."}
+                  </p>
+                </div>
+                <button type="button"
+                  onClick={() => set("suiviStock", !form.suiviStock)}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
+                    form.suiviStock ? "bg-accent" : "bg-surface3"
+                  }`}
+                  style={{ border: "1px solid var(--color-border2)" }}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    form.suiviStock ? "translate-x-6" : "translate-x-0.5"
+                  }`} />
+                </button>
               </div>
             </div>
 

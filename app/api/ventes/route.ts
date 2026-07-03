@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
+import Produit from "@/lib/models/Produit";
 import User from "@/lib/models/User";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
@@ -102,19 +103,22 @@ export async function POST(req: NextRequest) {
     if (!employe)
       return NextResponse.json({ success: false, message: "Employé introuvable." }, { status: 404 });
 
-    // Vérifier le stock (seulement si gestionStockStricte est activée)
-    const tenant = await (await import("@/lib/models/Tenant")).default.findById(ctx.tenantId).lean() as any;
-    const stockStricte = tenant?.gestionStockStricte ?? false;
+    // Vérifier le stock (uniquement pour les produits avec suivi de stock activé)
+    const produits = await Produit.find(
+      { _id: { $in: lignes.map((l: any) => l.produitId) }, tenantId: ctx.tenantId },
+      "suiviStock"
+    ).lean();
+    const suiviMap: Record<string, boolean> = {};
+    produits.forEach((p: any) => { suiviMap[p._id.toString()] = p.suiviStock ?? true; });
 
-    if (stockStricte) {
-      for (const ligne of lignes) {
-        const stock = await Stock.findOne({ produit: ligne.produitId, boutique: boutiqueId, tenantId: ctx.tenantId });
-        if (!stock || stock.quantite < ligne.quantite)
-          return NextResponse.json({
-            success: false,
-            message: `Stock insuffisant : ${ligne.nomProduit} (dispo: ${stock?.quantite ?? 0})`,
-          }, { status: 400 });
-      }
+    for (const ligne of lignes) {
+      if (!suiviMap[ligne.produitId]) continue; // suivi de stock désactivé pour ce produit
+      const stock = await Stock.findOne({ produit: ligne.produitId, boutique: boutiqueId, tenantId: ctx.tenantId });
+      if (!stock || stock.quantite < ligne.quantite)
+        return NextResponse.json({
+          success: false,
+          message: `Stock insuffisant : ${ligne.nomProduit} (dispo: ${stock?.quantite ?? 0})`,
+        }, { status: 400 });
     }
 
     const montantTotal = lignes.reduce((s: number, l: any) => s + l.sousTotal, 0);
@@ -142,11 +146,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (vente.statut === "payee") {
-      for (const ligne of lignes)
+      for (const ligne of lignes) {
+        if (!suiviMap[ligne.produitId]) continue; // suivi de stock désactivé pour ce produit
         await Stock.findOneAndUpdate(
           { produit: ligne.produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
           { $inc: { quantite: -ligne.quantite } }
         );
+      }
     }
 
     // Log d'activité
