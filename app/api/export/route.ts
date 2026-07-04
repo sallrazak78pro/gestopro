@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       filename = "ventes";
 
     } else if (type === "tresorerie") {
-      const mouvs = await MouvementArgent.find({ tenantId: ctx.tenantId, ...dateFilter })
+      const mouvs = await MouvementArgent.find({ tenantId: ctx.tenantId, ...boutiqueFilter, ...dateFilter })
         .populate("boutique", "nom").sort({ createdAt: -1 }).lean();
 
       const rows = mouvs.map((m: any) => [
@@ -128,25 +128,26 @@ export async function GET(req: NextRequest) {
       filename = "stock";
 
     } else if (type === "mouvements-stock") {
-      const mouvs = await MouvementStock.find({ tenantId: ctx.tenantId, ...dateFilter })
-        .populate("source", "nom").populate("destination", "nom")
+      const mouvs = await MouvementStock.find({ tenantId: ctx.tenantId, ...boutiqueFilter, ...dateFilter })
+        .populate("boutique", "nom").populate("lignes.produit", "nom")
         .populate("createdBy", "nom prenom").sort({ createdAt: -1 }).lean();
 
-      const rows = mouvs.map((m: any) => [
-        m.reference ?? "",
-        fmtDate(m.createdAt),
-        m.type,
-        m.source?.nom ?? "—",
-        m.destination?.nom ?? "—",
-        m.produitNom ?? "",
-        fmtNum(m.quantite),
-        m.motif ?? "",
-        m.statut ?? "",
-        m.createdBy ? `${m.createdBy.prenom} ${m.createdBy.nom}` : "",
-      ]);
+      const rows = mouvs.flatMap((m: any) =>
+        m.lignes.map((l: any) => [
+          m.reference ?? "",
+          fmtDate(m.createdAt),
+          m.type === "entree" ? "Entrée" : "Sortie",
+          m.boutique?.nom ?? "",
+          l.produit?.nom ?? "",
+          fmtNum(l.quantite),
+          fmtNum(l.montant),
+          m.motif ?? "",
+          m.createdBy ? `${m.createdBy.prenom} ${m.createdBy.nom}` : "",
+        ])
+      );
 
       csv = toCSV(
-        ["Référence","Date","Type","Source","Destination","Produit","Qté","Motif","Statut","Créé par"],
+        ["Référence","Date","Type","Boutique","Produit","Qté","Montant (F)","Motif","Créé par"],
         rows
       );
       filename = "mouvements-stock";
