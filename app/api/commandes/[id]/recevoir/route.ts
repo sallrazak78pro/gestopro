@@ -12,6 +12,7 @@ import Tenant from "@/lib/models/Tenant";
 import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .populate("fournisseur")
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
+import { calculerCUMP } from "@/lib/utils/cump";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -101,17 +102,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const coutCetArrivage = l.prixUnitaire + fraisParUnite;
 
       // CUMP tenant (FCFA) — moyenne pondérée avec le stock existant, toutes boutiques confondues
-      const qteApresTenant = l.qteAvantTenant + l.quantite;
-      const cumpTenant = qteApresTenant > 0
-        ? (l.qteAvantTenant * l.coutAvantTenant + l.quantite * coutCetArrivage) / qteApresTenant
-        : coutCetArrivage;
+      const cumpTenant = calculerCUMP(l.qteAvantTenant, l.coutAvantTenant, l.quantite, coutCetArrivage);
 
       // CUMP boutique (devise locale) — moyenne pondérée avec le stock déjà présent dans CETTE boutique
       const coutCetArrivageLocal = fcfaVersDevise(coutCetArrivage, deviseDest, taux);
-      const qteApresBoutique = l.qteAvantBoutique + l.quantite;
-      const cumpBoutique = qteApresBoutique > 0
-        ? (l.qteAvantBoutique * l.coutAvantBoutique + l.quantite * coutCetArrivageLocal) / qteApresBoutique
-        : coutCetArrivageLocal;
+      const cumpBoutique = calculerCUMP(l.qteAvantBoutique, l.coutAvantBoutique, l.quantite, coutCetArrivageLocal);
 
       const stock = await Stock.findOneAndUpdate(
         { produit: l.produit, boutique: commande.destination, tenantId: ctx.tenantId },

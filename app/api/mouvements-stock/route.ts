@@ -8,6 +8,7 @@ import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
+import { calculerCUMP } from "@/lib/utils/cump";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -208,10 +209,7 @@ export async function POST(req: NextRequest) {
         const qteAvant  = stockAvant?.quantite ?? 0;
         const coutAvant = stockAvant?.prixAchatLocal ?? 0;
         const coutArriveeLocal = fcfaVersDevise(l.prixUnitaire, deviseDest, taux);
-        const qteApres = qteAvant + l.quantite;
-        const cumpBoutique = qteApres > 0
-          ? (qteAvant * coutAvant + l.quantite * coutArriveeLocal) / qteApres
-          : coutArriveeLocal;
+        const cumpBoutique = calculerCUMP(qteAvant, coutAvant, l.quantite, coutArriveeLocal);
 
         const stock = await Stock.findOneAndUpdate(
           { produit: l.produitId, boutique: destId, tenantId: ctx.tenantId },
