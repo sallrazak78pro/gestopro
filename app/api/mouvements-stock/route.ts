@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     // ── Résoudre prix d'achat pour chaque ligne ───────────────────────────
     const lignesResolues: { produitId: string; quantite: number; prixUnitaire: number; montant: number }[] = [];
     for (const l of lignes) {
-      const produit = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId }).lean() as any;
+      const produit = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId }, "prixAchat").lean() as any;
       if (!produit)
         return NextResponse.json({ success: false, message: `Produit introuvable : ${l.produitId}` }, { status: 404 });
       const prixUnitaire = produit.prixAchat ?? 0;
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       for (const l of lignesResolues) {
         const stock = await Stock.findOne({ produit: l.produitId, boutique: sourceId, tenantId: ctx.tenantId });
         if (!stock || stock.quantite < l.quantite) {
-          const produit = await Produit.findById(l.produitId).lean() as any;
+          const produit = await Produit.findById(l.produitId, "nom").lean() as any;
           return NextResponse.json({
             success: false,
             message: `Stock insuffisant pour « ${produit?.nom ?? l.produitId} » (disponible : ${stock?.quantite ?? 0})`,

@@ -99,7 +99,7 @@ export default function NouvelleVenteModal({
 
   const fetchProduits = useCallback(async () => {
     if (!boutiqueId) return;
-    const params = new URLSearchParams({ search, boutiqueId });
+    const params = new URLSearchParams({ search, boutiqueId, avecImage: "1" });
     const res  = await fetch(`/api/produits?${params}`);
     const json = await res.json();
     if (json.success) setProduits(json.data);

@@ -82,6 +82,10 @@ const MouvementArgentSchema = new Schema<IMouvementArgent>(
 );
 
 MouvementArgentSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
+// Sert les agrégations de solde de caisse (dashboard, trésorerie), filtrées
+// par tenant + boutique + type à chaque chargement de page.
+MouvementArgentSchema.index({ tenantId: 1, boutique: 1, type: 1 });
+MouvementArgentSchema.index({ tenantId: 1, boutiqueDestination: 1, type: 1, statut: 1 });
 
 const MouvementArgent: Model<IMouvementArgent> =
   mongoose.models.MouvementArgent ||

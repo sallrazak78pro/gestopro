@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Enrichir les lignes avec les noms des produits
     const lignesEnrichies = await Promise.all(lignes.map(async (l: any) => {
-      const produit = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId });
+      const produit = await Produit.findOne({ _id: l.produitId, tenantId: ctx.tenantId }, "nom").lean() as any;
       if (!produit) throw new Error(`Produit introuvable: ${l.produitId}`);
       return {
         produit: l.produitId,

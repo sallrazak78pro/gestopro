@@ -90,12 +90,19 @@ export async function GET(req: NextRequest) {
       filename = "tresorerie";
 
     } else if (type === "stock") {
-      const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true }).lean();
+      const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true }, "-image").lean();
+      const stocksTous = await Stock.find({ tenantId: ctx.tenantId })
+        .populate("boutique", "nom").lean() as any[];
+      const stocksParProduit = new Map<string, any[]>();
+      stocksTous.forEach(s => {
+        const key = s.produit.toString();
+        if (!stocksParProduit.has(key)) stocksParProduit.set(key, []);
+        stocksParProduit.get(key)!.push(s);
+      });
       const rows: string[][] = [];
 
       for (const p of produits) {
-        const stocks = await Stock.find({ produit: p._id, tenantId: ctx.tenantId })
-          .populate("boutique", "nom").lean() as any[];
+        const stocks = stocksParProduit.get((p as any)._id.toString()) ?? [];
 
         if (stocks.length === 0) {
           rows.push([

@@ -9,6 +9,7 @@ import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
 import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
+import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .populate("fournisseur")
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 

@@ -1,5 +1,6 @@
 // app/api/notifications/route.ts
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
@@ -7,6 +8,7 @@ import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import MouvementArgent from "@/lib/models/MouvementArgent";
+import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .populate("fournisseur")
 import { getTenantContext } from "@/lib/utils/tenant";
 
 export async function GET() {
@@ -27,14 +29,24 @@ export async function GET() {
     // ── Boutiques accessibles ──────────────────────────────────
     const boutiqueFilter = ctx.boutiqueAssignee
       ? [ctx.boutiqueAssignee]
-      : (await Boutique.find({ tenantId: ctx.tenantId, actif: true })).map(b => b._id.toString());
+      : (await Boutique.find({ tenantId: ctx.tenantId, actif: true }).lean()).map((b: any) => b._id.toString());
 
     // ── 1. Alertes stock (produits avec suivi de stock activé) ─
-    const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true, suiviStock: { $ne: false } });
+    // Une seule agrégation groupée au lieu d'une requête Stock par produit.
+    const produits = await Produit.find(
+      { tenantId: ctx.tenantId, actif: true, suiviStock: { $ne: false } },
+      "-image"
+    ).lean();
 
-    for (const p of produits) {
-      const stocks   = await Stock.find({ produit: p._id, boutique: { $in: boutiqueFilter } });
-      const totalQte = stocks.reduce((s, st) => s + st.quantite, 0);
+    const qteParProduit = await Stock.aggregate([
+      { $match: { tenantId: new mongoose.Types.ObjectId(ctx.tenantId), boutique: { $in: boutiqueFilter.map((id: string) => new mongoose.Types.ObjectId(id)) } } },
+      { $group: { _id: "$produit", totalQte: { $sum: "$quantite" } } },
+    ]);
+    const qteMap = new Map<string, number>();
+    qteParProduit.forEach((q: any) => qteMap.set(q._id.toString(), q.totalQte));
+
+    for (const p of produits as any[]) {
+      const totalQte = qteMap.get(p._id.toString()) ?? 0;
 
       if (totalQte === 0) {
         notifications.push({
@@ -63,7 +75,7 @@ export async function GET() {
     if (ctx.boutiqueAssignee) sessionsQuery.boutique = ctx.boutiqueAssignee;
 
     const sessionsOuvertes = await SessionCaisse.find(sessionsQuery)
-      .populate("boutique", "nom");
+      .populate("boutique", "nom").lean();
 
     for (const s of sessionsOuvertes) {
       if (new Date(s.dateOuverture) < hier) {
@@ -86,7 +98,7 @@ export async function GET() {
         tenantId: ctx.tenantId,
         statut:   "envoyee",
         dateCommande: { $lt: il_y_a_3j },
-      }).populate("fournisseur", "nom");
+      }).populate("fournisseur", "nom").lean();
 
       for (const c of commandesEnAttente) {
         notifications.push({
@@ -104,7 +116,7 @@ export async function GET() {
         tenantId:  ctx.tenantId,
         statut:    { $in: ["recue", "recue_partiellement"] },
         montantDu: { $gt: 0 },
-      }).populate("fournisseur", "nom");
+      }).populate("fournisseur", "nom").lean();
 
       for (const c of commandesAPayer) {
         notifications.push({

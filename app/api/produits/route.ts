@@ -18,7 +18,11 @@ export async function GET(req: NextRequest) {
       { reference: { $regex: searchParams.get("search"), $options: "i" } },
     ];
     if (searchParams.get("categorie")) query.categorie = searchParams.get("categorie");
-    const produits = await Produit.find(query).sort({ nom: 1 });
+
+    // L'image (base64) est lourde et rarement utile — exclue par défaut,
+    // seule la vente au comptoir (miniature produit) la redemande explicitement.
+    const projection = searchParams.get("avecImage") ? undefined : "-image";
+    const produits = await Produit.find(query, projection).sort({ nom: 1 }).lean();
 
     // Si une boutique est précisée, on surcharge le prix de vente avec celui
     // propre à cette boutique (et sa devise) — sinon on garde le prix de
@@ -30,17 +34,18 @@ export async function GET(req: NextRequest) {
       const stocks = await Stock.find({
         tenantId: ctx.tenantId,
         boutique: boutiqueId,
-        produit: { $in: produits.map(p => p._id) },
+        produit: { $in: produits.map((p: any) => p._id) },
       }).lean();
       const stockMap: Record<string, any> = {};
       stocks.forEach((s: any) => { stockMap[s.produit.toString()] = s; });
 
-      const produitsAvecPrix = produits.map(p => {
+      const produitsAvecPrix = produits.map((p: any) => {
         const s = stockMap[p._id.toString()];
-        const obj: any = p.toObject();
-        obj.devise = devise;
-        obj.prixVente = s?.prixVente ?? (devise === "FCFA" ? p.prixVente : null);
-        return obj;
+        return {
+          ...p,
+          devise,
+          prixVente: s?.prixVente ?? (devise === "FCFA" ? p.prixVente : null),
+        };
       });
       return NextResponse.json({ success: true, data: produitsAvecPrix });
     }

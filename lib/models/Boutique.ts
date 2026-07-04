@@ -27,6 +27,8 @@ const BoutiqueSchema = new Schema<IBoutique>(
   { timestamps: true }
 );
 
+BoutiqueSchema.index({ tenantId: 1, actif: 1 });
+
 const Boutique: Model<IBoutique> =
   mongoose.models.Boutique ||
   mongoose.model<IBoutique>("Boutique", BoutiqueSchema);

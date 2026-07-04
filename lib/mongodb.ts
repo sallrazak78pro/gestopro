@@ -1,5 +1,6 @@
 // lib/mongodb.ts
 import mongoose from "mongoose";
+import "./models/registerAll"; // garantit que tous les modèles sont enregistrés avant toute requête/populate
 
 const MONGODB_URI = process.env.MONGODB_URI as string;
 

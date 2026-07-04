@@ -23,28 +23,32 @@ export async function GET(req: NextRequest) {
       boutiqueQuery._id = searchParams.get("boutique");
     }
 
-    const boutiques = await Boutique.find(boutiqueQuery).sort({ type: -1, nom: 1 });
+    const boutiques = await Boutique.find(boutiqueQuery).sort({ type: -1, nom: 1 }).lean();
     const boutiqueIds = boutiques.map(b => b._id.toString());
 
+    // Le produit complet (avec image) n'est jamais utilisé ici — on récupère
+    // déjà tout ce qu'il faut via la liste Produit ci-dessous, donc pas besoin
+    // de populate("produit") sur chaque ligne de stock.
     const stocks = await Stock.find({
       tenantId: ctx.tenantId,
       boutique: { $in: boutiqueIds },
-    }).populate("produit").populate("boutique", "nom type");
+    }, "produit boutique quantite").lean();
 
-    const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true }).sort({ nom: 1 });
+    const produits = await Produit.find({ tenantId: ctx.tenantId, actif: true }, "-image").sort({ nom: 1 }).lean();
 
-    const vue = produits.map(produit => {
+    // Map (produit, boutique) → quantité, en O(1) au lieu de chercher dans
+    // le tableau `stocks` à chaque itération (évitait un triple boucle imbriquée).
+    const qteMap = new Map<string, number>();
+    stocks.forEach((s: any) => { qteMap.set(`${s.produit}_${s.boutique}`, s.quantite); });
+
+    const vue = produits.map((produit: any) => {
       const row: any = {
         _id: produit._id, reference: produit.reference, nom: produit.nom,
         categorie: produit.categorie, prixVente: produit.prixVente,
         seuilAlerte: produit.seuilAlerte, stocks: {}, total: 0, enAlerte: false,
       };
-      boutiques.forEach(b => {
-        const s = stocks.find(
-          st => st.produit?._id?.toString() === produit._id.toString()
-             && st.boutique?._id?.toString() === b._id.toString()
-        );
-        const qte = s?.quantite ?? 0;
+      boutiques.forEach((b: any) => {
+        const qte = qteMap.get(`${produit._id}_${b._id}`) ?? 0;
         row.stocks[b._id.toString()] = qte;
         row.total += qte;
         if (qte > 0 && qte <= produit.seuilAlerte) row.enAlerte = true;

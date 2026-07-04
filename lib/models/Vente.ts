@@ -67,6 +67,9 @@ const VenteSchema = new Schema<IVente>(
 );
 
 VenteSchema.index({ tenantId: 1, reference: 1 }, { unique: true });
+// Sert les agrégations de solde de caisse / CA (dashboard, trésorerie) —
+// filtrées par tenant + boutique + statut à chaque chargement de page.
+VenteSchema.index({ tenantId: 1, boutique: 1, statut: 1, createdAt: -1 });
 
 const Vente: Model<IVente> =
   mongoose.models.Vente || mongoose.model<IVente>("Vente", VenteSchema);

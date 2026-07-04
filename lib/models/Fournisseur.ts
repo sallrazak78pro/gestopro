@@ -33,6 +33,8 @@ const FournisseurSchema = new Schema<IFournisseur>(
   { timestamps: true }
 );
 
+FournisseurSchema.index({ tenantId: 1, actif: 1 });
+
 const Fournisseur: Model<IFournisseur> =
   mongoose.models.Fournisseur ||
   mongoose.model<IFournisseur>("Fournisseur", FournisseurSchema);

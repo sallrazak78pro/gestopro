@@ -232,12 +232,14 @@ export async function GET(req: NextRequest) {
       valeurStockAgg.forEach((v: any) => { valeurParBoutique[v._id.toString()] = v.valeur; });
       const valeurStockTotal = Object.values(valeurParBoutique).reduce((s, v) => s + v, 0);
 
-      // Soldes caisse par boutique — formule centralisée (lib/utils/tresorerie)
+      // Soldes caisse par boutique — réutilise soldesGlobauxMap (déjà calculé
+      // ci-dessus pour TOUTES les boutiques, un sur-ensemble) au lieu de
+      // relancer les mêmes agrégations Vente/MouvementArgent une 2e fois.
       const boutiquesPrincipales = boutiquesAll.filter(b => b.type === "boutique");
       const boutiqueBids = boutiquesPrincipales.map(b => b._id);
+      const soldesMap = soldesGlobauxMap;
 
-      const [soldesMap, cmdRes, banqueRes] = await Promise.all([
-        calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueBids),
+      const [cmdRes, banqueRes] = await Promise.all([
         CommandeFournisseur.aggregate([
           { $match: { tenantId: tid, statut: { $in: ["envoyee","recue_partiellement"] }, montantDu: { $gt: 0 } } },
           { $group: { _id: null, totalDu: { $sum: "$montantDu" }, nb: { $sum: 1 } } },

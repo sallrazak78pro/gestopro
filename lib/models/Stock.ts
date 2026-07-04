@@ -26,6 +26,9 @@ const StockSchema = new Schema<IStock>(
 
 // Index unique : un produit ne peut avoir qu'une entrée par boutique
 StockSchema.index({ produit: 1, boutique: 1 }, { unique: true });
+// Sert les pages/agrégations qui listent le stock par tenant + boutique(s)
+// sans filtrer sur un produit précis (dashboard, notifications, page Stock).
+StockSchema.index({ tenantId: 1, boutique: 1 });
 
 const Stock: Model<IStock> =
   mongoose.models.Stock || mongoose.model<IStock>("Stock", StockSchema);
