@@ -35,15 +35,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { ctx, error } = await getTenantContext();
     if (error) return error;
     await connectDB();
-    const { statut } = await req.json();
+    const { statut, fraisLivraison } = await req.json();
     const commande = await CommandeFournisseur.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!commande) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
 
-    // Si annulation : rembourser le solde fournisseur du montant non payé
-    if (statut === "annulee" && commande.statut !== "annulee") {
-      await Fournisseur.findByIdAndUpdate(commande.fournisseur, { $inc: { soldeCredit: -commande.montantDu } });
+    if (statut !== undefined) {
+      // Si annulation : rembourser le solde fournisseur du montant non payé
+      if (statut === "annulee" && commande.statut !== "annulee") {
+        await Fournisseur.findByIdAndUpdate(commande.fournisseur, { $inc: { soldeCredit: -commande.montantDu } });
+      }
+      commande.statut = statut;
     }
-    commande.statut = statut;
+
+    // Correction manuelle des frais de livraison (erreur de saisie) — ne
+    // touche jamais le montant dû au fournisseur, uniquement le prix de
+    // revient calculé lors des réceptions suivantes.
+    if (fraisLivraison !== undefined) {
+      if (fraisLivraison < 0)
+        return NextResponse.json({ success: false, message: "Frais invalides" }, { status: 400 });
+      commande.fraisLivraison = fraisLivraison;
+    }
+
     await commande.save();
     return NextResponse.json({ success: true, data: commande });
   } catch (err: any) {

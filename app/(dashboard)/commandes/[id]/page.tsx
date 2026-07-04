@@ -26,6 +26,8 @@ export default function CommandeDetailPage() {
   const [showReception, setShowReception]   = useState(false);
   const [showPaiement, setShowPaiement]     = useState(false);
   const [boutiques, setBoutiques] = useState<any[]>([]);
+  const [editFrais, setEditFrais] = useState(false);
+  const [fraisSaving, setFraisSaving] = useState(false);
 
   const fetchCommande = useCallback(async () => {
     const res = await fetch(`/api/commandes/${id}`);
@@ -38,6 +40,18 @@ export default function CommandeDetailPage() {
   useEffect(() => {
     fetch("/api/boutiques?type=boutique").then(r=>r.json()).then(j=>j.success&&setBoutiques(j.data));
   }, []);
+
+  async function saveFrais(valeur: number) {
+    setFraisSaving(true);
+    await fetch(`/api/commandes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fraisLivraison: valeur }),
+    });
+    await fetchCommande();
+    setFraisSaving(false);
+    setEditFrais(false);
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted font-mono text-sm gap-3">
@@ -177,23 +191,43 @@ export default function CommandeDetailPage() {
         </table>
 
         {/* Total */}
-        <div className="px-5 py-4 border-t border-border flex flex-col items-end gap-1.5">
-          {commande.fraisLivraison > 0 && (
-            <>
-              <div className="flex items-center gap-4 text-sm text-muted2">
-                <span>Marchandise</span>
-                <span className="font-mono">{fmt(commande.montantTotal - commande.fraisLivraison)} F</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-warning">
-                <span>Frais de livraison (transport, douane...)</span>
-                <span className="font-mono">{fmt(commande.fraisLivraison)} F</span>
-              </div>
-            </>
-          )}
+        <div className="px-5 py-4 border-t border-border flex justify-end">
           <div className="flex items-center gap-4">
-            <span className="font-bold">Total{commande.fraisLivraison > 0 ? " (marchandise + frais)" : ""}</span>
+            <span className="font-bold">Total</span>
             <span className="font-mono font-extrabold text-xl text-accent">{fmt(commande.montantTotal)} F</span>
           </div>
+        </div>
+      </div>
+
+      {/* Frais de livraison — référence pour le prix de revient, ne touche jamais le montant dû */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
+              Frais de livraison (transport, douane...)
+            </p>
+            <p className="text-[11px] text-muted2">
+              Sert uniquement au calcul du prix de revient — n&apos;affecte pas le montant dû au fournisseur.
+            </p>
+          </div>
+          {editFrais ? (
+            <input type="number" min={0} step="1" autoFocus
+              className="input w-32 text-right font-mono"
+              defaultValue={commande.fraisLivraison || 0}
+              disabled={fraisSaving}
+              onBlur={e => saveFrais(parseFloat(e.target.value) || 0)}
+              onKeyDown={e => {
+                if (e.key === "Enter") saveFrais(parseFloat((e.target as HTMLInputElement).value) || 0);
+                if (e.key === "Escape") setEditFrais(false);
+              }}
+            />
+          ) : (
+            <button type="button" onClick={() => setEditFrais(true)}
+              className="font-mono font-bold hover:text-accent transition-colors shrink-0">
+              {fmt(commande.fraisLivraison || 0)} F
+              <span className="ml-2 text-[10px] font-normal text-muted">✏️ corriger</span>
+            </button>
+          )}
         </div>
       </div>
 

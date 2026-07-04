@@ -9,7 +9,6 @@ import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
 import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
-import Fournisseur from "@/lib/models/Fournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 
@@ -134,12 +133,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    // Les frais sont payés au fournisseur — s'ajoutent au montant dû
+    // Les frais restent une info de référence (servent au prix de revient) —
+    // ils ne touchent ni le montant dû au fournisseur, ni sa trésorerie.
     if (frais > 0 && lignesMouvement.length > 0) {
       commande.fraisLivraison = (commande.fraisLivraison || 0) + frais;
-      commande.montantTotal  += frais;
-      commande.montantDu     += frais;
-      await Fournisseur.findByIdAndUpdate(commande.fournisseur, { $inc: { soldeCredit: frais } });
     }
 
     // Créer un mouvement de stock unique (entrée) pour cette réception
