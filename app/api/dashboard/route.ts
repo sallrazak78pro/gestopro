@@ -11,6 +11,8 @@ import Employe from "@/lib/models/Employe";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
+import Tenant from "@/lib/models/Tenant";
+import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
 import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
@@ -44,6 +46,16 @@ export async function GET(req: NextRequest) {
       : boutiquesAll.map(b => b._id);
     const boutiqueIdStrings = boutiqueIds.map(id => id.toString());
 
+    // ── Devises : les ventes/mouvements de caisse sont enregistrés dans la
+    // devise locale de chaque boutique — il faut convertir en FCFA avant de
+    // sommer entre boutiques, sinon un tenant avec une boutique en devise
+    // étrangère (ex: USD) obtient des totaux consolidés incohérents.
+    const tenantDoc = await Tenant.findById(ctx.tenantId).select("tauxChange").lean() as any;
+    const boutiqueDeviseMap: Record<string, string> = {};
+    boutiquesAll.forEach(b => { boutiqueDeviseMap[b._id.toString()] = b.devise || "FCFA"; });
+    const versFCFA = (montant: number, boutiqueId: string | null | undefined) =>
+      deviseVersFCFA(montant, boutiqueDeviseMap[boutiqueId ?? ""] ?? "FCFA", getTaux(tenantDoc, boutiqueDeviseMap[boutiqueId ?? ""] ?? "FCFA"));
+
     // ── 1. CA + dépenses + versements (2 périodes en parallèle) ─
     const [caRes, caDepVers, sessionOuvRes, employeRes] = await Promise.all([
       // CA période + précédente
@@ -51,7 +63,7 @@ export async function GET(req: NextRequest) {
         { $match: { tenantId: tid, statut: "payee", ...boutiqueFilter,
             createdAt: { $gte: debutPrec, $lte: fin } } },
         { $group: {
-          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] } },
+          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] }, boutique: "$boutique" },
           total: { $sum: "$montantTotal" }, nb: { $sum: 1 },
         }},
       ]),
@@ -63,6 +75,7 @@ export async function GET(req: NextRequest) {
           _id: {
             periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] },
             type:    "$type",
+            boutique: "$boutique",
           },
           total: { $sum: "$montant" },
         }},
@@ -76,19 +89,25 @@ export async function GET(req: NextRequest) {
         ...(ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {}) }).lean(),
     ]);
 
-    // Parser CA
+    // Parser CA (conversion FCFA par boutique avant consolidation)
     const caMap: Record<string, { total: number; nb: number }> = {};
-    caRes.forEach((r: any) => { caMap[r._id.periode] = { total: r.total, nb: r.nb }; });
+    caRes.forEach((r: any) => {
+      const periode = r._id.periode;
+      if (!caMap[periode]) caMap[periode] = { total: 0, nb: 0 };
+      caMap[periode].total += versFCFA(r.total, r._id.boutique?.toString());
+      caMap[periode].nb    += r.nb;
+    });
     const caPeriode = caMap.current?.total ?? 0;
     const caPrec    = caMap.prev?.total    ?? 0;
     const caNb      = caMap.current?.nb   ?? 0;
     const caEvolution = caPrec > 0 ? (((caPeriode - caPrec) / caPrec) * 100).toFixed(1) : null;
 
-    // Parser dépenses + versements
+    // Parser dépenses + versements (conversion FCFA par boutique avant consolidation)
     const dvMap: Record<string, Record<string, number>> = {};
     caDepVers.forEach((r: any) => {
       if (!dvMap[r._id.periode]) dvMap[r._id.periode] = {};
-      dvMap[r._id.periode][r._id.type] = r.total;
+      const totalFCFA = versFCFA(r.total, r._id.boutique?.toString());
+      dvMap[r._id.periode][r._id.type] = (dvMap[r._id.periode][r._id.type] ?? 0) + totalFCFA;
     });
     const dep     = (dvMap.current?.depense ?? 0) + (dvMap.current?.achat_direct ?? 0);
     const depPrec = (dvMap.prev?.depense    ?? 0) + (dvMap.prev?.achat_direct    ?? 0);
@@ -104,7 +123,8 @@ export async function GET(req: NextRequest) {
     // de chaque boutique visible — cohérent avec les soldes par boutique
     // affichés plus bas (mêmes règles de statut confirmé/en_attente/rejeté).
     const soldesGlobauxMap = await calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueIds);
-    const soldeTresorerie  = Object.values(soldesGlobauxMap).reduce((s, v) => s + v, 0);
+    const soldeTresorerie  = Object.entries(soldesGlobauxMap)
+      .reduce((s, [bid, v]) => s + versFCFA(v, bid), 0);
 
     // ── 3. Alertes stock — 1 seule agrégation $lookup ──────────
     const alertesAgg = await Stock.aggregate([
@@ -148,8 +168,8 @@ export async function GET(req: NextRequest) {
         { $match: { tenantId: tid, statut: "payee", createdAt: { $gte: debut, $lte: fin }, ...boutiqueFilter } },
         { $group: {
           _id: afficherParMois
-            ? { m: { $month: "$createdAt" }, a: { $year: "$createdAt" } }
-            : { j: { $dayOfMonth: "$createdAt" }, m: { $month: "$createdAt" }, a: { $year: "$createdAt" } },
+            ? { m: { $month: "$createdAt" }, a: { $year: "$createdAt" }, boutique: "$boutique" }
+            : { j: { $dayOfMonth: "$createdAt" }, m: { $month: "$createdAt" }, a: { $year: "$createdAt" }, boutique: "$boutique" },
           total: { $sum: "$montantTotal" },
         }},
         { $sort: { "_id.a": 1, "_id.m": 1, "_id.j": 1 } },
@@ -158,12 +178,25 @@ export async function GET(req: NextRequest) {
         { $match: { tenantId: tid, type: { $in: ["depense","achat_direct"] }, createdAt: { $gte: debut, $lte: fin } } },
         { $group: {
           _id: afficherParMois
-            ? { m: { $month: "$createdAt" }, a: { $year: "$createdAt" } }
-            : { j: { $dayOfMonth: "$createdAt" }, m: { $month: "$createdAt" }, a: { $year: "$createdAt" } },
+            ? { m: { $month: "$createdAt" }, a: { $year: "$createdAt" }, boutique: "$boutique" }
+            : { j: { $dayOfMonth: "$createdAt" }, m: { $month: "$createdAt" }, a: { $year: "$createdAt" }, boutique: "$boutique" },
           total: { $sum: "$montant" },
         }},
       ]),
     ]);
+
+    // Consolidation FCFA + regroupement par jour/mois (chaque doc ci-dessus
+    // est encore scindé par boutique à cause du group key ajouté plus haut)
+    const consoliderParPeriode = (rows: any[]) => {
+      const m = new Map<string, number>();
+      rows.forEach((r: any) => {
+        const key = afficherParMois ? `${r._id.a}-${r._id.m}` : `${r._id.a}-${r._id.m}-${r._id.j}`;
+        m.set(key, (m.get(key) ?? 0) + versFCFA(r.total, r._id.boutique?.toString()));
+      });
+      return m;
+    };
+    const graphVentesMap = consoliderParPeriode(graphVentes as any[]);
+    const graphDepMap    = consoliderParPeriode(graphDep as any[]);
 
     const MOIS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
     const graphData: any[] = [];
@@ -172,9 +205,8 @@ export async function GET(req: NextRequest) {
       const cur = new Date(debut.getFullYear(), debut.getMonth(), 1);
       while (cur <= fin) {
         const m = cur.getMonth() + 1, a = cur.getFullYear();
-        const v = (graphVentes as any[]).find(x => x._id.m === m && x._id.a === a);
-        const d = (graphDep    as any[]).find(x => x._id.m === m && x._id.a === a);
-        graphData.push({ label: `${MOIS[m-1]} ${a}`, ventes: v?.total ?? 0, depenses: d?.total ?? 0 });
+        const key = `${a}-${m}`;
+        graphData.push({ label: `${MOIS[m-1]} ${a}`, ventes: graphVentesMap.get(key) ?? 0, depenses: graphDepMap.get(key) ?? 0 });
         cur.setMonth(cur.getMonth() + 1);
       }
     } else {
@@ -182,12 +214,11 @@ export async function GET(req: NextRequest) {
         const d = new Date(debut); d.setDate(debut.getDate() + i);
         if (d > fin) break;
         const j = d.getDate(), m = d.getMonth() + 1, a = d.getFullYear();
-        const vj = (graphVentes as any[]).find(x => x._id.j === j && x._id.m === m && x._id.a === a);
-        const dj = (graphDep    as any[]).find(x => x._id.j === j && x._id.m === m && x._id.a === a);
+        const key = `${a}-${m}-${j}`;
         graphData.push({
           label: d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
-          ventes: vj?.total ?? 0,
-          depenses: dj?.total ?? 0,
+          ventes: graphVentesMap.get(key) ?? 0,
+          depenses: graphDepMap.get(key) ?? 0,
         });
       }
     }
@@ -204,11 +235,14 @@ export async function GET(req: NextRequest) {
         .sort({ createdAt: -1 }).limit(8).lean(),
     ]);
 
-    const totalParBoutique = (ventesParBoutiqueRes as any[]).reduce((s, v) => s + v.total, 0);
+    const ventesParBoutiqueFCFA = (ventesParBoutiqueRes as any[]).map(v => ({
+      id: v._id?.toString(), total: versFCFA(v.total, v._id?.toString()),
+    }));
+    const totalParBoutique = ventesParBoutiqueFCFA.reduce((s, v) => s + v.total, 0);
     const repartitionPDV = boutiquesAll
       .filter(b => b.type === "boutique")
       .map(b => {
-        const found = (ventesParBoutiqueRes as any[]).find(v => v._id.toString() === b._id.toString());
+        const found = ventesParBoutiqueFCFA.find(v => v.id === b._id.toString());
         const val   = found?.total ?? 0;
         return { nom: b.nom, total: val, pct: totalParBoutique > 0 ? Math.round((val / totalParBoutique) * 100) : 0 };
       }).sort((a, b) => b.total - a.total);
@@ -246,17 +280,28 @@ export async function GET(req: NextRequest) {
         ]),
         MouvementArgent.aggregate([
           { $match: { tenantId: tid, type: "versement_banque" } },
-          { $group: { _id: "$banqueNom", total: { $sum: "$montant" } } },
+          { $group: { _id: { banque: "$banqueNom", boutique: "$boutique" }, total: { $sum: "$montant" } } },
           { $sort: { total: -1 } },
         ]),
       ]);
 
       const soldesCaisseRes = boutiquesPrincipales.map(b => ({
-        nom: b.nom, solde: soldesMap[b._id.toString()] ?? 0, estPrincipale: b.estPrincipale,
+        nom: b.nom, solde: versFCFA(soldesMap[b._id.toString()] ?? 0, b._id.toString()), estPrincipale: b.estPrincipale,
       }));
 
       const soldeCaisseTotal = soldesCaisseRes.reduce((s, b) => s + b.solde, 0);
-      const soldeBanqueTotal = (banqueRes as any[]).reduce((s: number, b: any) => s + b.total, 0);
+
+      // Reconsolider par banque (le group key ci-dessus inclut la boutique
+      // uniquement pour connaître sa devise et convertir en FCFA)
+      const detailBanqueMap = new Map<string, number>();
+      (banqueRes as any[]).forEach((b: any) => {
+        const nom = b._id.banque || "Banque";
+        detailBanqueMap.set(nom, (detailBanqueMap.get(nom) ?? 0) + versFCFA(b.total, b._id.boutique?.toString()));
+      });
+      const detailBanque = [...detailBanqueMap.entries()]
+        .map(([banque, montant]) => ({ banque, montant: Math.round(montant) }))
+        .sort((a, b) => b.montant - a.montant);
+      const soldeBanqueTotal = detailBanque.reduce((s, b) => s + b.montant, 0);
 
       vueFinanciere = {
         valeurStock: Math.round(valeurStockTotal),
@@ -269,7 +314,7 @@ export async function GET(req: NextRequest) {
         soldesCaisseParBoutique: soldesCaisseRes,
         commandesEnCours: { totalDu: (cmdRes as any[])[0]?.totalDu ?? 0, nb: (cmdRes as any[])[0]?.nb ?? 0 },
         soldeBanqueTotal: Math.round(soldeBanqueTotal),
-        detailBanque: (banqueRes as any[]).map(b => ({ banque: b._id || "Banque", montant: Math.round(b.total) })),
+        detailBanque,
         totalActif: Math.round(valeurStockTotal + soldeCaisseTotal + soldeBanqueTotal),
       };
     }
