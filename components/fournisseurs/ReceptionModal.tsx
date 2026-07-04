@@ -18,6 +18,7 @@ export default function ReceptionModal({ commande, onClose, onSaved }: Props) {
     )
   );
   const [note,    setNote]    = useState("");
+  const [fraisLivraison, setFraisLivraison] = useState("");
   const [loading, setLoading] = useState(false);
   const [err,     setErr]     = useState("");
 
@@ -37,7 +38,7 @@ export default function ReceptionModal({ commande, onClose, onSaved }: Props) {
       const res  = await fetch(`/api/commandes/${commande._id}/recevoir`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ receptions, note }),
+        body:    JSON.stringify({ receptions, note, fraisLivraison: +fraisLivraison || 0 }),
       });
       const json = await res.json();
       if (!json.success) { setErr(json.message); return; }
@@ -96,6 +97,15 @@ export default function ReceptionModal({ commande, onClose, onSaved }: Props) {
                 </div>
               );
             })}
+          </div>
+
+          <div>
+            <label className="label">Frais de livraison (transport, douane... — optionnel)</label>
+            <input type="number" min={0} step="1" className="input w-full" placeholder="0"
+              value={fraisLivraison} onChange={e => setFraisLivraison(e.target.value)} />
+            <p className="text-[11px] font-mono text-muted mt-1">
+              Payé au fournisseur, réparti sur le prix de revient des articles reçus ici.
+            </p>
           </div>
 
           <div>

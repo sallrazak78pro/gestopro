@@ -21,6 +21,7 @@ export interface ICommandeFournisseur extends Document {
   montantTotal: number;
   montantPaye:  number;
   montantDu:    number;
+  fraisLivraison: number; // transport/douane/livraison, payés au fournisseur, réparti dans le prix de revient
   statut:       StatutCommande;
   dateCommande: Date;
   dateLivraison?: Date;
@@ -49,6 +50,7 @@ const CommandeFournisseurSchema = new Schema<ICommandeFournisseur>(
     montantTotal: { type: Number, required: true, min: 0 },
     montantPaye:  { type: Number, default: 0 },
     montantDu:    { type: Number, default: 0 },
+    fraisLivraison: { type: Number, default: 0 },
     statut:       { type: String, enum: ["brouillon","envoyee","recue_partiellement","recue","annulee"], default: "brouillon" },
     dateCommande:  { type: Date, default: Date.now },
     dateLivraison: { type: Date, default: null },

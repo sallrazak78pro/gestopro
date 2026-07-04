@@ -177,9 +177,21 @@ export default function CommandeDetailPage() {
         </table>
 
         {/* Total */}
-        <div className="px-5 py-4 border-t border-border flex justify-end">
+        <div className="px-5 py-4 border-t border-border flex flex-col items-end gap-1.5">
+          {commande.fraisLivraison > 0 && (
+            <>
+              <div className="flex items-center gap-4 text-sm text-muted2">
+                <span>Marchandise</span>
+                <span className="font-mono">{fmt(commande.montantTotal - commande.fraisLivraison)} F</span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-warning">
+                <span>Frais de livraison (transport, douane...)</span>
+                <span className="font-mono">{fmt(commande.fraisLivraison)} F</span>
+              </div>
+            </>
+          )}
           <div className="flex items-center gap-4">
-            <span className="font-bold">Total</span>
+            <span className="font-bold">Total{commande.fraisLivraison > 0 ? " (marchandise + frais)" : ""}</span>
             <span className="font-mono font-extrabold text-xl text-accent">{fmt(commande.montantTotal)} F</span>
           </div>
         </div>
