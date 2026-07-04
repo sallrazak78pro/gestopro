@@ -200,12 +200,22 @@ export async function POST(req: NextRequest) {
       const deviseDest = destBoutique?.devise || "FCFA";
       const taux = getTaux(tenant, deviseDest);
 
-      // Incrémenter le stock pour chaque ligne
+      // Incrémenter le stock pour chaque ligne — le coût transféré se
+      // moyenne (CUMP) avec ce qui est déjà en stock dans cette boutique,
+      // au lieu d'écraser le coût existant.
       for (const l of lignesResolues) {
-        const prixAchatLocal = fcfaVersDevise(l.prixUnitaire, deviseDest, taux);
+        const stockAvant = await Stock.findOne({ produit: l.produitId, boutique: destId, tenantId: ctx.tenantId }).lean() as any;
+        const qteAvant  = stockAvant?.quantite ?? 0;
+        const coutAvant = stockAvant?.prixAchatLocal ?? 0;
+        const coutArriveeLocal = fcfaVersDevise(l.prixUnitaire, deviseDest, taux);
+        const qteApres = qteAvant + l.quantite;
+        const cumpBoutique = qteApres > 0
+          ? (qteAvant * coutAvant + l.quantite * coutArriveeLocal) / qteApres
+          : coutArriveeLocal;
+
         const stock = await Stock.findOneAndUpdate(
           { produit: l.produitId, boutique: destId, tenantId: ctx.tenantId },
-          { $inc: { quantite: +l.quantite }, $set: { prixAchatLocal }, $setOnInsert: { tenantId: ctx.tenantId } },
+          { $inc: { quantite: +l.quantite }, $set: { prixAchatLocal: Math.round(cumpBoutique * 100) / 100 }, $setOnInsert: { tenantId: ctx.tenantId } },
           { upsert: true, new: true }
         );
         if (stock.prixVente == null) {

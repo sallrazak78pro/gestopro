@@ -1,6 +1,7 @@
 // app/api/commandes/[id]/recevoir/route.ts
 // Réceptionner tout ou partie d'une commande → met à jour le stock
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Stock from "@/lib/models/Stock";
@@ -39,7 +40,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const deviseDest = destBoutique?.devise || "FCFA";
     const taux = getTaux(tenant, deviseDest);
 
-    const lignesMouvement: { produit: any; quantite: number; prixUnitaire: number; montant: number }[] = [];
+    const lignesMouvement: {
+      produit: any; quantite: number; prixUnitaire: number; montant: number;
+      qteAvantBoutique: number; coutAvantBoutique: number;
+      qteAvantTenant: number; coutAvantTenant: number;
+    }[] = [];
 
     for (const rec of receptions) {
       const ligne = commande.lignes[rec.ligneIndex];
@@ -51,6 +56,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       // Mettre à jour la ligne de commande
       commande.lignes[rec.ligneIndex].quantiteRecue += qteARecevoir;
+
+      // Capturer l'état AVANT réception, pour pouvoir calculer une moyenne
+      // pondérée (CUMP) avec le stock déjà en place plutôt que d'écraser le coût.
+      const [stockAvant, aggTenant, produitAvant] = await Promise.all([
+        Stock.findOne({ produit: ligne.produit, boutique: commande.destination, tenantId: ctx.tenantId }).lean() as any,
+        Stock.aggregate([
+          { $match: {
+            produit:  new mongoose.Types.ObjectId(ligne.produit.toString()),
+            tenantId: new mongoose.Types.ObjectId(ctx.tenantId.toString()),
+          } },
+          { $group: { _id: null, total: { $sum: "$quantite" } } },
+        ]),
+        Produit.findOne({ _id: ligne.produit, tenantId: ctx.tenantId }, "prixAchat prixVente").lean() as any,
+      ]);
 
       // Incrémenter le stock dans la destination (le coût réel — frais inclus —
       // est appliqué juste après, une fois le total de cette réception connu)
@@ -65,20 +84,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         quantite: qteARecevoir,
         prixUnitaire: ligne.prixUnitaire,
         montant: qteARecevoir * ligne.prixUnitaire,
+        qteAvantBoutique: stockAvant?.quantite ?? 0,
+        coutAvantBoutique: stockAvant?.prixAchatLocal ?? 0,
+        qteAvantTenant: aggTenant[0]?.total ?? 0,
+        coutAvantTenant: produitAvant?.prixAchat ?? 0,
       });
     }
 
-    // Répartir les frais de livraison (transport/douane) au prorata de la
-    // valeur de chaque ligne, pour obtenir le vrai prix de revient.
-    const totalValeurRecue = lignesMouvement.reduce((s, l) => s + l.montant, 0);
-    for (const l of lignesMouvement) {
-      const partFrais = totalValeurRecue > 0 ? (l.montant / totalValeurRecue) * frais : 0;
-      const coutUnitaireReel = l.prixUnitaire + partFrais / l.quantite;
+    // Les frais de livraison (transport/douane) sont répartis à parts égales
+    // par unité physique reçue (pas au prorata de la valeur) — un colis lourd
+    // et bon marché coûte autant à transporter qu'un colis léger et cher.
+    const totalQteRecue = lignesMouvement.reduce((s, l) => s + l.quantite, 0);
+    const fraisParUnite = totalQteRecue > 0 ? frais / totalQteRecue : 0;
 
-      const prixAchatLocal = fcfaVersDevise(coutUnitaireReel, deviseDest, taux);
+    for (const l of lignesMouvement) {
+      const coutCetArrivage = l.prixUnitaire + fraisParUnite;
+
+      // CUMP tenant (FCFA) — moyenne pondérée avec le stock existant, toutes boutiques confondues
+      const qteApresTenant = l.qteAvantTenant + l.quantite;
+      const cumpTenant = qteApresTenant > 0
+        ? (l.qteAvantTenant * l.coutAvantTenant + l.quantite * coutCetArrivage) / qteApresTenant
+        : coutCetArrivage;
+
+      // CUMP boutique (devise locale) — moyenne pondérée avec le stock déjà présent dans CETTE boutique
+      const coutCetArrivageLocal = fcfaVersDevise(coutCetArrivage, deviseDest, taux);
+      const qteApresBoutique = l.qteAvantBoutique + l.quantite;
+      const cumpBoutique = qteApresBoutique > 0
+        ? (l.qteAvantBoutique * l.coutAvantBoutique + l.quantite * coutCetArrivageLocal) / qteApresBoutique
+        : coutCetArrivageLocal;
+
       const stock = await Stock.findOneAndUpdate(
         { produit: l.produit, boutique: commande.destination, tenantId: ctx.tenantId },
-        { prixAchatLocal },
+        { prixAchatLocal: Math.round(cumpBoutique * 100) / 100 },
         { new: true }
       );
 
@@ -90,10 +127,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         await Stock.updateOne({ _id: stock._id }, { prixVente: prixVenteSuggere });
       }
 
-      // Prix d'achat de référence du produit (toujours en FCFA, frais inclus)
+      // Prix d'achat de référence du produit (CUMP FCFA, toutes boutiques confondues)
       await Produit.findOneAndUpdate(
         { _id: l.produit, tenantId: ctx.tenantId },
-        { prixAchat: coutUnitaireReel }
+        { prixAchat: Math.round(cumpTenant) }
       );
     }
 
