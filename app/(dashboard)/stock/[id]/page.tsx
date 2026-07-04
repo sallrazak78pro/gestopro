@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { formatMontant } from "@/lib/utils/devise";
+import ProduitModal from "@/components/stock/ProduitModal";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -14,6 +15,7 @@ export default function ProduitDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editPrixId, setEditPrixId] = useState<string | null>(null);
   const [prixSaving, setPrixSaving] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const fetchData = () => fetch(`/api/produits/${id}`)
     .then(r => r.json())
@@ -73,7 +75,7 @@ export default function ProduitDetailPage() {
               <p className="text-sm text-muted mt-1">{produit.description}</p>
             )}
           </div>
-          <button className="btn-ghost btn-sm">✏️ Modifier</button>
+          <button className="btn-ghost btn-sm" onClick={() => setShowEditModal(true)}>✏️ Modifier</button>
         </div>
 
         {/* Stats produit */}
@@ -164,6 +166,14 @@ export default function ProduitDetailPage() {
           })}
         </div>
       </div>
+
+      {showEditModal && (
+        <ProduitModal
+          produit={produit}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => { setShowEditModal(false); fetchData(); }}
+        />
+      )}
     </div>
   );
 }
