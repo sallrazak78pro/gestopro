@@ -1,8 +1,9 @@
 // app/(dashboard)/alertes/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 type Notif = {
   id:       string;
@@ -28,31 +29,20 @@ const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
 };
 
 export default function AlertesPage() {
-  const [notifications, setNotifications] = useState<Notif[]>([]);
-  const [stats,    setStats]    = useState({ total: 0, danger: 0, warning: 0, info: 0 });
-  const [loading,  setLoading]  = useState(true);
+  const { notifications, notifLoading: loading, refetchNotifications } = useAppData();
   const [filtre,   setFiltre]   = useState<"tous" | "danger" | "warning" | "info">("tous");
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
-  const fetchNotifs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res  = await fetch("/api/notifications");
-      const json = await res.json();
-      if (json.success) {
-        setNotifications(json.data);
-        setStats(json.stats);
-        setLastFetch(new Date());
-      }
-    } catch {}
-    setLoading(false);
-  }, []);
+  const stats = useMemo(() => ({
+    total:   notifications.length,
+    danger:  notifications.filter((n: Notif) => n.severity === "danger").length,
+    warning: notifications.filter((n: Notif) => n.severity === "warning").length,
+    info:    notifications.filter((n: Notif) => n.severity === "info").length,
+  }), [notifications]);
 
-  useEffect(() => {
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchNotifs]);
+  // Horodatage local à chaque nouvelle liste reçue (le fetch/polling lui-même
+  // est géré une seule fois, au niveau du layout, partagé entre toutes les pages)
+  useEffect(() => { setLastFetch(new Date()); }, [notifications]);
 
   const filtered = filtre === "tous"
     ? notifications
@@ -100,7 +90,7 @@ export default function AlertesPage() {
             )}
           </div>
           <button
-            onClick={fetchNotifs}
+            onClick={refetchNotifications}
             disabled={loading}
             className="btn-ghost btn-sm flex items-center gap-2"
           >

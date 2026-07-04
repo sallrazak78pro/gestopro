@@ -2,8 +2,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
-interface Boutique { _id: string; nom: string; type: string; }
 interface Produit  { _id: string; nom: string; reference: string; unite: string; prixAchat: number; }
 
 interface LigneUI {
@@ -28,7 +28,7 @@ export default function NouveauMouvementModal({
   onClose, onSaved,
 }: { onClose: () => void; onSaved: () => void }) {
 
-  const [boutiques,  setBoutiques]  = useState<Boutique[]>([]);
+  const { boutiques } = useAppData();
   const [allProduits,setAllProduits]= useState<Produit[]>([]);
   const [stockMap,   setStockMap]   = useState<Record<string, number>>({});
 
@@ -38,11 +38,6 @@ export default function NouveauMouvementModal({
   const [motif,    setMotif]    = useState("");
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
-
-  // Charger boutiques
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data));
-  }, []);
 
   // Charger tous les produits (une seule fois, filtrage côté client)
   useEffect(() => {

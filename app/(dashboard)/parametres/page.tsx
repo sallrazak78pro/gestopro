@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import { DEVISES } from "@/lib/utils/devise";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const PAYS = [
   { code: "CI", nom: "Côte d'Ivoire" }, { code: "SN", nom: "Sénégal" },
@@ -25,9 +26,8 @@ export default function ParametresPage() {
   const isAdmin = ["admin", "superadmin"].includes(role);
 
   const [tab, setTab]           = useState<Tab>("entreprise");
-  const [tenant, setTenant]     = useState<any>(null);
-  const [meta, setMeta]         = useState({ nbUsers: 0, nbBoutiques: 0 });
-  const [loading, setLoading]   = useState(true);
+  const { tenant, meta: metaRaw, parametresLoading: loading, refetchParametres } = useAppData();
+  const meta = metaRaw ?? { nbUsers: 0, nbBoutiques: 0 };
   const [saving, setSaving]     = useState(false);
   const [success, setSuccess]   = useState("");
   const [error, setError]       = useState("");
@@ -45,26 +45,20 @@ export default function ParametresPage() {
   const [sigForm, setSigForm] = useState({ type: "bug", description: "" });
   const [sigSaving, setSigSaving] = useState(false);
 
+  // Synchronise le formulaire local dès que le tenant (partagé) est chargé
+  // ou rechargé (ex: juste après une sauvegarde réussie).
   useEffect(() => {
-    fetch("/api/parametres")
-      .then(r => r.json())
-      .then(j => {
-        if (j.success) {
-          setTenant(j.data);
-          setMeta(j.meta);
-          setEntForm({
-            nom:       j.data.nom       || "",
-            email:     j.data.email     || "",
-            telephone: j.data.telephone || "",
-            ville:     j.data.ville     || "",
-            pays:      j.data.pays      || "CI",
-          });
-          setMouvementsActifs(j.data.mouvementsActifs ?? true);
-          setTauxChange(j.data.tauxChange ?? []);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (!tenant) return;
+    setEntForm({
+      nom:       tenant.nom       || "",
+      email:     tenant.email     || "",
+      telephone: tenant.telephone || "",
+      ville:     tenant.ville     || "",
+      pays:      tenant.pays      || "CI",
+    });
+    setMouvementsActifs(tenant.mouvementsActifs ?? true);
+    setTauxChange(tenant.tauxChange ?? []);
+  }, [tenant]);
 
   function flash(msg: string, isErr = false) {
     if (isErr) { setError(msg); setSuccess(""); }
@@ -82,7 +76,10 @@ export default function ParametresPage() {
     });
     const json = await res.json();
     setSaving(false);
-    json.success ? flash("Informations mises à jour !") : flash(json.message, true);
+    if (json.success) {
+      await refetchParametres(); // propage mouvementsActifs/tauxChange au reste de l'app (ex: nav sidebar)
+      flash("Informations mises à jour !");
+    } else flash(json.message, true);
   }
 
   function setTaux(devise: string, taux: number) {

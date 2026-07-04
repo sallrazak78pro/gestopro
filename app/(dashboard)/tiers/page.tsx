@@ -1,11 +1,12 @@
 // app/(dashboard)/tiers/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import NouveauTiersModal from "@/components/tresorerie/NouveauTiersModal";
 import Pagination from "@/components/ui/Pagination";
 import MouvementArgentModal from "@/components/tresorerie/MouvementArgentModal";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -14,7 +15,8 @@ export default function TiersPage() {
   const [stats, setStats]         = useState({ totalSoldes: 0, nbComptes: 0, nbActifs: 0 });
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
-  const [boutiques, setBoutiques] = useState<any[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [filtreBoutique, setFiltreBoutique] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [opTiers, setOpTiers]     = useState<{ tiersId: string; type: string } | null>(null);
@@ -35,9 +37,6 @@ export default function TiersPage() {
 
   useEffect(() => { fetchTiers(); }, [fetchTiers]);
   useEffect(() => { setPage(1); }, [search, filtreBoutique]);
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")));
-  }, []);
 
   return (
     <div className="space-y-6">

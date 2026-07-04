@@ -2,6 +2,7 @@
 "use client";
 import React from "react";
 import { useState, useEffect, useRef } from "react";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 interface Produit { _id: string; nom: string; reference: string; prixAchat: number; unite: string; }
 interface Ligne { produitId: string; nomProduit: string; quantite: number; prixUnitaire: number; sousTotal: number; }
@@ -10,7 +11,7 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: ()=>void; onSaved: ()=>void }) {
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
-  const [boutiques, setBoutiques]       = useState<any[]>([]);
+  const { boutiques } = useAppData();
   const [produits, setProduits]         = useState<Produit[]>([]);
   const [fournisseurId, setFournisseurId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -23,13 +24,7 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/fournisseurs?actif=true").then(r=>r.json()),
-      fetch("/api/boutiques").then(r=>r.json()),
-    ]).then(([f,b]) => {
-      if (f.success) setFournisseurs(f.data);
-      if (b.success) setBoutiques(b.data);
-    });
+    fetch("/api/fournisseurs?actif=true").then(r=>r.json()).then(f => { if (f.success) setFournisseurs(f.data); });
   }, []);
 
   useEffect(() => {

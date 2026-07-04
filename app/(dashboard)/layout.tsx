@@ -1,7 +1,7 @@
 // app/(dashboard)/layout.tsx
 "use client";
 import React from "react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import clsx from "clsx";
 import NotificationPanel from "@/components/ui/NotificationPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import GlobalSearch from "@/components/ui/GlobalSearch";
+import { AppDataProvider, useAppData } from "@/lib/context/AppDataContext";
 
 const NAV = [
   { href: "/dashboard",   icon: "⚡", label: "Tableau de bord",        roles: ["superadmin","admin","gestionnaire","caissier"] },
@@ -57,17 +58,25 @@ function navBadge(alertKey: string | undefined, notifications: any[]): number {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AppDataProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </AppDataProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { data: session }   = useSession();
   const pathname            = usePathname();
   const router              = useRouter();
+  const { boutiques: boutiquesToutes, notifications, notifLoading, refetchNotifications, mouvementsActifs } = useAppData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop,   setIsDesktop]   = useState(true);
-  const [boutiques,   setBoutiques]   = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [notifOpen,  setNotifOpen]    = useState(false);
-  const [notifLoading, setNotifLoading] = useState(false);
-  const [mouvementsActifs, setMouvementsActifs] = useState(true);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  // La sidebar n'affiche que les points de vente (pas les dépôts), comme avant
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
 
   const role    = (session?.user as any)?.role ?? "";
   const isAdmin = role === "superadmin" || role === "admin";
@@ -95,34 +104,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isDesktop) setSidebarOpen(false);
   }, [pathname, isDesktop]);
-
-  const fetchNotifications = useCallback(async () => {
-    setNotifLoading(true);
-    try {
-      const res  = await fetch("/api/notifications");
-      const json = await res.json();
-      if (json.success) setNotifications(json.data);
-    } catch {}
-    setNotifLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/boutiques")
-      .then(r => r.json())
-      .then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")))
-      .catch(() => {});
-    // Charger les paramètres du tenant pour savoir si mouvements est actif
-    fetch("/api/parametres")
-      .then(r => r.json())
-      .then(j => { if (j.success) setMouvementsActifs(j.data.mouvementsActifs ?? true); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
 
   const nbDanger  = notifications.filter(n => n.severity === "danger").length;
   const nbWarning = notifications.filter(n => n.severity === "warning").length;
@@ -343,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Cloche notifications */}
             <div ref={bellRef} className="relative">
-              <button onClick={() => { fetchNotifications(); setNotifOpen(!notifOpen); }}
+              <button onClick={() => { refetchNotifications(); setNotifOpen(!notifOpen); }}
                 className={clsx("relative p-2 rounded-xl hover:bg-white/5 transition-colors text-lg", bellColor)}>
                 🔔
                 {nbTotal > 0 && (

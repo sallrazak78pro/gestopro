@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import NouveauMouvementModal from "@/components/mouvements/NouveauMouvementModal";
 import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
@@ -13,15 +14,13 @@ const fmtTime = (d: string) => new Date(d).toLocaleTimeString("fr-FR", { hour: "
 function defaultDebut() { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; }
 function defaultFin()   { return new Date().toISOString().split("T")[0]; }
 
-interface Boutique { _id: string; nom: string; type: string; }
-
 export default function MouvementsPage() {
   const { data: session } = useSession();
   const role           = (session?.user as any)?.role ?? "";
   const peutSupprimer  = ["admin", "superadmin", "gestionnaire"].includes(role);
 
   const [mouvements,     setMouvements]     = useState<any[]>([]);
-  const [boutiques,      setBoutiques]      = useState<Boutique[]>([]);
+  const { boutiques } = useAppData();
   const [page,           setPage]           = useState(1);
   const [total,          setTotal]          = useState(0);
   const [stats,          setStats]          = useState({
@@ -43,10 +42,6 @@ export default function MouvementsPage() {
   const [toMigrate,      setToMigrate]      = useState<number | null>(null);
   const [expanded,       setExpanded]       = useState<Record<string, boolean>>({});
   const LIMIT = 25;
-
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data));
-  }, []);
 
   useEffect(() => {
     if (!["admin", "superadmin"].includes(role)) return;

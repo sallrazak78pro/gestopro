@@ -1,11 +1,11 @@
 // components/tresorerie/MouvementArgentModal.tsx
 "use client";
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import clsx from "clsx";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
+import { useAppData } from "@/lib/context/AppDataContext";
 
-interface Boutique { _id: string; nom: string; estPrincipale: boolean; }
 interface Tiers    { _id: string; nom: string; telephone: string; solde: number; }
 
 const TYPES = [
@@ -72,7 +72,8 @@ export default function MouvementArgentModal({
 }: { defaultType: string; onClose: () => void; onSaved: () => void }) {
   const [step, setStep]           = useState<"type" | "details">(defaultType ? "details" : "type");
   const [type, setType]           = useState(defaultType || "");
-  const [boutiques, setBoutiques] = useState<Boutique[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [tiers, setTiers]         = useState<Tiers[]>([]);
   const [tiersSearch, setTiersSearch] = useState("");
   const [form, setForm]           = useState({
@@ -86,10 +87,6 @@ export default function MouvementArgentModal({
   const [soldeLoading, setSoldeLoading] = useState(false);
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")));
-  }, []);
 
   useEffect(() => {
     if (!["depot_tiers", "retrait_tiers"].includes(type)) return;

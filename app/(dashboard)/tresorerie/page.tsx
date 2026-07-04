@@ -1,6 +1,6 @@
 // app/(dashboard)/tresorerie/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import MouvementArgentModal from "@/components/tresorerie/MouvementArgentModal";
 import ExportButton from "@/components/ui/ExportButton";
@@ -9,6 +9,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -36,7 +37,8 @@ export default function TresoreriePage() {
   const [defaultType, setDefaultType] = useState("");
   const [filtreType, setFiltreType]   = useState("");
   const [filtreBoutique, setFiltreBoutique] = useState("");
-  const [boutiques, setBoutiques]     = useState<any[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [search, setSearch]           = useState("");
 
   const fetchData = useCallback(async () => {
@@ -55,9 +57,6 @@ export default function TresoreriePage() {
   }, [filtreType, filtreBoutique]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")));
-  }, []);
 
   function openModal(type = "") { setDefaultType(type); setShowModal(true); }
 

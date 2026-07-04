@@ -1,9 +1,10 @@
 // app/(dashboard)/versements/page.tsx
 "use client";
 import React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtDate = (d: string) => new Date(d).toLocaleString("fr-FR", {
@@ -22,7 +23,8 @@ export default function VersementsPage() {
   const isAdmin  = ["admin", "superadmin"].includes(role);
 
   const [versements, setVersements] = useState<any[]>([]);
-  const [boutiques,  setBoutiques]  = useState<any[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState("");
@@ -55,13 +57,6 @@ export default function VersementsPage() {
   }, [filtreStatut]);
 
   useEffect(() => { fetchVersements(); }, [fetchVersements]);
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetch("/api/boutiques").then(r => r.json())
-        .then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")));
-    }
-  }, [isAdmin]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

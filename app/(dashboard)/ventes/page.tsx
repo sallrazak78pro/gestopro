@@ -1,11 +1,12 @@
 // app/(dashboard)/ventes/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { KpiCard } from "@/components/ui/KpiCard";
 import NouvelleVenteModal from "@/components/ventes/NouvelleVenteModal";
 import ExportButton from "@/components/ui/ExportButton";
 import Pagination from "@/components/ui/Pagination";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const STATUT_BADGE: Record<string, string> = {
@@ -26,7 +27,8 @@ export default function VentesPage() {
   const [search,   setSearch]   = useState("");
   const [filtreStatut,   setFiltreStatut]   = useState("");
   const [filtreBoutique, setFiltreBoutique] = useState("");
-  const [boutiques, setBoutiques] = useState<any[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [page,  setPage]  = useState(1);
   const [total, setTotal] = useState(0);
   const LIMIT = 25;
@@ -48,9 +50,6 @@ export default function VentesPage() {
 
   useEffect(() => { fetchVentes(); }, [fetchVentes]);
   useEffect(() => { setPage(1); }, [filtreStatut, filtreBoutique]);
-  useEffect(() => {
-    fetch("/api/boutiques").then(r => r.json()).then(j => j.success && setBoutiques(j.data.filter((b: any) => b.type === "boutique")));
-  }, []);
 
   const filtered = ventes.filter(v =>
     v.reference?.toLowerCase().includes(search.toLowerCase()) ||

@@ -1,12 +1,12 @@
 // components/ventes/NouvelleVenteModal.tsx
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import clsx from "clsx";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
 import { useSession } from "next-auth/react";
 import { formatMontant } from "@/lib/utils/devise";
+import { useAppData } from "@/lib/context/AppDataContext";
 
-interface Boutique { _id: string; nom: string; devise?: string; }
 interface Produit  { _id: string; reference: string; nom: string; prixVente: number; unite: string; image?: string; devise?: string; }
 interface Ligne {
   produitId: string;
@@ -31,7 +31,8 @@ export default function NouvelleVenteModal({
   const isCaissier   = userRole === "caissier";
 
   const [step, setStep]         = useState<"panier" | "paiement">("panier");
-  const [boutiques, setBoutiques] = useState<Boutique[]>([]);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [produits, setProduits]   = useState<Produit[]>([]);
   const [boutiqueId, setBoutiqueId] = useState("");
   const [employes, setEmployes]       = useState<any[]>([]);
@@ -53,23 +54,15 @@ export default function NouvelleVenteModal({
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!session) return; // Attendre que la session soit chargée
-    fetch("/api/boutiques")
-      .then(r => r.json())
-      .then(j => {
-        if (j.success) {
-          const bs = j.data.filter((b: any) => b.type === "boutique");
-          setBoutiques(bs);
-          // Caissier → boutique forcée depuis la session
-          if (isCaissier && userBoutique) {
-            setBoutiqueId(userBoutique);
-          } else if (bs.length === 1) {
-            setBoutiqueId(bs[0]._id);
-          }
-        }
-      });
+    if (!session || boutiques.length === 0) return; // Attendre session + boutiques chargées
+    // Caissier → boutique forcée depuis la session
+    if (isCaissier && userBoutique) {
+      setBoutiqueId(userBoutique);
+    } else if (boutiques.length === 1) {
+      setBoutiqueId(boutiques[0]._id);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, boutiques]);
 
   // Vérifier la session de caisse dès qu'une boutique est choisie
   useEffect(() => {
