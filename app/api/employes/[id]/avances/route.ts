@@ -5,6 +5,7 @@ import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -49,8 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     // Créer une sortie de trésorerie automatiquement
-    const count = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
-    const reference = `AVS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const reference = await genererReference(ctx.tenantId, `AVS-${new Date().getFullYear()}`);
     await MouvementArgent.create({
       tenantId: ctx.tenantId,
       reference,

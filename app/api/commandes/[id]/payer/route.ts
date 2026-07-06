@@ -6,6 +6,7 @@ import Fournisseur from "@/lib/models/Fournisseur";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,7 +38,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Créer les mouvements de trésorerie
     if (boutiqueId) {
       const boutique = await Boutique.findById(boutiqueId);
-      const count = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
       const fournisseurNom = (commande.fournisseur as any).nom;
       const motifBase = `Paiement fournisseur ${fournisseurNom} — ${commande.reference}${note ? ` — ${note}` : ""}`;
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Boutique principale : dépense directe (achat marchandise)
         await MouvementArgent.create({
           tenantId:         ctx.tenantId,
-          reference:        `ACH-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+          reference:        await genererReference(ctx.tenantId, `ACH-${new Date().getFullYear()}`),
           type:             "depense",
           boutique:         boutiqueId,
           montant:          montantAPayer,
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await MouvementArgent.create({
           tenantId:            ctx.tenantId,
-          reference:           `VRS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+          reference:           await genererReference(ctx.tenantId, `VRS-${new Date().getFullYear()}`),
           type:                "versement_boutique",
           boutique:            boutiqueId,
           boutiqueDestination: principale?._id ?? null,

@@ -11,6 +11,7 @@ import "./Boutique";
 import "./Catalogue";
 import "./CommandeFournisseur";
 import "./CompteTiers";
+import "./Counter";
 import "./Employe";
 import "./ErreurSignalee";
 import "./Fournisseur";

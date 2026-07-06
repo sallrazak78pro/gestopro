@@ -6,6 +6,7 @@ import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,10 +38,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // ── 1. Créer la dépense frais transport (avant fermeture) ─
     if (fraisTransport > 0) {
-      const count = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
+      const reference = await genererReference(ctx.tenantId, `DEP-TRP-${new Date().getFullYear()}`);
       await MouvementArgent.create({
         tenantId:         ctx.tenantId,
-        reference:        `DEP-TRP-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+        reference,
         type:             "depense",
         boutique:         boutiqueId,
         montant:          fraisTransport,

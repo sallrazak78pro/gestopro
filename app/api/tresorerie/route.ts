@@ -7,6 +7,7 @@ import Vente from "@/lib/models/Vente";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
+import { genererReference } from "@/lib/utils/reference";
 import mongoose from "mongoose";
 
 async function getSoldeCaisse(boutiqueId: string, tenantId: string): Promise<number> {
@@ -133,14 +134,13 @@ export async function POST(req: NextRequest) {
       if (type === "retrait_tiers") await CompteTiers.findByIdAndUpdate(tiersId, { $inc: { solde: -montant } });
     }
 
-    const count = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
     const prefix: Record<string, string> = {
       versement_boutique: "VRS", versement_banque: "BNQ",
       avance_caisse: "AVN", remboursement: "RMB",
       depense: "DEP", achat_direct: "ACH",
       depot_tiers: "DPT", retrait_tiers: "RTR",
     };
-    const reference = `${prefix[type] || "TRX"}-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const reference = await genererReference(ctx.tenantId, `${prefix[type] || "TRX"}-${new Date().getFullYear()}`);
 
     const mouvement = await MouvementArgent.create({
       tenantId: ctx.tenantId, reference, type,

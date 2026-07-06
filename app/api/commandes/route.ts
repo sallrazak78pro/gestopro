@@ -5,6 +5,7 @@ import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
 import Produit from "@/lib/models/Produit";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(req: NextRequest) {
   try {
@@ -53,8 +54,7 @@ export async function POST(req: NextRequest) {
     }));
 
     const montantTotal = lignesEnrichies.reduce((s, l) => s + l.sousTotal, 0);
-    const count = await CommandeFournisseur.countDocuments({ tenantId: ctx.tenantId });
-    const reference = `CMD-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const reference = await genererReference(ctx.tenantId, `CMD-${new Date().getFullYear()}`);
 
     const commande = await CommandeFournisseur.create({
       tenantId: ctx.tenantId,

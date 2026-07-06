@@ -13,6 +13,7 @@ import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .popul
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 import { calculerCUMP } from "@/lib/utils/cump";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -137,8 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Créer un mouvement de stock unique (entrée) pour cette réception
     if (lignesMouvement.length > 0) {
-      const countMv = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
-      const refMv = `MV-${new Date().getFullYear()}-${String(countMv + 1).padStart(4, "0")}`;
+      const refMv = await genererReference(ctx.tenantId, `MV-${new Date().getFullYear()}`);
       await MouvementStock.create({
         tenantId:  ctx.tenantId,
         reference: refMv,

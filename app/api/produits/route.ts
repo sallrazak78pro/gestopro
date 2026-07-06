@@ -5,6 +5,7 @@ import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,8 +64,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const body = await req.json();
     if (!body.reference) {
-      const count = await Produit.countDocuments({ tenantId: ctx.tenantId });
-      body.reference = `PRD-${String(count + 1).padStart(4, "0")}`;
+      body.reference = await genererReference(ctx.tenantId, "PRD");
     }
     const produit = await Produit.create({ ...body, tenantId: ctx.tenantId });
     return NextResponse.json({ success: true, data: produit }, { status: 201 });

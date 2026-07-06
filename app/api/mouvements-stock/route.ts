@@ -9,6 +9,7 @@ import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 import { calculerCUMP } from "@/lib/utils/cump";
+import { genererReference } from "@/lib/utils/reference";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -142,10 +143,7 @@ export async function POST(req: NextRequest) {
     const transfertRef  = isTransfer ? randomUUID() : null;
     const year          = new Date().getFullYear();
 
-    const makeRef = async () => {
-      const n = await MouvementStock.countDocuments({ tenantId: ctx.tenantId });
-      return `MV-${year}-${String(n + 1).padStart(4, "0")}`;
-    };
+    const makeRef = () => genererReference(ctx.tenantId, `MV-${year}`);
 
     const buildLignes = () => lignesResolues.map(l => ({
       produit:      l.produitId,

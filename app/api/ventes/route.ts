@@ -9,6 +9,7 @@ import User from "@/lib/models/User";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(req: NextRequest) {
   try {
@@ -123,8 +124,7 @@ export async function POST(req: NextRequest) {
     }
 
     const montantTotal = lignes.reduce((s: number, l: any) => s + l.sousTotal, 0);
-    const count        = await Vente.countDocuments({ tenantId: ctx.tenantId });
-    const reference    = `FCT-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const reference    = await genererReference(ctx.tenantId, `FCT-${new Date().getFullYear()}`);
 
     const boutiqueVente = await Boutique.findOne({ _id: boutiqueId, tenantId: ctx.tenantId }, "devise").lean() as any;
 

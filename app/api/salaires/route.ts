@@ -6,6 +6,7 @@ import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 
 const MOIS_NOM = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
@@ -73,12 +74,10 @@ export async function POST(req: NextRequest) {
     const montantNet   = Math.max(0, employe.salaireBase - totalAvances);
 
     // Générer la référence
-    const count     = await PaiementSalaire.countDocuments({ tenantId: ctx.tenantId });
-    const reference = `SAL-${annee}-${String(mois).padStart(2, "0")}-${String(count + 1).padStart(4, "0")}`;
+    const reference = await genererReference(ctx.tenantId, `SAL-${annee}-${String(mois).padStart(2, "0")}`);
 
     // Créer le mouvement de trésorerie (sortie d'argent)
-    const countMvt  = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
-    const refMvt    = `DEP-${new Date().getFullYear()}-${String(countMvt + 1).padStart(4, "0")}`;
+    const refMvt    = await genererReference(ctx.tenantId, `DEP-${new Date().getFullYear()}`);
     const mouvement = await MouvementArgent.create({
       tenantId: ctx.tenantId,
       reference: refMvt,

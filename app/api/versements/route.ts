@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
+import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,8 +71,7 @@ export async function POST(req: NextRequest) {
     }).lean();
 
     // Générer la référence
-    const count = await MouvementArgent.countDocuments({ tenantId: ctx.tenantId });
-    const reference = `VRS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const reference = await genererReference(ctx.tenantId, `VRS-${new Date().getFullYear()}`);
 
     const versement = await MouvementArgent.create({
       tenantId:            ctx.tenantId,

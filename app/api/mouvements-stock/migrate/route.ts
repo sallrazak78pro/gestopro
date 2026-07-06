@@ -7,6 +7,7 @@ import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { genererReference } from "@/lib/utils/reference";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -69,10 +70,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: "Aucun document à migrer.", migrated: 0 });
 
     const year    = new Date().getFullYear();
-    const makeRef = async (tenantId: any) => {
-      const n = await MouvementStock.countDocuments({ tenantId });
-      return `MV-${year}-${String(n + 1).padStart(4, "0")}`;
-    };
+    const makeRef = (tenantId: any) => genererReference(tenantId.toString(), `MV-${year}`);
 
     let migrated = 0;
     let deleted  = 0;
