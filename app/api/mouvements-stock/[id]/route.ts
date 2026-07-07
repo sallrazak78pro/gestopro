@@ -17,7 +17,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .populate("lignes.produit", "nom reference unite prixAchat")
       .populate("createdBy",      "nom");
     if (!m) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
-    return NextResponse.json({ success: true, data: m });
+
+    // Pour un transfert, la boutique "de l'autre côté" (source ou dest selon
+    // le type de ce document) vit dans le document jumelé, pas celui-ci.
+    let paired = null;
+    if (m.transfertRef) {
+      paired = await MouvementStock.findOne({
+        transfertRef: m.transfertRef,
+        _id: { $ne: m._id },
+        tenantId: ctx.tenantId,
+      }).populate("boutique", "nom type");
+    }
+
+    return NextResponse.json({ success: true, data: m, paired });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

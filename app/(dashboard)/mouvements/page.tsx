@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import NouveauMouvementModal from "@/components/mouvements/NouveauMouvementModal";
+import NouveauMouvementModal, { MouvementACorriger, SOURCE_EXTERNE, DEST_PERTE } from "@/components/mouvements/NouveauMouvementModal";
 import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
@@ -37,6 +37,8 @@ export default function MouvementsPage() {
   const [search,         setSearch]         = useState("");
   const [confirmDel,     setConfirmDel]     = useState<string | null>(null);
   const [deleting,       setDeleting]       = useState(false);
+  const [correction,     setCorrection]     = useState<MouvementACorriger | null>(null);
+  const [correctingId,   setCorrectingId]   = useState<string | null>(null);
   const [migrating,      setMigrating]      = useState(false);
   const [migrateMsg,     setMigrateMsg]     = useState("");
   const [toMigrate,      setToMigrate]      = useState<number | null>(null);
@@ -93,6 +95,39 @@ export default function MouvementsPage() {
     setDeleting(false);
     setConfirmDel(null);
     fetchMouvements();
+  }
+
+  async function ouvrirCorrection(id: string) {
+    setCorrectingId(id);
+    const json = await fetch(`/api/mouvements-stock/${id}`).then(r => r.json());
+    setCorrectingId(null);
+    if (!json.success) return;
+    const m = json.data;
+    const paired = json.paired;
+
+    // Reconstruit De/Vers à partir du sens de ce document (+ du jumeau si transfert)
+    let sourceId: string, destId: string;
+    if (m.transfertRef && paired) {
+      sourceId = m.type === "sortie" ? m.boutique._id : paired.boutique._id;
+      destId   = m.type === "entree" ? m.boutique._id : paired.boutique._id;
+    } else if (m.type === "entree") {
+      sourceId = SOURCE_EXTERNE;
+      destId   = m.boutique._id;
+    } else {
+      sourceId = m.boutique._id;
+      destId   = DEST_PERTE;
+    }
+
+    setCorrection({
+      id: m._id,
+      sourceId, destId,
+      lignes: m.lignes.map((l: any) => ({
+        produitId: l.produit._id,
+        produit:   l.produit,
+        quantite:  l.quantite,
+      })),
+      motif: m.motif ?? "",
+    });
   }
 
   const toggleExpand = (id: string) =>
@@ -354,10 +389,16 @@ export default function MouvementsPage() {
                               <button onClick={() => setConfirmDel(null)} className="btn-ghost btn-sm text-xs px-2">Non</button>
                             </div>
                           ) : (
-                            <button onClick={() => setConfirmDel(m._id)}
-                              className="btn-ghost btn-sm text-danger/60 hover:text-danger text-xs">
-                              ✕
-                            </button>
+                            <div className="flex items-center gap-1 whitespace-nowrap">
+                              <button onClick={() => ouvrirCorrection(m._id)} disabled={correctingId === m._id}
+                                className="btn-ghost btn-sm text-muted hover:text-accent text-xs px-2 disabled:opacity-50">
+                                {correctingId === m._id ? "..." : "✏️ Corriger"}
+                              </button>
+                              <button onClick={() => setConfirmDel(m._id)}
+                                className="btn-ghost btn-sm text-danger/60 hover:text-danger text-xs">
+                                ✕
+                              </button>
+                            </div>
                           )}
                         </td>
                       )}
@@ -388,6 +429,14 @@ export default function MouvementsPage() {
         <NouveauMouvementModal
           onClose={() => setShowModal(false)}
           onSaved={() => { setShowModal(false); fetchMouvements(); }}
+        />
+      )}
+
+      {correction && (
+        <NouveauMouvementModal
+          mouvementACorriger={correction}
+          onClose={() => setCorrection(null)}
+          onSaved={() => { setCorrection(null); fetchMouvements(); }}
         />
       )}
     </div>

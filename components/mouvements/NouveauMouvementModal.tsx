@@ -17,25 +17,39 @@ interface LigneUI {
 const fmt    = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const newKey = () => Math.random().toString(36).slice(2);
 
-const SOURCE_EXTERNE = "__externe__";
-const DEST_PERTE     = "__perte__";
+export const SOURCE_EXTERNE = "__externe__";
+export const DEST_PERTE     = "__perte__";
 
 function emptyLigne(): LigneUI {
   return { key: newKey(), produitId: "", produit: null, search: "", quantite: 1 };
 }
 
+export interface MouvementACorriger {
+  id:       string;
+  sourceId: string; // valeur déjà compatible avec sourceOptions (SOURCE_EXTERNE ou id boutique)
+  destId:   string; // idem, DEST_PERTE ou id boutique
+  lignes:   { produitId: string; produit: Produit; quantite: number }[];
+  motif:    string;
+}
+
 export default function NouveauMouvementModal({
-  onClose, onSaved,
-}: { onClose: () => void; onSaved: () => void }) {
+  onClose, onSaved, mouvementACorriger,
+}: { onClose: () => void; onSaved: () => void; mouvementACorriger?: MouvementACorriger }) {
 
   const { boutiques } = useAppData();
   const [allProduits,setAllProduits]= useState<Produit[]>([]);
   const [stockMap,   setStockMap]   = useState<Record<string, number>>({});
 
-  const [sourceId, setSourceId] = useState(SOURCE_EXTERNE);
-  const [destId,   setDestId]   = useState("");
-  const [lignes,   setLignes]   = useState<LigneUI[]>([emptyLigne()]);
-  const [motif,    setMotif]    = useState("");
+  const [sourceId, setSourceId] = useState(mouvementACorriger?.sourceId ?? SOURCE_EXTERNE);
+  const [destId,   setDestId]   = useState(mouvementACorriger?.destId ?? "");
+  const [lignes,   setLignes]   = useState<LigneUI[]>(
+    mouvementACorriger?.lignes.length
+      ? mouvementACorriger.lignes.map(l => ({
+          key: newKey(), produitId: l.produitId, produit: l.produit, search: l.produit?.nom ?? "", quantite: l.quantite,
+        }))
+      : [emptyLigne()]
+  );
+  const [motif,    setMotif]    = useState(mouvementACorriger?.motif ?? "");
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
 
@@ -55,9 +69,19 @@ export default function NouveauMouvementModal({
         for (const row of j.data) {
           map[row._id] = row.stocks?.[sourceId] ?? 0;
         }
+        // En mode correction, l'ancien mouvement n'a pas encore été supprimé :
+        // son impact est toujours déduit du stock affiché. On rajoute donc
+        // les quantités qu'il avait retirées de CETTE boutique pour ne pas
+        // bloquer sur un "stock insuffisant" qui redeviendra disponible dès
+        // que l'ancien mouvement sera supprimé.
+        if (mouvementACorriger?.sourceId === sourceId) {
+          for (const l of mouvementACorriger.lignes) {
+            map[l.produitId] = (map[l.produitId] ?? 0) + l.quantite;
+          }
+        }
         setStockMap(map);
       });
-  }, [sourceId]);
+  }, [sourceId, mouvementACorriger]);
 
   // ── Options sélecteurs ────────────────────────────────────────────────────
   const sourceOptions = [
@@ -120,6 +144,15 @@ export default function NouveauMouvementModal({
     if (!canSubmit) return;
     setError(""); setLoading(true);
     try {
+      // Mode correction : on supprime l'ancien mouvement (l'API inverse déjà
+      // proprement le stock, y compris la jambe jumelée pour un transfert)
+      // avant de créer le nouveau avec les données corrigées.
+      if (mouvementACorriger) {
+        const delRes = await fetch(`/api/mouvements-stock/${mouvementACorriger.id}`, { method: "DELETE" });
+        const delJson = await delRes.json();
+        if (!delJson.success) { setError(delJson.message ?? "Erreur lors de la suppression de l'ancien mouvement."); setLoading(false); return; }
+      }
+
       const body = {
         sourceId: sourceId === SOURCE_EXTERNE ? null : sourceId,
         destId:   destId   === DEST_PERTE     ? null : destId,
@@ -136,7 +169,12 @@ export default function NouveauMouvementModal({
         body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (!json.success) { setError(json.message ?? "Erreur"); setLoading(false); return; }
+      if (!json.success) {
+        setError(mouvementACorriger
+          ? `L'ancien mouvement a été supprimé mais le nouveau n'a pas pu être créé : ${json.message ?? "Erreur"}. Recrée-le manuellement.`
+          : (json.message ?? "Erreur"));
+        setLoading(false); return;
+      }
       onSaved();
     } catch {
       setError("Erreur réseau"); setLoading(false);
@@ -152,9 +190,11 @@ export default function NouveauMouvementModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-surface z-10">
           <div>
-            <h2 className="text-base font-bold">Nouveau mouvement</h2>
+            <h2 className="text-base font-bold">{mouvementACorriger ? "Corriger le mouvement" : "Nouveau mouvement"}</h2>
             <p className="text-[11px] font-mono text-muted mt-0.5">
-              Plusieurs produits possibles par mouvement
+              {mouvementACorriger
+                ? "L'ancien mouvement sera supprimé et remplacé par celui-ci"
+                : "Plusieurs produits possibles par mouvement"}
             </p>
           </div>
           <button onClick={onClose} className="btn-ghost btn-sm">✕</button>
@@ -312,7 +352,11 @@ export default function NouveauMouvementModal({
             <button type="button" onClick={onClose} className="btn-ghost flex-1 justify-center">Annuler</button>
             <button type="submit" disabled={loading || !canSubmit}
               className="btn-primary flex-1 justify-center disabled:opacity-50">
-              {loading ? "Enregistrement..." : `✓ Valider (${lignes.length} produit${lignes.length > 1 ? "s" : ""})`}
+              {loading
+                ? "Enregistrement..."
+                : mouvementACorriger
+                  ? "✓ Remplacer le mouvement"
+                  : `✓ Valider (${lignes.length} produit${lignes.length > 1 ? "s" : ""})`}
             </button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 // app/api/mouvements-stock/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
@@ -46,8 +47,13 @@ export async function GET(req: NextRequest) {
 
     // La query stats ignore le filtre "type" → les KPIs montrent toujours
     // entrées ET sorties pour la période/boutique sélectionnée.
+    // Contrairement à .find(), .aggregate() ne cast pas automatiquement les
+    // champs ObjectId — un tenantId/boutique en string ne matche jamais le
+    // champ stocké en base et $match ne retourne alors aucun document.
     const statsQuery: any = { ...query };
     delete statsQuery.type;
+    statsQuery.tenantId = new mongoose.Types.ObjectId(ctx.tenantId.toString());
+    if (statsQuery.boutique) statsQuery.boutique = new mongoose.Types.ObjectId(statsQuery.boutique.toString());
 
     const [mouvements, total, statsAgg] = await Promise.all([
       MouvementStock.find(query)
