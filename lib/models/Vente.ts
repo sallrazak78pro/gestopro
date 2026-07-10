@@ -13,7 +13,6 @@ export interface IVente extends Document {
   tenantId: mongoose.Types.ObjectId;
   reference: string;
   boutique: mongoose.Types.ObjectId;
-  devise: string; // devise de la boutique au moment de la vente (snapshot)
   client?: string;
   // Employé qui a effectué la vente (peut différer du createdBy si enregistré par un manager)
   employe: mongoose.Types.ObjectId;
@@ -42,7 +41,6 @@ const VenteSchema = new Schema<IVente>(
     tenantId:     { type: Schema.Types.ObjectId, ref: "Tenant", required: true },
     reference:    { type: String, required: true },
     boutique:     { type: Schema.Types.ObjectId, ref: "Boutique", required: true },
-    devise:       { type: String, default: "FCFA" },
     client:       { type: String, default: "Client comptoir" },
     employe:      { type: Schema.Types.ObjectId, ref: "User", required: true },
     employeNom:   { type: String, required: true },

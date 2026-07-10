@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await connectDB();
     const produit = await Produit.findOne({ _id: id, tenantId: ctx.tenantId }, "-image").lean();
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
-    const stocks = await Stock.find({ produit: id, tenantId: ctx.tenantId }).populate("boutique", "nom type devise").lean();
+    const stocks = await Stock.find({ produit: id, tenantId: ctx.tenantId }).populate("boutique", "nom type").lean();
     return NextResponse.json({ success: true, data: { produit, stocks } });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

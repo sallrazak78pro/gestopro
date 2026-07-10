@@ -4,8 +4,6 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
 import Vente from "@/lib/models/Vente";
 import Produit from "@/lib/models/Produit";
-import Tenant from "@/lib/models/Tenant";
-import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,14 +50,6 @@ export async function GET(req: NextRequest) {
       .populate("boutique", "nom")
       .lean();
 
-    // ── Prix d'achat en FCFA (référence tenant) ; les ventes sont enregistrées
-    // dans la devise locale de leur boutique (v.devise) → il faut convertir le
-    // CA en FCFA avant de le comparer au coût d'achat, sinon la marge d'une
-    // boutique en devise étrangère est fausse (ex: USD soustrait de FCFA).
-    const tenant = await Tenant.findById(ctx.tenantId).select("tauxChange").lean() as any;
-    const versFCFA = (montant: number, devise: string) =>
-      deviseVersFCFA(montant, devise || "FCFA", getTaux(tenant, devise || "FCFA"));
-
     // ── Récupérer tous les produits pour avoir prixAchat ──────────────────────
     const produitIds = [...new Set(
       ventes.flatMap((v: any) => v.lignes.map((l: any) => l.produit?.toString()))
@@ -81,7 +71,7 @@ export async function GET(req: NextRequest) {
         const pa = (prixAchatMap.get(l.produit?.toString()) ?? 0) as number;
         coutAchat += pa * (l.quantite as number);
       });
-      const montantTotalFCFA = versFCFA(v.montantTotal, v.devise);
+      const montantTotalFCFA = v.montantTotal;
       const marge      = montantTotalFCFA - coutAchat;
       const tauxMarge  = montantTotalFCFA > 0 ? (marge / montantTotalFCFA) * 100 : 0;
       totalCA          += montantTotalFCFA;
@@ -95,7 +85,7 @@ export async function GET(req: NextRequest) {
       v.lignes.forEach((l: any) => {
         const pid  = l.produit?.toString() ?? "inconnu";
         const pa   = Number(prixAchatMap.get(pid) ?? 0);
-        const ca   = versFCFA(Number(l.sousTotal ?? 0), v.devise);
+        const ca   = Number(l.sousTotal ?? 0);
         const qte  = Number(l.quantite ?? 0);
         const cout = pa * qte;
         const cur  = parProduit.get(pid) ?? { nom: l.nomProduit, qte: 0, ca: 0, cout: 0, marge: 0 };

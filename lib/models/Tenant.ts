@@ -14,7 +14,6 @@ export interface ITenant extends Document {
   nbBoutiquesMax: number;
   nbUsersMax: number;
   mouvementsActifs: boolean; // transferts entre boutiques activés
-  tauxChange: { devise: string; taux: number }[]; // FCFA par unité de devise étrangère
   createdAt: Date;
 }
 
@@ -32,10 +31,6 @@ const TenantSchema = new Schema<ITenant>(
     nbBoutiquesMax: { type: Number, default: 5 },
     nbUsersMax:     { type: Number, default: 10 },
     mouvementsActifs: { type: Boolean, default: true }, // activé par défaut
-    tauxChange: {
-      type: [{ devise: String, taux: Number, _id: false }],
-      default: [],
-    },
   },
   { timestamps: true }
 );

@@ -4,9 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import CompteTiers from "@/lib/models/CompteTiers";
 import Vente from "@/lib/models/Vente";
-import Tenant from "@/lib/models/Tenant";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
-import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
 import { genererReference } from "@/lib/utils/reference";
 import mongoose from "mongoose";
 
@@ -62,25 +60,17 @@ export async function GET(req: NextRequest) {
     }
 
     const mouvements = await MouvementArgent.find(query)
-      .populate("boutique", "nom devise")
+      .populate("boutique", "nom")
       .populate("boutiqueDestination", "nom")
       .populate("tiers", "nom telephone")
       .populate("createdBy", "nom")
       .sort({ createdAt: -1 }).limit(100);
 
-    // Les mouvements sont dans la devise locale de leur boutique — il faut
-    // convertir en FCFA avant de sommer entre boutiques de devises différentes.
-    const tenantDoc = await Tenant.findById(ctx.tenantId).select("tauxChange").lean() as any;
-    const versFCFA = (m: any) => {
-      const devise = m.boutique?.devise || "FCFA";
-      return deviseVersFCFA(m.montant, devise, getTaux(tenantDoc, devise));
-    };
-
-    const totalEntrees  = mouvements.filter(m => ["avance_caisse", "depot_tiers"].includes(m.type)).reduce((s, m) => s + versFCFA(m), 0);
-    const totalSorties  = mouvements.filter(m => ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"].includes(m.type)).reduce((s, m) => s + versFCFA(m), 0);
-    const versementsRecus = mouvements.filter(m => m.type === "versement_boutique").reduce((s, m) => s + versFCFA(m), 0);
-    const versementsBanque = mouvements.filter(m => m.type === "versement_banque").reduce((s, m) => s + versFCFA(m), 0);
-    const totalDepenses = mouvements.filter(m => ["depense","achat_direct"].includes(m.type)).reduce((s, m) => s + versFCFA(m), 0);
+    const totalEntrees  = mouvements.filter(m => ["avance_caisse", "depot_tiers"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const totalSorties  = mouvements.filter(m => ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const versementsRecus = mouvements.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
+    const versementsBanque = mouvements.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
+    const totalDepenses = mouvements.filter(m => ["depense","achat_direct"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
 
     return NextResponse.json({
       success: true, data: mouvements,

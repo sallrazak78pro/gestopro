@@ -5,10 +5,8 @@ import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
-import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
 import mongoose from "mongoose";
 
 export async function GET() {
@@ -30,21 +28,6 @@ export async function GET() {
 
     const boutiqueFilter = ctx.boutiqueAssignee
       ? { boutique: new mongoose.Types.ObjectId(ctx.boutiqueAssignee) } : {};
-
-    // ── Devises : conversion FCFA nécessaire avant toute consolidation
-    // multi-boutiques (voir /api/dashboard et /api/marges pour le même
-    // correctif — les montants Vente/MouvementArgent sont dans la devise
-    // locale de chaque boutique, pas nécessairement FCFA).
-    const [boutiquesAllTenant, tenantDoc] = await Promise.all([
-      Boutique.find({ tenantId: ctx.tenantId, actif: true }).select("devise").lean(),
-      Tenant.findById(ctx.tenantId).select("tauxChange").lean(),
-    ]);
-    const boutiqueDeviseMap: Record<string, string> = {};
-    boutiquesAllTenant.forEach((b: any) => { boutiqueDeviseMap[b._id.toString()] = b.devise || "FCFA"; });
-    const versFCFA = (montant: number, boutiqueId: string | null | undefined) => {
-      const devise = boutiqueDeviseMap[boutiqueId ?? ""] ?? "FCFA";
-      return deviseVersFCFA(montant, devise, getTaux(tenantDoc as any, devise));
-    };
 
     // ── 1. Comparaisons — tout en parallèle ────────────────────
     // Une seule agrégation par collection avec $facet pour les 4 périodes
@@ -104,7 +87,7 @@ export async function GET() {
       // Versements du mois
       MouvementArgent.find({ tenantId: ctx.tenantId, type: "versement_boutique",
           createdAt: { $gte: debutMois } })
-        .populate("boutique", "nom estPrincipale devise")
+        .populate("boutique", "nom estPrincipale")
         .populate("boutiqueDestination", "nom estPrincipale")
         .sort({ createdAt: -1 }).lean(),
     ]);
@@ -119,19 +102,19 @@ export async function GET() {
     const dernVersMap: Record<string, { montant: number; date: Date }> = {};
     derniersVersements.forEach((v: any) => {
       const bid = v._id.toString();
-      dernVersMap[bid] = { montant: versFCFA(v.montant, bid), date: v.date };
+      dernVersMap[bid] = { montant: v.montant, date: v.date };
     });
 
-    // Parser comparaison (conversion FCFA par boutique avant consolidation)
+    // Parser comparaison
     const ventesCompMap: Record<string, number> = {};
     ventesComp.forEach((r: any) => {
       const p = r._id.periode;
-      ventesCompMap[p] = (ventesCompMap[p] ?? 0) + versFCFA(r.caVentes, r._id.boutique?.toString());
+      ventesCompMap[p] = (ventesCompMap[p] ?? 0) + r.caVentes;
     });
     mvtComp.forEach((r: any) => {
       const p = r._id.periode;
       if (!dvMap[p]) dvMap[p] = {};
-      dvMap[p][r._id.type] = (dvMap[p][r._id.type] ?? 0) + versFCFA(r.total, r._id.boutique?.toString());
+      dvMap[p][r._id.type] = (dvMap[p][r._id.type] ?? 0) + r.total;
     });
 
     function buildComp(periode: string) {
@@ -158,14 +141,14 @@ export async function GET() {
       const bid = b._id.toString();
       return {
         _id: b._id, nom: b.nom, estPrincipale: b.estPrincipale,
-        solde: versFCFA(soldesMap[bid] ?? 0, bid),
+        solde: soldesMap[bid] ?? 0,
         sessionActive: sessionsActifMap[bid] ?? false,
         dernierVersement: dernVersMap[bid] ?? null,
       };
     });
 
     const totalVersementsMois = versementsMois.reduce(
-      (s: number, v: any) => s + versFCFA(v.montant, v.boutique?._id?.toString()), 0);
+      (s: number, v: any) => s + v.montant, 0);
 
     return NextResponse.json({
       success: true,

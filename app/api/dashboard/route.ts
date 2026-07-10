@@ -11,8 +11,6 @@ import Employe from "@/lib/models/Employe";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
-import Tenant from "@/lib/models/Tenant";
-import { getTaux, deviseVersFCFA } from "@/lib/utils/devise";
 import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
@@ -45,16 +43,6 @@ export async function GET(req: NextRequest) {
       ? [new mongoose.Types.ObjectId(ctx.boutiqueAssignee)]
       : boutiquesAll.map(b => b._id);
     const boutiqueIdStrings = boutiqueIds.map(id => id.toString());
-
-    // ── Devises : les ventes/mouvements de caisse sont enregistrés dans la
-    // devise locale de chaque boutique — il faut convertir en FCFA avant de
-    // sommer entre boutiques, sinon un tenant avec une boutique en devise
-    // étrangère (ex: USD) obtient des totaux consolidés incohérents.
-    const tenantDoc = await Tenant.findById(ctx.tenantId).select("tauxChange").lean() as any;
-    const boutiqueDeviseMap: Record<string, string> = {};
-    boutiquesAll.forEach(b => { boutiqueDeviseMap[b._id.toString()] = b.devise || "FCFA"; });
-    const versFCFA = (montant: number, boutiqueId: string | null | undefined) =>
-      deviseVersFCFA(montant, boutiqueDeviseMap[boutiqueId ?? ""] ?? "FCFA", getTaux(tenantDoc, boutiqueDeviseMap[boutiqueId ?? ""] ?? "FCFA"));
 
     // ── 1. CA + dépenses + versements (2 périodes en parallèle) ─
     const [caRes, caDepVers, sessionOuvRes, employeRes] = await Promise.all([
@@ -89,12 +77,12 @@ export async function GET(req: NextRequest) {
         ...(ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {}) }).lean(),
     ]);
 
-    // Parser CA (conversion FCFA par boutique avant consolidation)
+    // Parser CA
     const caMap: Record<string, { total: number; nb: number }> = {};
     caRes.forEach((r: any) => {
       const periode = r._id.periode;
       if (!caMap[periode]) caMap[periode] = { total: 0, nb: 0 };
-      caMap[periode].total += versFCFA(r.total, r._id.boutique?.toString());
+      caMap[periode].total += r.total;
       caMap[periode].nb    += r.nb;
     });
     const caPeriode = caMap.current?.total ?? 0;
@@ -102,12 +90,11 @@ export async function GET(req: NextRequest) {
     const caNb      = caMap.current?.nb   ?? 0;
     const caEvolution = caPrec > 0 ? (((caPeriode - caPrec) / caPrec) * 100).toFixed(1) : null;
 
-    // Parser dépenses + versements (conversion FCFA par boutique avant consolidation)
+    // Parser dépenses + versements
     const dvMap: Record<string, Record<string, number>> = {};
     caDepVers.forEach((r: any) => {
       if (!dvMap[r._id.periode]) dvMap[r._id.periode] = {};
-      const totalFCFA = versFCFA(r.total, r._id.boutique?.toString());
-      dvMap[r._id.periode][r._id.type] = (dvMap[r._id.periode][r._id.type] ?? 0) + totalFCFA;
+      dvMap[r._id.periode][r._id.type] = (dvMap[r._id.periode][r._id.type] ?? 0) + r.total;
     });
     const dep     = (dvMap.current?.depense ?? 0) + (dvMap.current?.achat_direct ?? 0);
     const depPrec = (dvMap.prev?.depense    ?? 0) + (dvMap.prev?.achat_direct    ?? 0);
@@ -123,8 +110,8 @@ export async function GET(req: NextRequest) {
     // de chaque boutique visible — cohérent avec les soldes par boutique
     // affichés plus bas (mêmes règles de statut confirmé/en_attente/rejeté).
     const soldesGlobauxMap = await calculerSoldesCaisseParBoutique(ctx.tenantId, boutiqueIds);
-    const soldeTresorerie  = Object.entries(soldesGlobauxMap)
-      .reduce((s, [bid, v]) => s + versFCFA(v, bid), 0);
+    const soldeTresorerie  = Object.values(soldesGlobauxMap)
+      .reduce((s, v) => s + v, 0);
 
     // ── 3. Alertes stock — 1 seule agrégation $lookup ──────────
     const alertesAgg = await Stock.aggregate([
@@ -185,13 +172,13 @@ export async function GET(req: NextRequest) {
       ]),
     ]);
 
-    // Consolidation FCFA + regroupement par jour/mois (chaque doc ci-dessus
-    // est encore scindé par boutique à cause du group key ajouté plus haut)
+    // Regroupement par jour/mois (chaque doc ci-dessus est encore scindé par
+    // boutique à cause du group key ajouté plus haut)
     const consoliderParPeriode = (rows: any[]) => {
       const m = new Map<string, number>();
       rows.forEach((r: any) => {
         const key = afficherParMois ? `${r._id.a}-${r._id.m}` : `${r._id.a}-${r._id.m}-${r._id.j}`;
-        m.set(key, (m.get(key) ?? 0) + versFCFA(r.total, r._id.boutique?.toString()));
+        m.set(key, (m.get(key) ?? 0) + r.total);
       });
       return m;
     };
@@ -236,7 +223,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const ventesParBoutiqueFCFA = (ventesParBoutiqueRes as any[]).map(v => ({
-      id: v._id?.toString(), total: versFCFA(v.total, v._id?.toString()),
+      id: v._id?.toString(), total: v.total,
     }));
     const totalParBoutique = ventesParBoutiqueFCFA.reduce((s, v) => s + v.total, 0);
     const repartitionPDV = boutiquesAll
@@ -286,17 +273,17 @@ export async function GET(req: NextRequest) {
       ]);
 
       const soldesCaisseRes = boutiquesPrincipales.map(b => ({
-        nom: b.nom, solde: versFCFA(soldesMap[b._id.toString()] ?? 0, b._id.toString()), estPrincipale: b.estPrincipale,
+        nom: b.nom, solde: soldesMap[b._id.toString()] ?? 0, estPrincipale: b.estPrincipale,
       }));
 
       const soldeCaisseTotal = soldesCaisseRes.reduce((s, b) => s + b.solde, 0);
 
       // Reconsolider par banque (le group key ci-dessus inclut la boutique
-      // uniquement pour connaître sa devise et convertir en FCFA)
+      // pour rester cohérent avec les autres agrégations groupées par boutique)
       const detailBanqueMap = new Map<string, number>();
       (banqueRes as any[]).forEach((b: any) => {
         const nom = b._id.banque || "Banque";
-        detailBanqueMap.set(nom, (detailBanqueMap.get(nom) ?? 0) + versFCFA(b.total, b._id.boutique?.toString()));
+        detailBanqueMap.set(nom, (detailBanqueMap.get(nom) ?? 0) + b.total);
       });
       const detailBanque = [...detailBanqueMap.entries()]
         .map(([banque, montant]) => ({ banque, montant: Math.round(montant) }))

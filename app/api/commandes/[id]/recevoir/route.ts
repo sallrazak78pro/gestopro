@@ -7,11 +7,8 @@ import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Stock from "@/lib/models/Stock";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
-import Boutique from "@/lib/models/Boutique";
-import Tenant from "@/lib/models/Tenant";
 import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .populate("fournisseur")
 import { getTenantContext } from "@/lib/utils/tenant";
-import { getTaux, fcfaVersDevise } from "@/lib/utils/devise";
 import { calculerCUMP } from "@/lib/utils/cump";
 import { genererReference } from "@/lib/utils/reference";
 
@@ -33,18 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (commande.statut === "recue" || commande.statut === "annulee")
       return NextResponse.json({ success: false, message: "Commande déjà clôturée." }, { status: 400 });
 
-    // La commande est toujours en FCFA — on convertit vers la devise de la
-    // boutique destinataire si elle en utilise une autre (ex: dépôt FCFA → boutique USD).
-    const [destBoutique, tenant] = await Promise.all([
-      Boutique.findById(commande.destination).lean() as any,
-      Tenant.findById(ctx.tenantId).lean() as any,
-    ]);
-    const deviseDest = destBoutique?.devise || "FCFA";
-    const taux = getTaux(tenant, deviseDest);
-
     const lignesMouvement: {
       produit: any; quantite: number; prixUnitaire: number; montant: number;
-      qteAvantBoutique: number; coutAvantBoutique: number;
       qteAvantTenant: number; coutAvantTenant: number;
     }[] = [];
 
@@ -61,8 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       // Capturer l'état AVANT réception, pour pouvoir calculer une moyenne
       // pondérée (CUMP) avec le stock déjà en place plutôt que d'écraser le coût.
-      const [stockAvant, aggTenant, produitAvant] = await Promise.all([
-        Stock.findOne({ produit: ligne.produit, boutique: commande.destination, tenantId: ctx.tenantId }).lean() as any,
+      const [aggTenant, produitAvant] = await Promise.all([
         Stock.aggregate([
           { $match: {
             produit:  new mongoose.Types.ObjectId(ligne.produit.toString()),
@@ -70,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           } },
           { $group: { _id: null, total: { $sum: "$quantite" } } },
         ]),
-        Produit.findOne({ _id: ligne.produit, tenantId: ctx.tenantId }, "prixAchat prixVente").lean() as any,
+        Produit.findOne({ _id: ligne.produit, tenantId: ctx.tenantId }, "prixAchat").lean() as any,
       ]);
 
       // Incrémenter le stock dans la destination (le coût réel — frais inclus —
@@ -86,8 +72,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         quantite: qteARecevoir,
         prixUnitaire: ligne.prixUnitaire,
         montant: qteARecevoir * ligne.prixUnitaire,
-        qteAvantBoutique: stockAvant?.quantite ?? 0,
-        coutAvantBoutique: stockAvant?.prixAchatLocal ?? 0,
         qteAvantTenant: aggTenant[0]?.total ?? 0,
         coutAvantTenant: produitAvant?.prixAchat ?? 0,
       });
@@ -104,24 +88,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       // CUMP tenant (FCFA) — moyenne pondérée avec le stock existant, toutes boutiques confondues
       const cumpTenant = calculerCUMP(l.qteAvantTenant, l.coutAvantTenant, l.quantite, coutCetArrivage);
-
-      // CUMP boutique (devise locale) — moyenne pondérée avec le stock déjà présent dans CETTE boutique
-      const coutCetArrivageLocal = fcfaVersDevise(coutCetArrivage, deviseDest, taux);
-      const cumpBoutique = calculerCUMP(l.qteAvantBoutique, l.coutAvantBoutique, l.quantite, coutCetArrivageLocal);
-
-      const stock = await Stock.findOneAndUpdate(
-        { produit: l.produit, boutique: commande.destination, tenantId: ctx.tenantId },
-        { prixAchatLocal: Math.round(cumpBoutique * 100) / 100 },
-        { new: true }
-      );
-
-      // Première entrée de ce produit dans cette boutique : proposer un prix
-      // de vente converti (modifiable ensuite par le commerçant).
-      if (stock && stock.prixVente == null) {
-        const produitRef = await Produit.findOne({ _id: l.produit, tenantId: ctx.tenantId }, "prixVente").lean() as any;
-        const prixVenteSuggere = fcfaVersDevise(produitRef?.prixVente ?? 0, deviseDest, taux);
-        await Stock.updateOne({ _id: stock._id }, { prixVente: prixVenteSuggere });
-      }
 
       // Prix d'achat de référence du produit (CUMP FCFA, toutes boutiques confondues)
       await Produit.findOneAndUpdate(

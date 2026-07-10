@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { formatMontant } from "@/lib/utils/devise";
 import { useAppData } from "@/lib/context/AppDataContext";
 
-interface Produit  { _id: string; reference: string; nom: string; prixVente: number; unite: string; image?: string; devise?: string; }
+interface Produit  { _id: string; reference: string; nom: string; prixVente: number; unite: string; image?: string; }
 interface Ligne {
   produitId: string;
   nomProduit: string;
@@ -100,7 +100,6 @@ export default function NouvelleVenteModal({
 
   useEffect(() => { fetchProduits(); }, [fetchProduits]);
 
-  const devise  = boutiques.find(b => b._id === boutiqueId)?.devise || "FCFA";
   const total   = panier.reduce((s, l) => s + l.sousTotal, 0);
   const monnaie = montantRecu !== "" ? +montantRecu - total : 0;
 
@@ -168,7 +167,7 @@ export default function NouvelleVenteModal({
       endpoint: "/api/ventes",
       method:   "POST",
       body,
-      label:    `Vente ${client || "comptoir"} — ${formatMontant(total, devise)}`,
+      label:    `Vente ${client || "comptoir"} — ${formatMontant(total)}`,
       module:   "ventes",
     });
     setLoading(false);
@@ -248,7 +247,7 @@ export default function NouvelleVenteModal({
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-success">Caisse ouverte</p>
                       <p className="text-[10px] font-mono text-muted truncate">
-                        par {sessionOuverte.session.ouvertPar?.nom} · fond : {formatMontant(sessionOuverte.session.fondOuverture, devise)}
+                        par {sessionOuverte.session.ouvertPar?.nom} · fond : {formatMontant(sessionOuverte.session.fondOuverture)}
                       </p>
                     </div>
                   </div>
@@ -303,7 +302,7 @@ export default function NouvelleVenteModal({
                       <p className="text-[10px] font-mono text-muted">{p.reference} · {p.unite}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-mono font-bold text-accent">{formatMontant(p.prixVente, devise)}</p>
+                      <p className="text-sm font-mono font-bold text-accent">{formatMontant(p.prixVente)}</p>
                       <p className="text-[10px] text-success opacity-0 group-hover:opacity-100 transition-opacity">
                         + Ajouter
                       </p>
@@ -399,10 +398,10 @@ export default function NouvelleVenteModal({
                             l.prixUnitaire !== l.prixRef ? "text-warning" : "text-white"
                           )}
                           title="Cliquer pour modifier le prix">
-                          {formatMontant(l.prixUnitaire, devise)}
+                          {formatMontant(l.prixUnitaire)}
                           {l.prixUnitaire !== l.prixRef && (
                             <span className="block text-[9px] font-mono opacity-70">
-                              Réf: {formatMontant(l.prixRef, devise)}
+                              Réf: {formatMontant(l.prixRef)}
                             </span>
                           )}
                         </button>
@@ -411,7 +410,7 @@ export default function NouvelleVenteModal({
 
                     {/* Sous-total */}
                     <div className="w-24 text-right shrink-0">
-                      <p className="font-mono font-bold text-sm">{formatMontant(l.sousTotal, devise)}</p>
+                      <p className="font-mono font-bold text-sm">{formatMontant(l.sousTotal)}</p>
                     </div>
 
                     {/* Supprimer */}
@@ -435,7 +434,7 @@ export default function NouvelleVenteModal({
                 )}
                 <div className="flex items-center justify-between">
                   <span className="text-muted font-mono text-sm">Total</span>
-                  <span className="text-2xl font-extrabold font-mono text-accent">{formatMontant(total, devise)}</span>
+                  <span className="text-2xl font-extrabold font-mono text-accent">{formatMontant(total)}</span>
                 </div>
                 <button type="button"
                   onClick={() => setStep("paiement")}
@@ -462,20 +461,20 @@ export default function NouvelleVenteModal({
                       <div className="flex-1 min-w-0">
                         <span className="text-muted2 truncate block">{l.nomProduit}</span>
                         <span className="text-[10px] font-mono text-muted">
-                          {fmtQte(l.quantite)} {l.unite} × {formatMontant(l.prixUnitaire, devise)}
+                          {fmtQte(l.quantite)} {l.unite} × {formatMontant(l.prixUnitaire)}
                           {l.prixUnitaire !== l.prixRef && (
                             <span className="text-warning ml-1">(prix modifié)</span>
                           )}
                         </span>
                       </div>
-                      <span className="font-mono font-semibold shrink-0 ml-3">{formatMontant(l.sousTotal, devise)}</span>
+                      <span className="font-mono font-semibold shrink-0 ml-3">{formatMontant(l.sousTotal)}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="flex justify-between px-4 py-3 border-t border-border">
                 <span className="font-bold">Total</span>
-                <span className="font-mono font-extrabold text-lg text-accent">{formatMontant(total, devise)}</span>
+                <span className="font-mono font-extrabold text-lg text-accent">{formatMontant(total)}</span>
               </div>
             </div>
 
@@ -534,7 +533,7 @@ export default function NouvelleVenteModal({
             {/* Montant reçu (espèces seulement) */}
             {statut === "payee" && modePaiement === "especes" && (
               <div>
-                <label className="input-label">Montant reçu ({devise})</label>
+                <label className="input-label">Montant reçu (FCFA)</label>
                 <input type="number" className="input text-lg font-bold font-mono"
                   placeholder={String(total)} value={montantRecu}
                   onChange={e => setMontantRecu(e.target.value)} />
@@ -546,7 +545,7 @@ export default function NouvelleVenteModal({
                       : "bg-danger/10 text-danger border border-danger/20"
                   )}>
                     <span>{monnaie >= 0 ? "Monnaie à rendre" : "Montant insuffisant"}</span>
-                    <span className="font-bold">{formatMontant(Math.abs(monnaie), devise)}</span>
+                    <span className="font-bold">{formatMontant(Math.abs(monnaie))}</span>
                   </div>
                 )}
               </div>

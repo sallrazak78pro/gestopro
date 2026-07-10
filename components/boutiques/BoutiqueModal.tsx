@@ -3,7 +3,6 @@
 import React from "react";
 import { useState } from "react";
 import clsx from "clsx";
-import { DEVISES } from "@/lib/utils/devise";
 
 interface Props {
   boutique?: any;
@@ -19,7 +18,6 @@ export default function BoutiqueModal({ boutique, onClose, onSaved }: Props) {
     adresse:      boutique?.adresse      || "",
     telephone:    boutique?.telephone    || "",
     estPrincipale: boutique?.estPrincipale || false,
-    devise:       boutique?.devise       || "FCFA",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -82,29 +80,6 @@ export default function BoutiqueModal({ boutique, onClose, onSaved }: Props) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Devise */}
-          <div>
-            <label className="input-label">Devise *</label>
-            <div className="grid grid-cols-3 gap-3">
-              {DEVISES.map(d => (
-                <button key={d} type="button" onClick={() => set("devise", d)}
-                  className={clsx(
-                    "px-3 py-2 rounded-xl border-2 text-sm font-bold font-mono transition-all",
-                    form.devise === d
-                      ? "border-accent/60 bg-accent/10 text-accent"
-                      : "border-border bg-surface2 text-muted2 hover:border-border2"
-                  )}>
-                  {d}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] font-mono text-muted mt-1">
-              {form.devise === "FCFA"
-                ? "Devise par défaut — aucune conversion nécessaire."
-                : "Les prix de vente et les coûts reçus seront exprimés dans cette devise (taux configuré dans Paramètres)."}
-            </p>
           </div>
 
           {/* Nom */}

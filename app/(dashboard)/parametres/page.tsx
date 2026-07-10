@@ -4,7 +4,6 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
-import { DEVISES } from "@/lib/utils/devise";
 import { useAppData } from "@/lib/context/AppDataContext";
 
 const PAYS = [
@@ -35,7 +34,6 @@ export default function ParametresPage() {
   // Entreprise form
   const [entForm, setEntForm] = useState({ nom: "", email: "", telephone: "", ville: "", pays: "CI" });
   const [mouvementsActifs, setMouvementsActifs] = useState(true);
-  const [tauxChange, setTauxChange] = useState<{ devise: string; taux: number }[]>([]);
 
   // Sécurité form
   const [secForm, setSecForm] = useState({ ancienPassword: "", nouveauPassword: "", confirmer: "" });
@@ -57,7 +55,6 @@ export default function ParametresPage() {
       pays:      tenant.pays      || "CI",
     });
     setMouvementsActifs(tenant.mouvementsActifs ?? true);
-    setTauxChange(tenant.tauxChange ?? []);
   }, [tenant]);
 
   function flash(msg: string, isErr = false) {
@@ -72,22 +69,14 @@ export default function ParametresPage() {
     const res  = await fetch("/api/parametres", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...entForm, mouvementsActifs, tauxChange }),
+      body: JSON.stringify({ ...entForm, mouvementsActifs }),
     });
     const json = await res.json();
     setSaving(false);
     if (json.success) {
-      await refetchParametres(); // propage mouvementsActifs/tauxChange au reste de l'app (ex: nav sidebar)
+      await refetchParametres(); // propage mouvementsActifs au reste de l'app (ex: nav sidebar)
       flash("Informations mises à jour !");
     } else flash(json.message, true);
-  }
-
-  function setTaux(devise: string, taux: number) {
-    setTauxChange(prev => {
-      const exist = prev.find(t => t.devise === devise);
-      if (exist) return prev.map(t => t.devise === devise ? { ...t, taux } : t);
-      return [...prev, { devise, taux }];
-    });
   }
 
   async function changePassword(e: React.FormEvent) {
@@ -264,32 +253,6 @@ export default function ParametresPage() {
                         mouvementsActifs ? "translate-x-6" : "translate-x-0.5"
                       }`} />
                     </button>
-                  </div>
-                </div>
-
-                {/* Taux de change */}
-                <div className="border rounded-2xl p-5" style={{ borderColor: "var(--color-border)" }}>
-                  <p className="text-sm font-bold mb-1" style={{ color: "var(--color-fg)" }}>
-                    💱 Taux de change
-                  </p>
-                  <p className="text-xs text-muted mb-3 leading-relaxed">
-                    Combien de FCFA pour 1 unité de devise étrangère — utilisé pour convertir les
-                    coûts d&apos;achat et suggérer les prix de vente des boutiques dans une autre devise.
-                    Reste appliqué jusqu&apos;à ce que vous le modifiiez.
-                  </p>
-                  <div className="space-y-2">
-                    {DEVISES.filter(d => d !== "FCFA").map(d => {
-                      const rate = tauxChange.find(t => t.devise === d)?.taux ?? "";
-                      return (
-                        <div key={d} className="flex items-center gap-3">
-                          <span className="w-16 text-sm font-mono font-bold shrink-0">1 {d} =</span>
-                          <input type="number" min={0} step="0.01" className="input flex-1"
-                            placeholder="ex: 605" value={rate}
-                            onChange={e => setTaux(d, parseFloat(e.target.value) || 0)} />
-                          <span className="text-sm font-mono text-muted shrink-0">FCFA</span>
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
 
