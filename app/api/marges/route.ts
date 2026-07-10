@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
 import Vente from "@/lib/models/Vente";
 import Produit from "@/lib/models/Produit";
+import MouvementArgent from "@/lib/models/MouvementArgent";
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,6 +48,24 @@ export async function GET(req: NextRequest) {
     if (boutiqueId) matchQuery.boutique = boutiqueId;
 
     const ventes = await Vente.find(matchQuery)
+      .populate("boutique", "nom")
+      .lean();
+
+    // ── Charges d'exploitation (salaires, loyer, divers) ──────────────────────
+    // Exclut volontairement categorieDepense "achat_marchandise" et le type
+    // "achat_direct" : ce sont des achats de marchandise, déjà comptés dans le
+    // coût d'achat (prixAchat) ci-dessous — les compter aussi ici doublerait
+    // cette charge et fausserait la marge nette.
+    const depQuery: any = {
+      tenantId: ctx.tenantId,
+      type: "depense",
+      categorieDepense: { $in: ["salaire", "loyer", "divers"] },
+      createdAt: { $gte: dateDebut, $lte: dateFin },
+    };
+    if (boutiqueId) depQuery.boutique = boutiqueId;
+
+    const depenses = await MouvementArgent.find(depQuery)
+      .select("montant boutique createdAt")
       .populate("boutique", "nom")
       .lean();
 
@@ -105,60 +124,84 @@ export async function GET(req: NextRequest) {
       .map(p => ({ ...p, tauxMarge: p.ca > 0 ? (p.marge / p.ca) * 100 : 0 }));
 
     // ── Grouper par boutique ──────────────────────────────────────────────────
-    const parBoutique = new Map<string, { nom: string; ca: number; cout: number; marge: number }>();
+    const parBoutique = new Map<string, { nom: string; ca: number; cout: number; marge: number; charges: number }>();
     ventesAvecMarge.forEach((v: any) => {
       const bid = (v.boutique as any)?._id?.toString() ?? "inconnu";
       const nom = (v.boutique as any)?.nom ?? "Inconnue";
-      const cur = parBoutique.get(bid) ?? { nom, ca: 0, cout: 0, marge: 0 };
+      const cur = parBoutique.get(bid) ?? { nom, ca: 0, cout: 0, marge: 0, charges: 0 };
       parBoutique.set(bid, {
         nom,
-        ca:    cur.ca    + v.montantTotalFCFA,
-        cout:  cur.cout  + v.coutAchat,
-        marge: cur.marge + v.marge,
+        ca:      cur.ca      + v.montantTotalFCFA,
+        cout:    cur.cout    + v.coutAchat,
+        marge:   cur.marge   + v.marge,
+        charges: cur.charges,
       });
+    });
+    let totalDepenses = 0;
+    depenses.forEach((d: any) => {
+      totalDepenses += d.montant;
+      const bid = (d.boutique as any)?._id?.toString() ?? "inconnu";
+      const nom = (d.boutique as any)?.nom ?? "Inconnue";
+      const cur = parBoutique.get(bid) ?? { nom, ca: 0, cout: 0, marge: 0, charges: 0 };
+      parBoutique.set(bid, { ...cur, charges: cur.charges + d.montant });
     });
 
     // ── Évolution journalière (graphique) ─────────────────────────────────────
-    const parJour = new Map<string, { ca: number; cout: number; marge: number }>();
+    const parJour = new Map<string, { ca: number; cout: number; marge: number; charges: number }>();
     ventesAvecMarge.forEach((v: any) => {
       const jour = new Date(v.createdAt).toISOString().split("T")[0];
-      const cur  = parJour.get(jour) ?? { ca: 0, cout: 0, marge: 0 };
+      const cur  = parJour.get(jour) ?? { ca: 0, cout: 0, marge: 0, charges: 0 };
       parJour.set(jour, {
-        ca:    cur.ca    + v.montantTotalFCFA,
-        cout:  cur.cout  + v.coutAchat,
-        marge: cur.marge + v.marge,
+        ca:      cur.ca      + v.montantTotalFCFA,
+        cout:    cur.cout    + v.coutAchat,
+        marge:   cur.marge   + v.marge,
+        charges: cur.charges,
       });
+    });
+    depenses.forEach((d: any) => {
+      const jour = new Date(d.createdAt).toISOString().split("T")[0];
+      const cur  = parJour.get(jour) ?? { ca: 0, cout: 0, marge: 0, charges: 0 };
+      parJour.set(jour, { ...cur, charges: cur.charges + d.montant });
     });
 
     const evolution = [...parJour.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({
         date,
-        ca:        Math.round(d.ca),
-        cout:      Math.round(d.cout),
-        marge:     Math.round(d.marge),
-        tauxMarge: d.ca > 0 ? Math.round((d.marge / d.ca) * 100) : 0,
+        ca:           Math.round(d.ca),
+        cout:         Math.round(d.cout),
+        marge:        Math.round(d.marge),
+        charges:      Math.round(d.charges),
+        margeNette:   Math.round(d.marge - d.charges),
+        tauxMarge:    d.ca > 0 ? Math.round((d.marge / d.ca) * 100) : 0,
       }));
 
     const totalMarge    = totalCA - totalCoutAchat;
     const tauxMarge     = totalCA > 0 ? (totalMarge / totalCA) * 100 : 0;
+    const margeNette    = totalMarge - totalDepenses;
+    const tauxMargeNette = totalCA > 0 ? (margeNette / totalCA) * 100 : 0;
 
     return NextResponse.json({
       success: true,
       stats: {
-        totalCA:       Math.round(totalCA),
-        totalCout:     Math.round(totalCoutAchat),
-        totalMarge:    Math.round(totalMarge),
-        tauxMarge:     Math.round(tauxMarge * 10) / 10,
-        nbVentes:      ventes.length,
-        dateDebut:     dateDebut.toISOString(),
-        dateFin:       dateFin.toISOString(),
+        totalCA:        Math.round(totalCA),
+        totalCout:      Math.round(totalCoutAchat),
+        totalMarge:     Math.round(totalMarge),
+        tauxMarge:      Math.round(tauxMarge * 10) / 10,
+        totalDepenses:  Math.round(totalDepenses),
+        margeNette:     Math.round(margeNette),
+        tauxMargeNette: Math.round(tauxMargeNette * 10) / 10,
+        nbVentes:       ventes.length,
+        dateDebut:      dateDebut.toISOString(),
+        dateFin:        dateFin.toISOString(),
       },
       evolution,
       topProduits,
       parBoutique: [...parBoutique.values()].map(b => ({
         ...b,
-        tauxMarge: b.ca > 0 ? Math.round((b.marge / b.ca) * 100) : 0,
+        tauxMarge:      b.ca > 0 ? Math.round((b.marge / b.ca) * 100) : 0,
+        margeNette:     b.marge - b.charges,
+        tauxMargeNette: b.ca > 0 ? Math.round(((b.marge - b.charges) / b.ca) * 100) : 0,
       })),
     });
   } catch (err: any) {

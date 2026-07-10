@@ -32,6 +32,7 @@ function margeColor(taux: number) {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
   return (
     <div className="rounded-xl p-3 text-xs font-mono shadow-lg"
       style={{ background: "var(--color-surface)", border: "1px solid var(--color-border2)" }}>
@@ -41,11 +42,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {p.name} : {fmt(p.value)} F
         </p>
       ))}
-      {payload.length >= 2 && (
+      {d && (
         <p className="mt-1 border-t pt-1" style={{ borderColor: "var(--color-border)", color: "var(--color-accent)" }}>
-          Marge : {payload[0]?.value && payload[1]?.value
-            ? pct((payload[0].value / (payload[0].value + payload[1].value)) * 100)
-            : "—"}
+          Taux marge brute : {pct(d.tauxMarge ?? 0)}
         </p>
       )}
     </div>
@@ -151,7 +150,7 @@ export default function MargesPage() {
         </div>
       ) : (
         <>
-          {/* ── KPIs ──────────────────────────────────────────────────────── */}
+          {/* ── KPIs — marge brute ───────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
             <div className="card p-5 relative overflow-hidden">
@@ -182,15 +181,13 @@ export default function MargesPage() {
                 style={{ color: margeColor(stats.tauxMarge) }}>
                 {fmt(stats.totalMarge)} <span className="text-sm font-mono text-muted">F</span>
               </p>
-              <p className="text-xs text-muted mt-1">
-                {stats.totalMarge >= 0 ? "+" : ""}{fmt(stats.totalMarge)} F net
-              </p>
+              <p className="text-xs text-muted mt-1">CA − coût d&apos;achat</p>
             </div>
 
             <div className="card p-5 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-0.5"
                 style={{ background: margeColor(stats.tauxMarge) }} />
-              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Taux de marge</p>
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Taux de marge brute</p>
               <p className="text-2xl font-extrabold"
                 style={{ color: margeColor(stats.tauxMarge) }}>
                 {pct(stats.tauxMarge)}
@@ -205,11 +202,54 @@ export default function MargesPage() {
             </div>
           </div>
 
+          {/* ── KPIs — marge nette (après charges d'exploitation) ──────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+            <div className="card p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-danger" />
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">
+                Charges d&apos;exploitation
+              </p>
+              <p className="text-2xl font-extrabold text-danger">
+                −{fmt(stats.totalDepenses)} <span className="text-sm font-mono text-muted">F</span>
+              </p>
+              <p className="text-xs text-muted mt-1">Salaires, loyer, frais divers</p>
+            </div>
+
+            <div className="card p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-0.5"
+                style={{ background: margeColor(stats.tauxMargeNette) }} />
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Marge nette (réelle)</p>
+              <p className="text-2xl font-extrabold"
+                style={{ color: margeColor(stats.tauxMargeNette) }}>
+                {fmt(stats.margeNette)} <span className="text-sm font-mono text-muted">F</span>
+              </p>
+              <p className="text-xs text-muted mt-1">Marge brute − charges</p>
+            </div>
+
+            <div className="card p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-0.5"
+                style={{ background: margeColor(stats.tauxMargeNette) }} />
+              <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Taux de marge nette</p>
+              <p className="text-2xl font-extrabold"
+                style={{ color: margeColor(stats.tauxMargeNette) }}>
+                {pct(stats.tauxMargeNette)}
+              </p>
+              <div className="mt-2 h-1.5 rounded-full overflow-hidden bg-surface2">
+                <div className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(Math.max(stats.tauxMargeNette, 0), 100)}%`,
+                    background: margeColor(stats.tauxMargeNette),
+                  }} />
+              </div>
+            </div>
+          </div>
+
           {/* ── Graphique évolution ───────────────────────────────────────── */}
           {evolution.length > 0 && (
             <div className="card p-5">
               <h2 className="text-sm font-bold mb-4" style={{ color: "var(--color-fg)" }}>
-                Évolution CA / Coût / Marge
+                Évolution CA / Marge brute / Marge nette
               </h2>
               <ResponsiveContainer width="100%" height={240}>
                 <AreaChart data={evolution} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -221,6 +261,10 @@ export default function MargesPage() {
                     <linearGradient id="gradMarge" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#10b981" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradMargeNette" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -234,8 +278,10 @@ export default function MargesPage() {
                   <Legend wrapperStyle={{ fontSize: 11, fontFamily: "monospace" }} />
                   <Area type="monotone" dataKey="ca"    name="CA"
                     stroke="#00d4ff" strokeWidth={2} fill="url(#gradCA)" />
-                  <Area type="monotone" dataKey="marge" name="Marge"
+                  <Area type="monotone" dataKey="marge" name="Marge brute"
                     stroke="#10b981" strokeWidth={2} fill="url(#gradMarge)" />
+                  <Area type="monotone" dataKey="margeNette" name="Marge nette"
+                    stroke="#f59e0b" strokeWidth={2} fill="url(#gradMargeNette)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -305,11 +351,12 @@ export default function MargesPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-semibold" style={{ color: "var(--color-fg)" }}>{b.nom}</span>
                           <span className="text-sm font-mono font-bold"
-                            style={{ color: margeColor(b.tauxMarge) }}>
-                            {pct(b.tauxMarge)}
+                            title="Taux de marge nette"
+                            style={{ color: margeColor(b.tauxMargeNette) }}>
+                            {pct(b.tauxMargeNette)} net
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-[11px] font-mono">
+                        <div className="grid grid-cols-4 gap-2 text-[11px] font-mono">
                           <div className="bg-surface2 rounded-lg px-2.5 py-2 text-center">
                             <p className="text-muted mb-0.5">CA</p>
                             <p className="font-bold" style={{ color: "var(--color-fg)" }}>{fmt(b.ca)} F</p>
@@ -319,8 +366,12 @@ export default function MargesPage() {
                             <p className="font-bold text-warning">{fmt(b.cout)} F</p>
                           </div>
                           <div className="bg-surface2 rounded-lg px-2.5 py-2 text-center">
-                            <p className="text-muted mb-0.5">Marge</p>
-                            <p className="font-bold" style={{ color: margeColor(b.tauxMarge) }}>{fmt(b.marge)} F</p>
+                            <p className="text-muted mb-0.5">Charges</p>
+                            <p className="font-bold text-danger">{fmt(b.charges)} F</p>
+                          </div>
+                          <div className="bg-surface2 rounded-lg px-2.5 py-2 text-center">
+                            <p className="text-muted mb-0.5">Marge nette</p>
+                            <p className="font-bold" style={{ color: margeColor(b.tauxMargeNette) }}>{fmt(b.margeNette)} F</p>
                           </div>
                         </div>
                       </div>
@@ -339,8 +390,8 @@ export default function MargesPage() {
                           <YAxis hide />
                           <Tooltip formatter={(v: number) => `${fmt(v)} F`}
                             contentStyle={{ background: "var(--color-surface)", border: "1px solid var(--color-border2)", borderRadius: 12, fontSize: 11, fontFamily: "monospace" }} />
-                          <Bar dataKey="ca"    name="CA"    fill="#00d4ff" radius={[4,4,0,0]} opacity={0.7} />
-                          <Bar dataKey="marge" name="Marge" fill="#10b981" radius={[4,4,0,0]} />
+                          <Bar dataKey="ca"         name="CA"          fill="#00d4ff" radius={[4,4,0,0]} opacity={0.7} />
+                          <Bar dataKey="margeNette" name="Marge nette" fill="#f59e0b" radius={[4,4,0,0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -357,11 +408,11 @@ export default function MargesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                   {
-                    label: "Rentabilité",
-                    value: stats.tauxMarge >= 30 ? "Excellente" : stats.tauxMarge >= 20 ? "Bonne" : stats.tauxMarge >= 10 ? "Correcte" : "Faible",
-                    color: margeColor(stats.tauxMarge),
-                    icon:  stats.tauxMarge >= 30 ? "🟢" : stats.tauxMarge >= 20 ? "🟡" : stats.tauxMarge >= 10 ? "🟠" : "🔴",
-                    desc:  stats.tauxMarge >= 30 ? "Taux de marge > 30% — très bon niveau" : stats.tauxMarge >= 20 ? "Taux de marge entre 20% et 30%" : stats.tauxMarge >= 10 ? "Taux de marge entre 10% et 20%" : "Taux de marge < 10% — revoir les prix",
+                    label: "Rentabilité réelle",
+                    value: stats.tauxMargeNette >= 30 ? "Excellente" : stats.tauxMargeNette >= 20 ? "Bonne" : stats.tauxMargeNette >= 10 ? "Correcte" : stats.tauxMargeNette >= 0 ? "Faible" : "Déficitaire",
+                    color: margeColor(stats.tauxMargeNette),
+                    icon:  stats.tauxMargeNette >= 30 ? "🟢" : stats.tauxMargeNette >= 20 ? "🟡" : stats.tauxMargeNette >= 10 ? "🟠" : stats.tauxMargeNette >= 0 ? "🔴" : "🆘",
+                    desc:  stats.tauxMargeNette >= 30 ? "Taux de marge nette > 30% — très bon niveau" : stats.tauxMargeNette >= 20 ? "Taux de marge nette entre 20% et 30%" : stats.tauxMargeNette >= 10 ? "Taux de marge nette entre 10% et 20%" : stats.tauxMargeNette >= 0 ? "Taux de marge nette < 10% — revoir les prix ou les charges" : "Les charges dépassent la marge brute — perte nette",
                   },
                   {
                     label: "Produit le + rentable",
