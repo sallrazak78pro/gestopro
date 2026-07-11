@@ -260,7 +260,7 @@ export async function GET(req: NextRequest) {
       const boutiqueBids = boutiquesPrincipales.map(b => b._id);
       const soldesMap = soldesGlobauxMap;
 
-      const [cmdRes, banqueRes] = await Promise.all([
+      const [cmdRes, banqueRes, commandesEnCoursListe] = await Promise.all([
         CommandeFournisseur.aggregate([
           { $match: { tenantId: tid, statut: { $in: ["envoyee","recue_partiellement"] }, montantDu: { $gt: 0 } } },
           { $group: { _id: null, totalDu: { $sum: "$montantDu" }, nb: { $sum: 1 } } },
@@ -270,6 +270,12 @@ export async function GET(req: NextRequest) {
           { $group: { _id: { banque: "$banqueNom", boutique: "$boutique" }, total: { $sum: "$montant" } } },
           { $sort: { total: -1 } },
         ]),
+        CommandeFournisseur.find({ tenantId: ctx.tenantId, statut: { $in: ["envoyee", "recue_partiellement"] } })
+          .populate("fournisseur", "nom")
+          .populate("destination", "nom")
+          .sort({ dateCommande: -1 })
+          .limit(6)
+          .lean(),
       ]);
 
       const soldesCaisseRes = boutiquesPrincipales.map(b => ({
@@ -299,7 +305,19 @@ export async function GET(req: NextRequest) {
         })).sort((a, b) => b.valeur - a.valeur),
         soldeCaisseTotal,
         soldesCaisseParBoutique: soldesCaisseRes,
-        commandesEnCours: { totalDu: (cmdRes as any[])[0]?.totalDu ?? 0, nb: (cmdRes as any[])[0]?.nb ?? 0 },
+        commandesEnCours: {
+          totalDu: (cmdRes as any[])[0]?.totalDu ?? 0,
+          nb: (cmdRes as any[])[0]?.nb ?? 0,
+          liste: (commandesEnCoursListe as any[]).map(c => ({
+            _id: c._id, reference: c.reference,
+            fournisseur: (c.fournisseur as any)?.nom ?? "—",
+            destination: (c.destination as any)?.nom ?? "—",
+            montantTotal: c.montantTotal, montantPaye: c.montantPaye, montantDu: c.montantDu,
+            qteCommandee: c.lignes.reduce((s: number, l: any) => s + l.quantiteCommandee, 0),
+            qteRecue:     c.lignes.reduce((s: number, l: any) => s + l.quantiteRecue, 0),
+            statut: c.statut, dateCommande: c.dateCommande,
+          })),
+        },
         soldeBanqueTotal: Math.round(soldeBanqueTotal),
         detailBanque,
         totalActif: Math.round(valeurStockTotal + soldeCaisseTotal + soldeBanqueTotal),

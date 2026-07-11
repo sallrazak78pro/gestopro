@@ -227,7 +227,7 @@ export default function DashboardPage() {
                   {[
                     { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", sub: "Stock au prix d'achat",           color: "" },
                     { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: "Espèces confirmées, boutiques",  color: "text-success" },
-                    { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: "À payer aux fournisseurs", color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
+                    { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: `${vueFinanciere.commandesEnCours.nb} commande${vueFinanciere.commandesEnCours.nb > 1 ? "s" : ""} en cours`, color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
                     { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", sub: "Dépôts bancaires cumulés",       color: "text-accent" },
                   ].map((k, i) => (
                     <div key={i} className="kpi-card">
@@ -238,6 +238,46 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Commandes en cours (envoyées / partiellement reçues) */}
+                {vueFinanciere.commandesEnCours.liste.length > 0 && (
+                  <div className="card">
+                    <div className="card-header">
+                      <h2 className="card-title">🛒 Commandes en cours</h2>
+                      <Link href="/commandes" className="text-xs font-mono text-accent hover:underline">Voir tout →</Link>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: "var(--color-border)" }}>
+                      {vueFinanciere.commandesEnCours.liste.map((c: any) => (
+                        <Link key={c._id} href={`/commandes/${c._id}`}
+                          className="flex items-center gap-4 px-5 py-3 hover:bg-white/[0.02] transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: "var(--color-fg)" }}>
+                              {c.fournisseur} <span className="text-muted font-mono text-xs">· {c.reference}</span>
+                            </p>
+                            <p className="text-xs font-mono text-muted">
+                              → {c.destination} · {new Date(c.dateCommande).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+                            <span className={c.statut === "recue_partiellement" ? "badge-orange" : "badge-blue"}>
+                              {c.statut === "recue_partiellement" ? "📦 Partielle" : "📤 Envoyée"}
+                            </span>
+                            <p className="text-[11px] font-mono whitespace-nowrap">
+                              <span className="text-success">Payé {fmt(c.montantPaye)} F</span>
+                              {c.montantDu > 0 && <span className="text-warning ml-1.5">· Reste {fmt(c.montantDu)} F</span>}
+                            </p>
+                            {c.qteCommandee > 0 && (
+                              <p className="text-[10px] font-mono text-muted whitespace-nowrap">
+                                📦 {fmt(c.qteRecue)} / {fmt(c.qteCommandee)} unités reçues
+                              </p>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Barre total actif */}
                 <div className="card p-5">
                   <div className="flex items-center justify-between mb-4">
