@@ -5,6 +5,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 // GET — session active d'une boutique + ses chiffres en temps réel
 export async function GET(req: NextRequest) {
@@ -52,20 +53,17 @@ export async function GET(req: NextRequest) {
       createdAt: { $gte: depuis },
     });
 
-    const TYPES_ENTREE = ["depot_tiers", "avance_caisse", "remboursement"];
-    const TYPES_SORTIE = ["versement_hebdo", "depense", "retrait_tiers"];
-
     const totalEntrees = mouvements
-      .filter(m => TYPES_ENTREE.includes(m.type))
+      .filter(m => TYPES_ENTREE_CAISSE.includes(m.type))
       .reduce((s, m) => s + m.montant, 0);
     const totalSorties = mouvements
-      .filter(m => TYPES_SORTIE.includes(m.type))
+      .filter(m => TYPES_SORTIE_CAISSE.includes(m.type))
       .reduce((s, m) => s + m.montant, 0);
 
     // Versements reçus depuis l'ouverture (cette boutique = destination)
     const versementsRecus = await MouvementArgent.find({
       tenantId: ctx.tenantId,
-      type: "versement_hebdo",
+      type: "versement_boutique",
       boutiqueDestination: boutiqueId,
       createdAt: { $gte: depuis },
     });
