@@ -3,44 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import CompteTiers from "@/lib/models/CompteTiers";
-import Vente from "@/lib/models/Vente";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
-import mongoose from "mongoose";
-
-async function getSoldeCaisse(boutiqueId: string, tenantId: string): Promise<number> {
-  const tid = new mongoose.Types.ObjectId(tenantId);
-  const bid = new mongoose.Types.ObjectId(boutiqueId);
-
-  const [ventesRes] = await Vente.aggregate([
-    { $match: { boutique: bid, tenantId: tid, statut: "payee" } },
-    { $group: { _id: null, total: { $sum: "$montantTotal" } } },
-  ]);
-  const totalVentes = ventesRes?.total ?? 0;
-
-  // Sorties : tout ce qui quitte la caisse de cette boutique
-  const mouvsSortie = await MouvementArgent.find({
-    tenantId, boutique: boutiqueId,
-    type: { $in: ["versement_boutique", "versement_banque", "depense", "achat_direct", "retrait_tiers", "remboursement"] },
-  });
-  const totalSorties = mouvsSortie.reduce((s, m) => s + m.montant, 0);
-
-  // Entrées directes dans cette boutique (dépôts tiers, avances reçues)
-  const mouvsEntree = await MouvementArgent.find({
-    tenantId, boutique: boutiqueId,
-    type: { $in: ["depot_tiers", "avance_caisse"] },
-  });
-  const totalEntrees = mouvsEntree.reduce((s, m) => s + m.montant, 0);
-
-  // Versements reçus : quand CETTE boutique est la destination d'un versement_boutique
-  const [versRecusRes] = await MouvementArgent.aggregate([
-    { $match: { tenantId: tid, type: "versement_boutique", boutiqueDestination: bid } },
-    { $group: { _id: null, total: { $sum: "$montant" } } },
-  ]);
-  const versementsRecus = versRecusRes?.total ?? 0;
-
-  return Math.max(0, totalVentes + totalEntrees + versementsRecus - totalSorties);
-}
+import { calculerSoldeCaisse, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 export async function GET(req: NextRequest) {
   try {
@@ -104,9 +69,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
 
     // Vérification solde caisse pour les types qui retirent de l'argent
-    const typesSortie = ["versement_boutique", "versement_banque", "depense", "remboursement", "achat_direct"];
-    const soldeCaisse = await getSoldeCaisse(boutiqueId, ctx.tenantId);
-    if (typesSortie.includes(type) && montant > soldeCaisse) {
+    const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueId);
+    if (TYPES_SORTIE_CAISSE.includes(type) && montant > soldeCaisse) {
       return NextResponse.json({
         success: false,
         message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
