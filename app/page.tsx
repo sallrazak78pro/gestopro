@@ -5,38 +5,32 @@ const FEATURES = [
   {
     icon: "🧾",
     title: "Ventes & Caisse",
-    desc: "Enregistrez chaque vente en quelques secondes. Suivi des encaissements, ventes à crédit, historique complet par caissier et par boutique.",
+    desc: "Vente au comptoir en quelques secondes, plusieurs modes de paiement. Ouverture/fermeture de caisse avec fond de départ et calcul automatique de l'écart.",
     color: "#00d4ff",
   },
   {
     icon: "📦",
     title: "Stock & Inventaire",
-    desc: "Visualisez vos quantités en temps réel par boutique et par dépôt. Alertes automatiques dès qu'un produit passe sous le seuil critique.",
+    desc: "Quantités en temps réel par boutique et par dépôt. Coût moyen pondéré (CUMP) recalculé automatiquement à chaque réception. Alertes de seuil critique.",
     color: "#7c3aed",
   },
   {
     icon: "🔄",
     title: "Mouvements de marchandise",
-    desc: "Transférez des produits d'un dépôt vers une boutique ou entre boutiques. Chaque mouvement est tracé, daté et signé.",
+    desc: "Transferts entre boutiques, réceptions, pertes et casse — chaque mouvement est tracé, daté et signé, avec correction possible en cas d'erreur.",
     color: "#10b981",
-  },
-  {
-    icon: "💰",
-    title: "Trésorerie",
-    desc: "Suivez votre argent au centime près. Versements, avances, dépenses, soldes par caisse et par banque — vue consolidée en temps réel.",
-    color: "#f59e0b",
   },
   {
     icon: "🏭",
     title: "Fournisseurs & Commandes",
-    desc: "Gérez vos fournisseurs, passez des commandes d'approvisionnement, suivez les livraisons et les montants dus.",
+    desc: "Passez vos commandes d'approvisionnement, réceptionnez en partiel ou en totalité. Suivi payé/reste dû et progression de réception, ligne par ligne.",
     color: "#ef4444",
   },
   {
-    icon: "👷",
-    title: "Employés & Salaires",
-    desc: "Fiches employés, rôles par boutique, calcul des salaires mensuels, avances sur salaire et historique des paiements.",
-    color: "#06b6d4",
+    icon: "💰",
+    title: "Trésorerie",
+    desc: "Tous les mouvements d'argent au même endroit : versements entre boutiques, dépenses, avances de caisse. Soldes de caisse et de banque en temps réel.",
+    color: "#f59e0b",
   },
   {
     icon: "👥",
@@ -45,10 +39,22 @@ const FEATURES = [
     color: "#8b5cf6",
   },
   {
-    icon: "📊",
-    title: "Tableau de bord & Marges",
-    desc: "KPIs clés, graphiques d'évolution, répartition du CA par point de vente, analyse des marges produit par produit.",
+    icon: "📈",
+    title: "Marges & Rentabilité",
+    desc: "Marge brute ET marge nette réelle, après déduction des charges d'exploitation (salaires, loyer, frais divers) — par produit et par boutique.",
     color: "#00d4ff",
+  },
+  {
+    icon: "👷",
+    title: "Employés & Salaires",
+    desc: "Fiches employés par boutique, avances sur salaire, calcul et paiement des salaires mensuels avec historique complet.",
+    color: "#06b6d4",
+  },
+  {
+    icon: "📊",
+    title: "Tableau de bord",
+    desc: "KPIs de la période, vue financière globale (stock, caisse, banque), commandes fournisseurs en cours et graphiques d'évolution.",
+    color: "#7c3aed",
   },
   {
     icon: "🏪",
@@ -64,14 +70,8 @@ const FEATURES = [
   },
   {
     icon: "📥",
-    title: "Import Excel",
-    desc: "Importez votre catalogue produits depuis un fichier Excel. Détection automatique des doublons et validation champ par champ.",
-    color: "#7c3aed",
-  },
-  {
-    icon: "🖨️",
-    title: "Impressions & Exports",
-    desc: "Imprimez vos états de stock, vos factures et vos rapports. Exportez en CSV pour Excel. Pensé pour le terrain.",
+    title: "Import & Export",
+    desc: "Importez votre catalogue produits depuis Excel, exportez vos données en CSV, imprimez factures, rapports et états de stock.",
     color: "#ef4444",
   },
 ];
@@ -181,7 +181,7 @@ export default function LandingPage() {
           lineHeight: 1.75,
           fontWeight: 400,
         }}>
-          Ventes, stock, trésorerie, fournisseurs, salaires, alertes —
+          Ventes, stock, trésorerie, fournisseurs, salaires, marges, alertes —
           tout centralisé dans un seul outil pensé pour les commerçants africains.
         </p>
 
