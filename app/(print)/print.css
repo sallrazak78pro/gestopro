@@ -189,6 +189,18 @@
   transition:  opacity 0.2s;
 }
 .btn-print:hover { opacity: 0.85; }
+.btn-share {
+  background: #10b981;
+  color:      #fff;
+  border:     none;
+  padding:    8px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size:   13px;
+  cursor:      pointer;
+  transition:  opacity 0.2s;
+}
+.btn-share:hover { opacity: 0.85; }
 .btn-close-print {
   background: transparent;
   color:      #94a3b8;
@@ -351,6 +363,6 @@
 
   @page {
     margin: 0;
-    size: 50mm auto; /* largeur papier imprimante thermique étroite, hauteur automatique */
+    size: 35mm auto; /* papier ~3 à 4cm de large, hauteur automatique */
   }
 }
