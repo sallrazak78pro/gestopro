@@ -26,9 +26,11 @@ export default function NouvelleVenteModal({
 }: { onClose: () => void; onSaved: () => void }) {
   const { submit } = useOfflineQueue();
   const { data: session } = useSession();
-  const userRole     = (session?.user as any)?.role ?? "";
   const userBoutique = (session?.user as any)?.boutique ?? "";
-  const isCaissier   = userRole === "caissier";
+  // Toute personne avec une boutique assignée (caissier OU gestionnaire) y
+  // est restreinte côté serveur — le champ doit donc être fixe pour elle,
+  // pas seulement pour un caissier.
+  const boutiqueVerrouillee = !!userBoutique;
 
   const [step, setStep]         = useState<"panier" | "paiement">("panier");
   const { boutiques: boutiquesToutes } = useAppData();
@@ -55,8 +57,8 @@ export default function NouvelleVenteModal({
 
   useEffect(() => {
     if (!session || boutiques.length === 0) return; // Attendre session + boutiques chargées
-    // Caissier → boutique forcée depuis la session
-    if (isCaissier && userBoutique) {
+    // Boutique assignée (caissier ou gestionnaire) → toujours présélectionnée
+    if (boutiqueVerrouillee) {
       setBoutiqueId(userBoutique);
     } else if (boutiques.length === 1) {
       setBoutiqueId(boutiques[0]._id);
@@ -158,6 +160,10 @@ export default function NouvelleVenteModal({
   // ── Valider la vente ──────────────────────────────────────
   async function handleSubmit() {
     setError(""); setLoading(true);
+    // Ouvrir l'onglet tout de suite, en synchrone dans le clic — sinon le
+    // navigateur bloque window.open() après un await (perte du contexte
+    // "geste utilisateur"). On le redirige vers le ticket une fois créé.
+    const printTab = window.open("", "_blank");
     const body = {
       boutiqueId, client, lignes: panier,
       modePaiement, montantRecu: montantRecu || total,
@@ -171,9 +177,19 @@ export default function NouvelleVenteModal({
       module:   "ventes",
     });
     setLoading(false);
-    if (!result.ok) { setError((result as any).error ?? "Une erreur est survenue."); return; }
+    if (!result.ok) {
+      printTab?.close();
+      setError((result as any).error ?? "Une erreur est survenue.");
+      return;
+    }
     if (result.offline) {
+      // Impossible d'imprimer : pas encore d'ID serveur pour une vente en attente de sync.
+      printTab?.close();
       setError(""); // Pas d'erreur — sauvegardé localement
+    } else if (result.data?._id && printTab) {
+      printTab.location.href = `/print/vente/${result.data._id}`;
+    } else {
+      printTab?.close();
     }
     onSaved();
   }
@@ -216,8 +232,8 @@ export default function NouvelleVenteModal({
 
               <div>
                 <label className="input-label">Boutique *</label>
-                {isCaissier ? (
-                  // Caissier : boutique fixe, non modifiable
+                {boutiqueVerrouillee ? (
+                  // Boutique assignée : fixe, non modifiable
                   <div className="input bg-surface text-muted2 cursor-not-allowed flex items-center gap-2">
                     <span>🏪</span>
                     <span>{boutiques.find(b => b._id === boutiqueId)?.nom ?? "Chargement..."}</span>

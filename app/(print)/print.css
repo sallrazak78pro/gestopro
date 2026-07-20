@@ -219,14 +219,19 @@
    TICKET DE CAISSE — Imprimante thermique 80mm / 58mm
    ══════════════════════════════════════════════════════ */
 
-/* ── Wrapper double ticket ── */
+/* ── Wrapper double ticket ──
+   Empilé verticalement même à l'écran (pas seulement à l'impression) : sur
+   tablette, un viewport large laissait les deux tickets côte à côte en
+   aperçu, et certains flux d'impression (apps d'impression tablette,
+   imprimantes Bluetooth) ne respectent pas toujours @media print et
+   capturent l'affichage écran tel quel — l'aperçu doit donc déjà
+   correspondre exactement à ce qui sera imprimé. */
 .tickets-wrapper {
   display:        flex;
-  flex-direction: row;
+  flex-direction: column;
+  align-items:    center;
   gap:            20px;
-  justify-content: center;
   padding:        60px 20px 20px; /* espace pour la barre d'actions */
-  flex-wrap:      wrap;
 }
 
 /* ── Ticket individuel ── */

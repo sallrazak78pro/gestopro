@@ -11,12 +11,14 @@ const MODE_ICON: Record<string, string> = {
   especes: "💵", mobile_money: "📱", virement: "🏦", cheque: "📝",
 };
 const TYPE_CONFIG: Record<string, { label: string; icon: string; flux: "entree" | "sortie" }> = {
-  versement_hebdo: { label: "Versement hebdo",  icon: "💰", flux: "sortie" },
-  avance_caisse:   { label: "Avance reçue",      icon: "🏦", flux: "entree" },
-  remboursement:   { label: "Remboursement",     icon: "↩️", flux: "entree" },
-  depense:         { label: "Dépense",           icon: "💸", flux: "sortie" },
-  depot_tiers:     { label: "Dépôt tiers",       icon: "👤", flux: "entree" },
-  retrait_tiers:   { label: "Retrait tiers",     icon: "💼", flux: "sortie" },
+  versement_boutique: { label: "Versement boutique", icon: "💸", flux: "sortie" },
+  versement_banque:   { label: "Versement banque",   icon: "🏦", flux: "sortie" },
+  avance_caisse:      { label: "Avance reçue",        icon: "🔄", flux: "entree" },
+  remboursement:      { label: "Remboursement",       icon: "↩️", flux: "sortie" },
+  depense:            { label: "Dépense",             icon: "💸", flux: "sortie" },
+  achat_direct:       { label: "Achat direct",        icon: "🛍️", flux: "sortie" },
+  depot_tiers:        { label: "Dépôt tiers",         icon: "👤", flux: "entree" },
+  retrait_tiers:      { label: "Retrait tiers",       icon: "💼", flux: "sortie" },
 };
 
 export default function RapportCaissePage() {

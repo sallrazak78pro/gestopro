@@ -73,6 +73,18 @@ export async function POST(req: NextRequest) {
     // Générer la référence
     const reference = await genererReference(ctx.tenantId, `VRS-${new Date().getFullYear()}`);
 
+    // Le champ "date" du formulaire n'est qu'une date (pas d'heure) — new Date(date)
+    // la ferait tomber à minuit UTC, donc avant l'ouverture de la caisse du jour
+    // même, ce qui excluait silencieusement le versement des totaux "depuis
+    // l'ouverture" (session en cours ET fermeture de caisse). On garde l'heure
+    // actuelle pour rester dans la fenêtre de la session ouverte aujourd'hui.
+    const now = new Date();
+    let createdAt = now;
+    if (date) {
+      const [y, m, d] = date.split("-").map(Number);
+      createdAt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    }
+
     const versement = await MouvementArgent.create({
       tenantId:            ctx.tenantId,
       reference,
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
       montant:             Math.round(montant),
       statut:              "en_attente",      // ← toujours en attente à la création
       createdBy:           ctx.userId,
-      createdAt:           date ? new Date(date) : new Date(),
+      createdAt,
     });
 
     return NextResponse.json({ success: true, data: versement }, { status: 201 });
