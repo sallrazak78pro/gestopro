@@ -1,12 +1,14 @@
 // app/(dashboard)/dashboard/page.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtM = (n: number) =>
@@ -52,22 +54,29 @@ function EvoTag({ val }: { val: string | null }) {
 }
 
 export default function DashboardPage() {
+  const { data: authSession } = useSession();
+  const boutiqueAssignee = (authSession?.user as any)?.boutique;
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
+
   const [data,    setData]    = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errMsg,  setErrMsg]  = useState("");
   const [debut,   setDebut]   = useState(PRESETS[2].debut); // Ce mois
   const [fin,     setFin]     = useState(PRESETS[2].fin);
   const [preset,  setPreset]  = useState(2);
+  const [selectedBoutique, setSelectedBoutique] = useState(""); // "" = vue globale
 
   const fetchData = useCallback(async () => {
     setLoading(true); setErrMsg("");
     const params = new URLSearchParams({ debut, fin });
+    if (selectedBoutique) params.set("boutique", selectedBoutique);
     fetch(`/api/dashboard?${params}`)
       .then(r => r.json())
       .then(j => { if (j.success) setData(j.data); else setErrMsg(j.message); })
       .catch(() => setErrMsg("Impossible de charger le tableau de bord"))
       .finally(() => setLoading(false));
-  }, [debut, fin]);
+  }, [debut, fin, selectedBoutique]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -118,6 +127,17 @@ export default function DashboardPage() {
               🔍 Appliquer
             </button>
           </div>
+          {/* Sélecteur boutique (accès global uniquement) */}
+          {!boutiqueAssignee && boutiques.length > 1 && (
+            <>
+              <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+              <select className="select py-1.5 text-xs w-44"
+                value={selectedBoutique} onChange={e => setSelectedBoutique(e.target.value)}>
+                <option value="">🌐 Toutes boutiques (global)</option>
+                {boutiques.map((b: any) => <option key={b._id} value={b._id}>🏪 {b.nom}</option>)}
+              </select>
+            </>
+          )}
           {data?.periode && (
             <p className="text-[11px] font-mono text-muted ml-auto hidden xl:block">
               {data.periode.nbJours} jour{data.periode.nbJours > 1 ? "s" : ""} analysé{data.periode.nbJours > 1 ? "s" : ""}

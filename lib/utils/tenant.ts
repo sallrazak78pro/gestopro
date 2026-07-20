@@ -51,10 +51,11 @@ export async function getTenantContext(): Promise<
   }
 
   // boutiqueAssignee = la boutique spécifique assignée au user (null = accès global)
-  // Admin/superadmin/gestionnaire → accès global (toutes les boutiques)
-  // Caissier → restreint à sa boutique assignée uniquement
+  // Admin/superadmin → toujours accès global, quelle que soit la boutique renseignée.
+  // Gestionnaire/caissier → restreints à leur boutique assignée si une a été
+  // choisie à la création du compte (cf. UtilisateurModal), sinon accès global.
   const boutiqueAssignee =
-    ["admin", "superadmin", "gestionnaire"].includes(user.role)
+    ["admin", "superadmin"].includes(user.role)
       ? null
       : (user.boutique ?? null);
 

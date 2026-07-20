@@ -33,14 +33,24 @@ export async function GET(req: NextRequest) {
     const debutPrec = new Date(debut.getTime() - dureeMs - 1000);
     const finPrec   = new Date(debut.getTime() - 1000);
 
-    const boutiqueFilter = ctx.boutiqueAssignee
-      ? { boutique: new mongoose.Types.ObjectId(ctx.boutiqueAssignee) }
+    // Un utilisateur à accès global peut volontairement filtrer sur une seule
+    // boutique via ?boutique=id (sélecteur "Global / point de vente" du
+    // dashboard) — un utilisateur déjà restreint (boutiqueAssignee) ignore ce
+    // paramètre, sa restriction n'est jamais contournable depuis le client.
+    const boutiqueSelectionnee = !ctx.boutiqueAssignee ? searchParams.get("boutique") : null;
+    const effectiveBoutiqueId  = ctx.boutiqueAssignee ?? boutiqueSelectionnee ?? null;
+
+    const boutiqueFilter = effectiveBoutiqueId
+      ? { boutique: new mongoose.Types.ObjectId(effectiveBoutiqueId) }
       : {};
 
-    // ── Toutes les boutiques du tenant ─────────────────────────
-    const boutiquesAll = await Boutique.find({ tenantId: ctx.tenantId, actif: true }).lean();
-    const boutiqueIds  = ctx.boutiqueAssignee
-      ? [new mongoose.Types.ObjectId(ctx.boutiqueAssignee)]
+    // ── Boutiques visibles (toutes, ou une seule si restreint/filtré) ──
+    const boutiquesAll = await Boutique.find({
+      tenantId: ctx.tenantId, actif: true,
+      ...(effectiveBoutiqueId ? { _id: effectiveBoutiqueId } : {}),
+    }).lean();
+    const boutiqueIds  = effectiveBoutiqueId
+      ? [new mongoose.Types.ObjectId(effectiveBoutiqueId)]
       : boutiquesAll.map(b => b._id);
     const boutiqueIdStrings = boutiqueIds.map(id => id.toString());
 
@@ -76,11 +86,11 @@ export async function GET(req: NextRequest) {
       ]),
       // Sessions ouvertes
       SessionCaisse.find({ tenantId: ctx.tenantId, statut: "ouverte",
-        ...(ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {}) })
+        ...(effectiveBoutiqueId ? { boutique: effectiveBoutiqueId } : {}) })
         .populate("boutique", "nom").lean(),
       // Employés
       Employe.find({ tenantId: ctx.tenantId, actif: true,
-        ...(ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {}) }).lean(),
+        ...(effectiveBoutiqueId ? { boutique: effectiveBoutiqueId } : {}) }).lean(),
     ]);
 
     // Parser CA
@@ -220,7 +230,7 @@ export async function GET(req: NextRequest) {
     // ── 5. Répartition + dernières ventes ─────────────────────
     const [ventesParBoutiqueRes, dernieresVentes] = await Promise.all([
       Vente.aggregate([
-        { $match: { tenantId: tid, statut: "payee", createdAt: { $gte: debut, $lte: fin } } },
+        { $match: { tenantId: tid, statut: "payee", ...boutiqueFilter, createdAt: { $gte: debut, $lte: fin } } },
         { $group: { _id: "$boutique", total: { $sum: "$montantTotal" } } },
         { $sort: { total: -1 } },
       ]),
