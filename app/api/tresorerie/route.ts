@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import CompteTiers from "@/lib/models/CompteTiers";
+import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
-import { calculerSoldeCaisse, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
+import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,21 +25,50 @@ export async function GET(req: NextRequest) {
       query.boutique = searchParams.get("boutique");
     }
 
-    const mouvements = await MouvementArgent.find(query)
-      .populate("boutique", "nom")
-      .populate("boutiqueDestination", "nom")
-      .populate("tiers", "nom telephone")
-      .populate("createdBy", "nom")
-      .sort({ createdAt: -1 }).limit(100);
+    if (searchParams.get("search")) {
+      const regex = { $regex: searchParams.get("search"), $options: "i" };
+      const matchingBoutiques = await Boutique.find({ tenantId: ctx.tenantId, nom: regex }).select("_id").lean();
+      query.$or = [
+        { reference: regex },
+        { motif: regex },
+        { tiersNom: regex },
+        { boutique: { $in: matchingBoutiques.map(b => b._id) } },
+      ];
+    }
 
-    const totalEntrees  = mouvements.filter(m => ["avance_caisse", "depot_tiers"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const totalSorties  = mouvements.filter(m => ["versement_boutique","versement_banque","depense","achat_direct","remboursement","retrait_tiers"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const versementsRecus = mouvements.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
-    const versementsBanque = mouvements.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
-    const totalDepenses = mouvements.filter(m => ["depense","achat_direct"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const dateDebut = searchParams.get("dateDebut");
+    const dateFin   = searchParams.get("dateFin");
+    if (dateDebut || dateFin) {
+      query.createdAt = {};
+      if (dateDebut) query.createdAt.$gte = new Date(dateDebut);
+      if (dateFin)   { const f = new Date(dateFin); f.setHours(23, 59, 59, 999); query.createdAt.$lte = f; }
+    }
+
+    const page  = parseInt(searchParams.get("page")  ?? "1");
+    const limit = parseInt(searchParams.get("limit") ?? "50");
+    const skip  = (page - 1) * limit;
+
+    // Les stats portent sur tout l'ensemble filtré, pas seulement la page affichée.
+    const [mouvements, total, tousLesMouvements] = await Promise.all([
+      MouvementArgent.find(query)
+        .populate("boutique", "nom")
+        .populate("boutiqueDestination", "nom")
+        .populate("tiers", "nom telephone")
+        .populate("createdBy", "nom")
+        .sort({ createdAt: -1 }).skip(skip).limit(limit),
+      MouvementArgent.countDocuments(query),
+      MouvementArgent.find(query).select("type montant").lean(),
+    ]);
+
+    const totalEntrees  = tousLesMouvements.filter(m => TYPES_ENTREE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const totalSorties  = tousLesMouvements.filter(m => TYPES_SORTIE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const versementsRecus = tousLesMouvements.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
+    const versementsBanque = tousLesMouvements.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
+    const totalDepenses = tousLesMouvements.filter(m => ["depense","achat_direct"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
 
     return NextResponse.json({
       success: true, data: mouvements,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: {
         totalEntrees, totalSorties,
         soldeNet: totalEntrees - totalSorties,

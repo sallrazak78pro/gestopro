@@ -12,6 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
     await connectDB();
 
     const { montant, boutiqueId, note } = await req.json();
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           boutique:            boutiqueId,
           boutiqueDestination: principale?._id ?? null,
           montant:             montantAPayer,
+          statut:              "en_attente", // doit passer par la validation admin, comme tout versement inter-boutique
           motif:               `Avance commande — ${motifBase}`,
           commandeId:          commande._id,
           createdBy:           ctx.userId,
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       message: boutiqueId
         ? (await Boutique.findById(boutiqueId))?.estPrincipale
           ? "Paiement enregistré."
-          : "Paiement enregistré — versement automatique créé vers la boutique principale."
+          : "Paiement enregistré — versement créé vers la boutique principale, en attente de confirmation admin."
         : "Paiement enregistré.",
     });
   } catch (err: any) {

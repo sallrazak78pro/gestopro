@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (searchParams.get("statut")) query.statut = searchParams.get("statut");
+    if (searchParams.get("search")) {
+      const s = searchParams.get("search");
+      query.$or = [{ reference: { $regex: s, $options: "i" } }, { client: { $regex: s, $options: "i" } }];
+    }
     const debut = searchParams.get("debut"), fin = searchParams.get("fin");
     if (debut || fin) {
       query.createdAt = {};
@@ -41,7 +45,7 @@ export async function GET(req: NextRequest) {
     const [ventes, total] = await Promise.all([
       Vente.find(query)
         .populate("boutique", "nom")
-        .populate("employe",  "nom")
+        .populate("employe",  "nom prenom")
         .populate("createdBy","nom")
         .sort({ createdAt: -1 })
         .skip(skip)

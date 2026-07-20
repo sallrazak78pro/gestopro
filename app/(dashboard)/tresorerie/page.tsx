@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import MouvementArgentModal from "@/components/tresorerie/MouvementArgentModal";
 import ExportButton from "@/components/ui/ExportButton";
+import Pagination from "@/components/ui/Pagination";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -40,32 +41,36 @@ export default function TresoreriePage() {
   const { boutiques: boutiquesToutes } = useAppData();
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [search, setSearch]           = useState("");
+  const [dateDebut, setDateDebut]     = useState("");
+  const [dateFin, setDateFin]         = useState("");
+  const [page, setPage]               = useState(1);
+  const [total, setTotal]             = useState(0);
+  const LIMIT = 50;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (search)        params.set("search",   search);
     if (filtreType)    params.set("type",     filtreType);
     if (filtreBoutique) params.set("boutique", filtreBoutique);
+    if (dateDebut)     params.set("dateDebut", dateDebut);
+    if (dateFin)       params.set("dateFin",   dateFin);
     const [res, rapRes] = await Promise.all([
       fetch(`/api/tresorerie?${params}`),
       fetch("/api/tresorerie/rapport"),
     ]);
     const [json, rapJson] = await Promise.all([res.json(), rapRes.json()]);
-    if (json.success)   { setMouvements(json.data); setStats(json.stats); }
+    if (json.success)   { setMouvements(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
     if (rapJson.success) setRapport(rapJson.data);
     setLoading(false);
-  }, [filtreType, filtreBoutique]);
+  }, [search, filtreType, filtreBoutique, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); }, [search, filtreType, filtreBoutique, dateDebut, dateFin]);
 
   function openModal(type = "") { setDefaultType(type); setShowModal(true); }
 
-  const filtered = mouvements.filter(m =>
-    m.reference?.toLowerCase().includes(search.toLowerCase()) ||
-    m.motif?.toLowerCase().includes(search.toLowerCase()) ||
-    m.boutique?.nom?.toLowerCase().includes(search.toLowerCase()) ||
-    m.tiersNom?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = mouvements;
 
   // Données pour le graphique (7 derniers jours)
   const chartData = buildChartData(mouvements);
@@ -259,6 +264,9 @@ export default function TresoreriePage() {
               <option value="">Toutes boutiques</option>
               {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
             </select>
+            <input type="date" className="input w-36" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            <span className="text-muted text-xs">→</span>
+            <input type="date" className="input w-36" value={dateFin} onChange={e => setDateFin(e.target.value)} />
             <ExportButton type="tresorerie" />
             <button className="btn-primary btn-sm" onClick={() => openModal()}>+ Opération</button>
           </div>
@@ -343,9 +351,12 @@ export default function TresoreriePage() {
 
         {!loading && filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-border flex items-center justify-between">
-            <p className="text-xs font-mono text-muted">{filtered.length} opération{filtered.length > 1 ? "s" : ""}</p>
+            <p className="text-xs font-mono text-muted">{total} opération{total > 1 ? "s" : ""}</p>
             <button onClick={fetchData} className="btn-ghost btn-sm">🔄 Actualiser</button>
           </div>
+        )}
+        {!loading && (
+          <Pagination page={page} total={total} limit={LIMIT} onChange={p => setPage(p)} />
         )}
       </div>
 

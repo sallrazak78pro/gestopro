@@ -61,6 +61,7 @@ export default function MargesPage() {
   const [stats,       setStats]       = useState<any>(null);
   const [evolution,   setEvolution]   = useState<any[]>([]);
   const [topProduits, setTopProduits] = useState<any[]>([]);
+  const [produitMoinsRentable, setProduitMoinsRentable] = useState<any>(null);
   const [parBoutique, setParBoutique] = useState<any[]>([]);
 
   const fetchMarges = useCallback(async () => {
@@ -76,6 +77,7 @@ export default function MargesPage() {
       setStats(json.stats);
       setEvolution(json.evolution);
       setTopProduits(json.topProduits);
+      setProduitMoinsRentable(json.produitMoinsRentable);
       setParBoutique(json.parBoutique);
     }
     setLoading(false);
@@ -423,10 +425,10 @@ export default function MargesPage() {
                   },
                   {
                     label: "Produit le - rentable",
-                    value: topProduits.at(-1)?.nom ?? "—",
-                    color: topProduits.at(-1)?.tauxMarge < 10 ? "var(--color-danger)" : "var(--color-muted2)",
+                    value: produitMoinsRentable?.nom ?? "—",
+                    color: (produitMoinsRentable?.tauxMarge ?? 100) < 10 ? "var(--color-danger)" : "var(--color-muted2)",
                     icon:  "⚠️",
-                    desc:  topProduits.at(-1) ? `Marge de ${pct(topProduits.at(-1).tauxMarge)} — ${fmt(topProduits.at(-1).marge)} F générés` : "Aucune donnée",
+                    desc:  produitMoinsRentable ? `Marge de ${pct(produitMoinsRentable.tauxMarge)} — ${fmt(produitMoinsRentable.marge)} F générés` : "Aucune donnée",
                   },
                 ].map((item, i) => (
                   <div key={i} className="bg-surface2 rounded-2xl px-4 py-3.5">

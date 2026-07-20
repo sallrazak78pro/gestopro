@@ -31,9 +31,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    if (!["admin", "superadmin"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
     await connectDB();
     const body = await req.json();
-    const f = await Fournisseur.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, body, { new: true });
+    const { soldeCredit, tenantId, ...safeBody } = body;
+    const f = await Fournisseur.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, safeBody, { new: true });
     if (!f) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
     return NextResponse.json({ success: true, data: f });
   } catch (err: any) {
@@ -46,6 +49,8 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    if (!["admin", "superadmin"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
     await connectDB();
     await Fournisseur.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
     return NextResponse.json({ success: true });

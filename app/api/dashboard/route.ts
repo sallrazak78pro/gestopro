@@ -56,9 +56,15 @@ export async function GET(req: NextRequest) {
         }},
       ]),
       // Dépenses + versements période + précédente
+      // "depense" avec categorieDepense achat_marchandise et le type achat_direct
+      // sont exclus : ce sont des achats de marchandise (COGS), pas des charges
+      // d'exploitation — les compter ici fausserait le KPI Dépenses (cf. Marges).
       MouvementArgent.aggregate([
         { $match: { tenantId: tid, createdAt: { $gte: debutPrec, $lte: fin },
-            type: { $in: ["depense","achat_direct","versement_boutique"] } } },
+            $or: [
+              { type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] } },
+              { type: "versement_boutique" },
+            ] } },
         { $group: {
           _id: {
             periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] },
@@ -96,8 +102,8 @@ export async function GET(req: NextRequest) {
       if (!dvMap[r._id.periode]) dvMap[r._id.periode] = {};
       dvMap[r._id.periode][r._id.type] = (dvMap[r._id.periode][r._id.type] ?? 0) + r.total;
     });
-    const dep     = (dvMap.current?.depense ?? 0) + (dvMap.current?.achat_direct ?? 0);
-    const depPrec = (dvMap.prev?.depense    ?? 0) + (dvMap.prev?.achat_direct    ?? 0);
+    const dep     = dvMap.current?.depense ?? 0;
+    const depPrec = dvMap.prev?.depense    ?? 0;
     const vers     = dvMap.current?.versement_boutique ?? 0;
     const versPrec = dvMap.prev?.versement_boutique    ?? 0;
     const depEvolution  = depPrec  > 0 ? (((dep  - depPrec)  / depPrec)  * 100).toFixed(1) : null;
@@ -162,7 +168,8 @@ export async function GET(req: NextRequest) {
         { $sort: { "_id.a": 1, "_id.m": 1, "_id.j": 1 } },
       ]),
       MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: { $in: ["depense","achat_direct"] }, createdAt: { $gte: debut, $lte: fin } } },
+        { $match: { tenantId: tid, type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] },
+            createdAt: { $gte: debut, $lte: fin } } },
         { $group: {
           _id: afficherParMois
             ? { m: { $month: "$createdAt" }, a: { $year: "$createdAt" }, boutique: "$boutique" }

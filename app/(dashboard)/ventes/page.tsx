@@ -36,6 +36,7 @@ export default function VentesPage() {
   const fetchVentes = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (search)         params.set("search",   search);
     if (filtreStatut)   params.set("statut",   filtreStatut);
     if (filtreBoutique) params.set("boutique", filtreBoutique);
     const res  = await fetch(`/api/ventes?${params}`);
@@ -46,15 +47,12 @@ export default function VentesPage() {
       setTotal(json.pagination?.total ?? 0);
     }
     setLoading(false);
-  }, [filtreStatut, filtreBoutique, page]);
+  }, [search, filtreStatut, filtreBoutique, page]);
 
   useEffect(() => { fetchVentes(); }, [fetchVentes]);
-  useEffect(() => { setPage(1); }, [filtreStatut, filtreBoutique]);
+  useEffect(() => { setPage(1); }, [search, filtreStatut, filtreBoutique]);
 
-  const filtered = ventes.filter(v =>
-    v.reference?.toLowerCase().includes(search.toLowerCase()) ||
-    v.client?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = ventes;
 
   const tauxRecouvrement = stats.total > 0 ? ((stats.nbPayees / stats.total) * 100).toFixed(1) : "0";
 

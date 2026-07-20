@@ -47,10 +47,12 @@ export async function GET(req: NextRequest) {
     const ventesCheque     = ventes.filter(v => v.modePaiement === "cheque").reduce((s, v) => s + v.montantTotal, 0);
 
     // Mouvements d'argent depuis l'ouverture
+    // Un versement rejeté n'est jamais compté comme une sortie de caisse.
     const mouvements = await MouvementArgent.find({
       tenantId: ctx.tenantId,
       boutique: boutiqueId,
       createdAt: { $gte: depuis },
+      statut: { $ne: "rejete" },
     });
 
     const totalEntrees = mouvements

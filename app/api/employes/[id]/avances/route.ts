@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,6 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
     await connectDB();
 
     const { montant, motif, moisDeduction, anneeDeduction, boutiqueId } = await req.json();
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const employe = await Employe.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!employe)
       return NextResponse.json({ success: false, message: "Employé introuvable." }, { status: 404 });
+
+    const boutiqueSource = boutiqueId || employe.boutique?.toString();
+    if (!canAccessBoutique(ctx, boutiqueSource))
+      return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
 
     // Créer l'avance
     const avance = await AvanceSalaire.create({

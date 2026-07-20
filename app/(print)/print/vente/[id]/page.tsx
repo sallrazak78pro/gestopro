@@ -23,7 +23,7 @@ function Ticket({ vente, tenant, copie }: { vente: any; tenant: any; copie: "cli
     <div className="ticket">
 
       {/* ── EN-TÊTE ── */}
-      <div className="ticket-center ticket-bold" style={{ fontSize: 15, letterSpacing: 0.5 }}>
+      <div className="ticket-center ticket-bold" style={{ fontSize: 18, letterSpacing: 0.5 }}>
         {tenant?.nom || "Mon Entreprise"}
       </div>
       {tenant?.ville && (

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { KpiCard } from "@/components/ui/KpiCard";
 import NouvelleCommandeModal from "@/components/fournisseurs/NouvelleCommandeModal";
+import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
@@ -18,26 +19,37 @@ const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: string
 
 export default function CommandesPage() {
   const [commandes, setCommandes] = useState<any[]>([]);
-  const [stats, setStats]         = useState({ total: 0, totalDu: 0 });
+  const [stats, setStats]         = useState({ total: 0, totalDu: 0, enCours: 0, recuesMois: 0 });
   const [loading, setLoading]     = useState(true);
-  const [filtreStatut, setFiltreStatut] = useState("");
+  const [filtreReception, setFiltreReception] = useState("");
+  const [filtrePaiement, setFiltrePaiement]   = useState("");
+  const [search, setSearch]       = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin]     = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [page, setPage]           = useState(1);
+  const [total, setTotal]         = useState(0);
+  const LIMIT = 50;
 
   const fetchC = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filtreStatut) params.set("statut", filtreStatut);
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (filtreReception) params.set("reception", filtreReception);
+    if (filtrePaiement) params.set("paiement",  filtrePaiement);
+    if (search)         params.set("search",    search);
+    if (dateDebut)      params.set("dateDebut", dateDebut);
+    if (dateFin)        params.set("dateFin",   dateFin);
     const res = await fetch(`/api/commandes?${params}`);
     const json = await res.json();
-    if (json.success) { setCommandes(json.data); setStats(json.stats); }
+    if (json.success) { setCommandes(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
     setLoading(false);
-  }, [filtreStatut]);
+  }, [filtreReception, filtrePaiement, search, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchC(); }, [fetchC]);
+  useEffect(() => { setPage(1); }, [filtreReception, filtrePaiement, search, dateDebut, dateFin]);
 
-  const now = new Date();
-  const enCours    = commandes.filter(c => ["envoyee","recue_partiellement"].includes(c.statut)).length;
-  const recuesMois = commandes.filter(c => c.statut === "recue" && new Date(c.dateReception||c.createdAt).getMonth() === now.getMonth()).length;
+  const enCours    = stats.enCours;
+  const recuesMois = stats.recuesMois;
 
   return (
     <div className="space-y-6">
@@ -54,13 +66,23 @@ export default function CommandesPage() {
             <h2 className="card-title">Commandes fournisseurs</h2>
             <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">Suivi des achats et réceptions</p>
           </div>
-          <div className="flex items-center gap-2">
-            <select className="select w-40" value={filtreStatut} onChange={e => setFiltreStatut(e.target.value)}>
-              <option value="">Tous statuts</option>
-              {Object.entries(STATUT_CONFIG).map(([v, c]) => (
-                <option key={v} value={v}>{c.icon} {c.label}</option>
-              ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="input w-44" placeholder="🔍  Réf., fournisseur..."
+              value={search} onChange={e => setSearch(e.target.value)} />
+            <select className="select w-44" value={filtreReception} onChange={e => setFiltreReception(e.target.value)}>
+              <option value="">Réception : toutes</option>
+              <option value="recue">✅ Déjà reçue</option>
+              <option value="recue_partiellement">📦 Reçue partiellement</option>
+              <option value="non_recue">📤 Pas encore reçue</option>
             </select>
+            <select className="select w-40" value={filtrePaiement} onChange={e => setFiltrePaiement(e.target.value)}>
+              <option value="">Paiement : tous</option>
+              <option value="paye">✓ Payée intégralement</option>
+              <option value="reste">💳 Reste à payer</option>
+            </select>
+            <input type="date" className="input w-36" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            <span className="text-muted text-xs">→</span>
+            <input type="date" className="input w-36" value={dateFin} onChange={e => setDateFin(e.target.value)} />
             <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>+ Nouvelle commande</button>
           </div>
         </div>
@@ -106,9 +128,12 @@ export default function CommandesPage() {
         </div>
         {!loading && commandes.length > 0 && (
           <div className="px-5 py-3 border-t border-border flex justify-between">
-            <p className="text-xs font-mono text-muted">{commandes.length} commande{commandes.length>1?"s":""}</p>
+            <p className="text-xs font-mono text-muted">{total} commande{total>1?"s":""}</p>
             <button onClick={fetchC} className="btn-ghost btn-sm">🔄</button>
           </div>
+        )}
+        {!loading && (
+          <Pagination page={page} total={total} limit={LIMIT} onChange={p => setPage(p)} />
         )}
       </div>
 

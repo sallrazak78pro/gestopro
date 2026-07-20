@@ -67,6 +67,10 @@ export async function POST(req: NextRequest) {
     if (password.length < 8)
       return NextResponse.json({ success: false, message: "Mot de passe minimum 8 caractères." }, { status: 400 });
 
+    // "superadmin" est un rôle plateforme (gestion des abonnements), jamais un rôle de tenant.
+    if (role && !["admin", "gestionnaire", "caissier"].includes(role))
+      return NextResponse.json({ success: false, message: "Rôle invalide." }, { status: 400 });
+
     // Un admin ne peut pas créer un autre admin (seulement gestionnaire/caissier)
     if (ctx.role === "admin" && role === "admin")
       return NextResponse.json({ success: false, message: "Vous ne pouvez pas créer un autre administrateur." }, { status: 403 });

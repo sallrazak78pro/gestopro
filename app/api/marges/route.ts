@@ -118,10 +118,14 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    const topProduits = [...parProduit.values()]
+    const produitsTries = [...parProduit.values()]
       .sort((a, b) => b.marge - a.marge)
-      .slice(0, 10)
       .map(p => ({ ...p, tauxMarge: p.ca > 0 ? (p.marge / p.ca) * 100 : 0 }));
+
+    const topProduits = produitsTries.slice(0, 10);
+    // Le vrai pire produit toutes ventes confondues, pas seulement le 10e du top —
+    // topProduits.at(-1) ne serait que le 10e meilleur dès qu'il y a plus de 10 produits.
+    const produitMoinsRentable = produitsTries.length > 0 ? produitsTries[produitsTries.length - 1] : null;
 
     // ── Grouper par boutique ──────────────────────────────────────────────────
     const parBoutique = new Map<string, { nom: string; ca: number; cout: number; marge: number; charges: number }>();
@@ -197,6 +201,7 @@ export async function GET(req: NextRequest) {
       },
       evolution,
       topProduits,
+      produitMoinsRentable,
       parBoutique: [...parBoutique.values()].map(b => ({
         ...b,
         tauxMarge:      b.ca > 0 ? Math.round((b.marge / b.ca) * 100) : 0,

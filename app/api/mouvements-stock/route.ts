@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
+import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
@@ -25,6 +26,20 @@ export async function GET(req: NextRequest) {
 
     if (searchParams.get("boutique")) query.boutique = searchParams.get("boutique");
     if (searchParams.get("type"))     query.type     = searchParams.get("type");
+
+    if (searchParams.get("search")) {
+      const regex = { $regex: searchParams.get("search"), $options: "i" };
+      const [matchingBoutiques, matchingProduits] = await Promise.all([
+        Boutique.find({ tenantId: ctx.tenantId, nom: regex }).select("_id").lean(),
+        Produit.find({ tenantId: ctx.tenantId, nom: regex }).select("_id").lean(),
+      ]);
+      query.$or = [
+        { reference: regex },
+        { motif: regex },
+        { boutique: { $in: matchingBoutiques.map(b => b._id) } },
+        { "lignes.produit": { $in: matchingProduits.map(p => p._id) } },
+      ];
+    }
 
     // Date filter
     const dateDebut = searchParams.get("dateDebut");

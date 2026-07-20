@@ -27,6 +27,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { nom, email, role, boutiqueId, actif, password } = body;
 
+    // "superadmin" est un rôle plateforme (gestion des abonnements), jamais un rôle de tenant.
+    if (role && !["admin", "gestionnaire", "caissier"].includes(role))
+      return NextResponse.json({ success: false, message: "Rôle invalide." }, { status: 400 });
+
+    // Un admin ne peut pas promouvoir quelqu'un au rang d'admin (seul un vrai
+    // changement par un superadmin plateforme le pourrait, cas qui n'existe pas ici).
+    if (role === "admin" && ctx.role === "admin" && user.role !== "admin")
+      return NextResponse.json({ success: false, message: "Vous ne pouvez pas promouvoir un utilisateur administrateur." }, { status: 403 });
+
     // Construire l'objet de mise à jour
     const update: any = {};
     if (nom)       update.nom      = nom;

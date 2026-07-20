@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Employe from "@/lib/models/Employe";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import PaiementSalaire from "@/lib/models/PaiementSalaire";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,6 +18,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       .populate("userId", "nom email role");
     if (!employe)
       return NextResponse.json({ success: false, message: "Employé introuvable" }, { status: 404 });
+    if (!canAccessBoutique(ctx, employe.boutique?._id?.toString() ?? employe.boutique?.toString()))
+      return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
 
     // Avances en attente
     const avancesEnAttente = await AvanceSalaire.find({

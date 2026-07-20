@@ -53,6 +53,7 @@ export default function MouvementsPage() {
   const fetchMouvements = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    if (search)         p.set("search",    search);
     if (filtreBoutique) p.set("boutique",  filtreBoutique);
     if (filtreType)     p.set("type",      filtreType);
     if (dateDebut)      p.set("dateDebut", dateDebut);
@@ -65,20 +66,12 @@ export default function MouvementsPage() {
       setTotal(json.pagination?.total ?? 0);
     }
     setLoading(false);
-  }, [filtreBoutique, filtreType, dateDebut, dateFin, page]);
+  }, [search, filtreBoutique, filtreType, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchMouvements(); }, [fetchMouvements]);
-  useEffect(() => { setPage(1); }, [filtreBoutique, filtreType, dateDebut, dateFin]);
+  useEffect(() => { setPage(1); }, [search, filtreBoutique, filtreType, dateDebut, dateFin]);
 
-  const filtered = mouvements.filter(m => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      m.reference?.toLowerCase().includes(q) ||
-      m.boutique?.nom?.toLowerCase().includes(q) ||
-      m.lignes?.some((l: any) => l.produit?.nom?.toLowerCase().includes(q))
-    );
-  });
+  const filtered = mouvements;
 
   async function migrer() {
     setMigrating(true); setMigrateMsg("");

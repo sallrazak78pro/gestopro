@@ -26,6 +26,7 @@ const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
   session_ouverte:     { icon: "🏧", label: "Caisse non fermée" },
   commande_en_attente: { icon: "📦", label: "Livraison en retard" },
   commande_a_payer:    { icon: "💳", label: "Paiement dû" },
+  versement_en_attente:{ icon: "💸", label: "Versement à confirmer" },
 };
 
 export default function AlertesPage() {

@@ -34,6 +34,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
+      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
     await connectDB();
     const { statut, fraisLivraison } = await req.json();
     const commande = await CommandeFournisseur.findOne({ _id: id, tenantId: ctx.tenantId });
