@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
-import User from "@/lib/models/User";
+import Employe from "@/lib/models/Employe";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
@@ -102,9 +102,12 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Récupérer l'employé (celui qui effectue la vente)
-    const empId = employeId || ctx.userId;
-    const employe = await User.findOne({ _id: empId, tenantId: ctx.tenantId });
+    // Récupérer l'employé (celui qui effectue la vente) — un employé n'a pas
+    // forcément de compte de connexion, "employe" pointe donc vers la fiche
+    // Employe (pas vers un User, qui n'existe que pour ceux ayant un login).
+    if (!employeId)
+      return NextResponse.json({ success: false, message: "Employé requis." }, { status: 400 });
+    const employe = await Employe.findOne({ _id: employeId, tenantId: ctx.tenantId });
     if (!employe)
       return NextResponse.json({ success: false, message: "Employé introuvable." }, { status: 404 });
 
@@ -135,7 +138,7 @@ export async function POST(req: NextRequest) {
       boutique: boutiqueId,
       client: client || "Client comptoir",
       employe: employe._id,
-      employeNom: employe.nom,
+      employeNom: `${employe.prenom} ${employe.nom}`.trim(),
       lignes: lignes.map((l: any) => ({
         produit: l.produitId, nomProduit: l.nomProduit,
         quantite: l.quantite, prixUnitaire: l.prixUnitaire, sousTotal: l.sousTotal,

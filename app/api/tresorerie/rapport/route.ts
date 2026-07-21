@@ -51,11 +51,17 @@ export async function GET() {
         }},
       ]),
 
-      // Mouvements des 4 périodes
+      // Mouvements des 4 périodes — un versement rejeté n'a jamais eu lieu, et
+      // "depense" catégorie achat_marchandise / "achat_direct" sont du COGS
+      // (déjà compté dans le coût d'achat), pas des charges d'exploitation.
       MouvementArgent.aggregate([
         { $match: { tenantId: tid,
-            type: { $in: ["versement_boutique","depense","achat_direct"] },
-            createdAt: { $gte: debutMoisPrec } } },
+            createdAt: { $gte: debutMoisPrec },
+            statut: { $ne: "rejete" },
+            $or: [
+              { type: "versement_boutique" },
+              { type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] } },
+            ] } },
         { $group: {
           _id: {
             periode: { $switch: { branches: [
@@ -77,16 +83,17 @@ export async function GET() {
       // Sessions actives (1 seule requête)
       SessionCaisse.find({ tenantId: ctx.tenantId, statut: "ouverte" }).lean(),
 
-      // Dernier versement PAR boutique (agrégation groupée)
+      // Dernier versement PAR boutique (agrégation groupée) — un versement
+      // rejeté n'a jamais eu lieu, il ne doit jamais apparaître ici.
       MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: "versement_boutique" } },
+        { $match: { tenantId: tid, type: "versement_boutique", statut: { $ne: "rejete" } } },
         { $sort: { createdAt: -1 } },
         { $group: { _id: "$boutique", montant: { $first: "$montant" }, date: { $first: "$createdAt" } } },
       ]),
 
-      // Versements du mois
+      // Versements du mois (rejetés exclus, comme partout ailleurs)
       MouvementArgent.find({ tenantId: ctx.tenantId, type: "versement_boutique",
-          createdAt: { $gte: debutMois } })
+          statut: { $ne: "rejete" }, createdAt: { $gte: debutMois } })
         .populate("boutique", "nom estPrincipale")
         .populate("boutiqueDestination", "nom estPrincipale")
         .sort({ createdAt: -1 }).lean(),
@@ -121,10 +128,10 @@ export async function GET() {
       return {
         caVentes:   ventesCompMap[periode]    ?? 0,
         versements: dvMap[periode]?.versement_boutique ?? 0,
-        depenses:   (dvMap[periode]?.depense ?? 0) + (dvMap[periode]?.achat_direct ?? 0),
+        depenses:   dvMap[periode]?.depense ?? 0,
         soldeFinal: Math.max(0,
           (ventesCompMap[periode] ?? 0)
-          - ((dvMap[periode]?.depense ?? 0) + (dvMap[periode]?.achat_direct ?? 0))
+          - (dvMap[periode]?.depense ?? 0)
           - (dvMap[periode]?.versement_boutique ?? 0)),
       };
     }

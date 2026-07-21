@@ -42,7 +42,7 @@ const VenteSchema = new Schema<IVente>(
     reference:    { type: String, required: true },
     boutique:     { type: Schema.Types.ObjectId, ref: "Boutique", required: true },
     client:       { type: String, default: "Client comptoir" },
-    employe:      { type: Schema.Types.ObjectId, ref: "User", required: true },
+    employe:      { type: Schema.Types.ObjectId, ref: "Employe", required: true },
     employeNom:   { type: String, required: true },
     lignes:       [LigneVenteSchema],
     montantTotal: { type: Number, required: true, min: 0 },

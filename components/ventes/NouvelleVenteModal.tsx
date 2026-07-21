@@ -517,7 +517,7 @@ export default function NouvelleVenteModal({
                 <option value="">Sélectionner un employé...</option>
                 {employes.map(e => (
                   <option key={e._id} value={e._id}>
-                    {e.nom} — {e.role === "admin" ? "Admin" : e.role === "gestionnaire" ? "Gestionnaire" : "Caissier"}
+                    {e.prenom} {e.nom} — {e.poste}
                   </option>
                 ))}
               </select>

@@ -57,14 +57,19 @@ export async function GET(req: NextRequest) {
         .populate("createdBy", "nom")
         .sort({ createdAt: -1 }).skip(skip).limit(limit),
       MouvementArgent.countDocuments(query),
-      MouvementArgent.find(query).select("type montant").lean(),
+      MouvementArgent.find(query).select("type montant statut categorieDepense").lean(),
     ]);
 
-    const totalEntrees  = tousLesMouvements.filter(m => TYPES_ENTREE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const totalSorties  = tousLesMouvements.filter(m => TYPES_SORTIE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const versementsRecus = tousLesMouvements.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
-    const versementsBanque = tousLesMouvements.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
-    const totalDepenses = tousLesMouvements.filter(m => ["depense","achat_direct"].includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    // Un versement rejeté n'a jamais eu lieu — il ne doit compter dans aucun total.
+    const nonRejetes = tousLesMouvements.filter(m => m.statut !== "rejete");
+    const totalEntrees  = nonRejetes.filter(m => TYPES_ENTREE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const totalSorties  = nonRejetes.filter(m => TYPES_SORTIE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    const versementsRecus = nonRejetes.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
+    const versementsBanque = nonRejetes.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
+    // "depense" catégorie achat_marchandise et "achat_direct" sont du COGS
+    // (achat de marchandise), pas des charges d'exploitation — exclus ici
+    // comme sur le dashboard, sinon la dépense affichée est faussée.
+    const totalDepenses = nonRejetes.filter(m => m.type === "depense" && ["salaire","loyer","divers"].includes(m.categorieDepense as string)).reduce((s, m) => s + m.montant, 0);
 
     return NextResponse.json({
       success: true, data: mouvements,

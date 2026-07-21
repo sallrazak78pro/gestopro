@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import { genererReference } from "@/lib/utils/reference";
+import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,6 +64,18 @@ export async function POST(req: NextRequest) {
     const sourceBoutiqueId = ctx.boutiqueAssignee ?? boutiqueId;
     if (!sourceBoutiqueId)
       return NextResponse.json({ success: false, message: "Boutique source manquante." }, { status: 400 });
+
+    // Vérifier le solde disponible — sans ce contrôle, un versement pouvait
+    // dépasser ce qu'il y a réellement en caisse. Le solde affiché est ensuite
+    // plafonné à 0 (jamais négatif), donc un déficit masquait silencieusement
+    // toute déduction ultérieure : le chiffre restait bloqué à "0 F".
+    const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, sourceBoutiqueId);
+    if (montant > soldeCaisse) {
+      return NextResponse.json({
+        success: false,
+        message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
+      }, { status: 400 });
+    }
 
     // Trouver la caisse centrale / dépôt principal
     const depot = await Boutique.findOne({

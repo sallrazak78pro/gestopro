@@ -8,6 +8,7 @@ export interface IBoutique extends Document {
   estPrincipale: boolean; // boutique qui centralise l'argent
   adresse?: string;
   telephone?: string;
+  logo?: string; // URL du logo affiché à la place du nom sur les reçus, si défini
   actif: boolean;
   createdAt: Date;
 }
@@ -20,6 +21,7 @@ const BoutiqueSchema = new Schema<IBoutique>(
     estPrincipale: { type: Boolean, default: false },
     adresse: { type: String, default: "" },
     telephone: { type: String, default: "" },
+    logo: { type: String, default: "" },
     actif: { type: Boolean, default: true },
   },
   { timestamps: true }

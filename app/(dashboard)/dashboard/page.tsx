@@ -191,7 +191,11 @@ export default function DashboardPage() {
                 { icon: "🧾", label: "CA de la période",   value: fmt(kpis.caPeriode) + " F",  sub: `${kpis.caNb} vente${kpis.caNb > 1 ? "s" : ""}`, evo: kpis.caEvolution, color: "text-accent" },
                 { icon: "💳", label: "Dépenses",           value: fmt(kpis.depenses)  + " F",  sub: "Sur la période",    evo: kpis.depEvolution,    color: "text-danger"  },
                 { icon: "💸", label: "Versements reçus",   value: fmt(kpis.versements) + " F", sub: `${kpis.versementsNb} versement${kpis.versementsNb > 1 ? "s" : ""}`, evo: kpis.versEvolution, color: "text-success" },
-                { icon: "💰", label: "Solde trésorerie",   value: fmt(kpis.soldeTresorerie) + " F", sub: "Cash physique en caisse, toutes boutiques", evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
+                { icon: "💰", label: "Solde trésorerie",   value: fmt(kpis.soldeTresorerie) + " F",
+                  sub: selectedBoutique
+                    ? `Cash physique en caisse, ${boutiques.find((b: any) => b._id === selectedBoutique)?.nom ?? "boutique sélectionnée"}`
+                    : "Cash physique en caisse, toutes boutiques",
+                  evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
               ].map((k, i) => (
                 <div key={i} className="kpi-card">
                   <span className="kpi-icon">{k.icon}</span>
@@ -236,7 +240,11 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
-                  <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted">Vue financière globale</p>
+                  <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted">
+                    {selectedBoutique
+                      ? `Vue financière — ${boutiques.find((b: any) => b._id === selectedBoutique)?.nom ?? "boutique sélectionnée"}`
+                      : "Vue financière globale"}
+                  </p>
                   <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
                 </div>
                 <p className="text-[11px] font-mono text-muted -mt-2">
@@ -246,7 +254,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                   {[
                     { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", sub: "Stock au prix d'achat",           color: "" },
-                    { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: "Espèces confirmées, boutiques",  color: "text-success" },
+                    { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: selectedBoutique ? "Espèces confirmées" : "Espèces confirmées, boutiques",  color: "text-success" },
                     { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: `${vueFinanciere.commandesEnCours.nb} commande${vueFinanciere.commandesEnCours.nb > 1 ? "s" : ""} en cours`, color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
                     { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", sub: "Dépôts bancaires cumulés",       color: "text-accent" },
                   ].map((k, i) => (

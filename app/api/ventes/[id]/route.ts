@@ -13,7 +13,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error) return error;
     await connectDB();
     const vente = await Vente.findOne({ _id: id, tenantId: ctx.tenantId })
-      .populate("boutique", "nom adresse telephone").populate("createdBy", "nom");
+      .populate("boutique", "nom adresse telephone logo")
+      .populate("createdBy", "nom")
+      .populate("employe", "userId");
     if (!vente) return NextResponse.json({ success: false, message: "Vente introuvable" }, { status: 404 });
     return NextResponse.json({ success: true, data: vente });
   } catch (err: any) {
