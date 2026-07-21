@@ -11,6 +11,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
  * - achat_direct       : achat local occasionnel par une boutique secondaire
  * - depot_tiers        : une personne extérieure dépose de l'argent
  * - retrait_tiers      : une personne extérieure retire son argent
+ * - ajustement_positif : excédent constaté au comptage réel à la fermeture de caisse
+ * - ajustement_negatif : manquant constaté au comptage réel à la fermeture de caisse
  */
 export type TypeMouvementArgent =
   | "versement_boutique"
@@ -20,7 +22,9 @@ export type TypeMouvementArgent =
   | "depense"
   | "achat_direct"
   | "depot_tiers"
-  | "retrait_tiers";
+  | "retrait_tiers"
+  | "ajustement_positif"
+  | "ajustement_negatif";
 
 export type CategorieDepense = "salaire" | "loyer" | "achat_marchandise" | "divers";
 
@@ -54,7 +58,7 @@ const MouvementArgentSchema = new Schema<IMouvementArgent>(
     reference: { type: String, required: true },
     type: {
       type: String,
-      enum: ["versement_boutique","versement_banque","avance_caisse","remboursement","depense","achat_direct","depot_tiers","retrait_tiers"],
+      enum: ["versement_boutique","versement_banque","avance_caisse","remboursement","depense","achat_direct","depot_tiers","retrait_tiers","ajustement_positif","ajustement_negatif"],
       required: true,
     },
     boutique: { type: Schema.Types.ObjectId, ref: "Boutique", required: true },

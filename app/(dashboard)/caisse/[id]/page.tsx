@@ -19,6 +19,8 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; flux: "entree" 
   achat_direct:       { label: "Achat direct",        icon: "🛍️", flux: "sortie" },
   depot_tiers:        { label: "Dépôt tiers",         icon: "👤", flux: "entree" },
   retrait_tiers:      { label: "Retrait tiers",       icon: "💼", flux: "sortie" },
+  ajustement_positif: { label: "Ajustement (excédent)", icon: "➕", flux: "entree" },
+  ajustement_negatif: { label: "Ajustement (manquant)", icon: "➖", flux: "sortie" },
 };
 
 export default function RapportCaissePage() {

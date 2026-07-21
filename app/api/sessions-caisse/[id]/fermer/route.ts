@@ -94,13 +94,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       montantReelEspeces + montantReelMobileMoney + montantReelVirement + montantReelCheque;
 
     const ecart = montantReelTotal - montantAttendu;
+    // Même instant que dateFermeture ci-dessous : le rapport de session filtre
+    // ses mouvements par createdAt <= dateFermeture, un ajustement créé même
+    // quelques millisecondes plus tard en serait exclu.
+    const instantFermeture = new Date();
 
     // ── 3. Fermer la session ──────────────────────────────────
     const sessionFermee = await SessionCaisse.findByIdAndUpdate(
       id,
       {
         statut: "fermee",
-        dateFermeture: new Date(),
+        dateFermeture: instantFermeture,
         ferméPar: ctx.userId,
         noteFermeture,
         totalVentes,
@@ -117,6 +121,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .populate("boutique", "nom")
       .populate("ouvertPar", "nom")
       .populate("ferméPar", "nom");
+
+    // ── 4. Ajustement si écart au comptage réel ────────────────
+    // Sans ça, le solde de caisse (dashboard, trésorerie, contrôle avant un
+    // versement) reste un pur calcul théorique basé sur les transactions,
+    // déconnecté de ce qui est réellement compté dans le tiroir à la
+    // fermeture — un manquant ou un excédent n'était jamais répercuté.
+    if (ecart !== 0) {
+      const type = ecart > 0 ? "ajustement_positif" : "ajustement_negatif";
+      const reference = await genererReference(ctx.tenantId, `${ecart > 0 ? "AJP" : "AJM"}-${new Date().getFullYear()}`);
+      await MouvementArgent.create({
+        tenantId: ctx.tenantId,
+        reference,
+        type,
+        boutique: boutiqueId,
+        montant: Math.abs(Math.round(ecart)),
+        motif: `Écart constaté à la fermeture de caisse (${session.reference || id})`,
+        createdAt: instantFermeture,
+        createdBy: ctx.userId,
+      });
+    }
 
     return NextResponse.json({ success: true, data: sessionFermee });
   } catch (err: any) {

@@ -10,8 +10,8 @@ import mongoose from "mongoose";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Vente from "@/lib/models/Vente";
 
-export const TYPES_ENTREE_CAISSE = ["depot_tiers", "avance_caisse"];
-export const TYPES_SORTIE_CAISSE = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers"];
+export const TYPES_ENTREE_CAISSE = ["depot_tiers", "avance_caisse", "ajustement_positif"];
+export const TYPES_SORTIE_CAISSE = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers", "ajustement_negatif"];
 
 export interface DetailSoldeCaisse {
   totalVentes: number;

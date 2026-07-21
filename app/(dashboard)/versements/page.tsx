@@ -262,6 +262,10 @@ export default function VersementsPage() {
                   💡 Ce versement sera soumis à la validation de l&apos;administrateur avant d&apos;être comptabilisé.
                 </div>
 
+                {error && (
+                  <div className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-xl px-4 py-3">⚠ {error}</div>
+                )}
+
                 {/* Boutique (admin seulement) */}
                 {isAdmin && boutiques.length > 0 && (
                   <div>

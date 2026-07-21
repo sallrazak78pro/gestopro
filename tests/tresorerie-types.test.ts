@@ -12,6 +12,7 @@ import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie
 const TOUS_LES_TYPES_MOUVEMENT_ARGENT = [
   "versement_boutique", "versement_banque", "avance_caisse", "remboursement",
   "depense", "achat_direct", "depot_tiers", "retrait_tiers",
+  "ajustement_positif", "ajustement_negatif",
 ];
 
 describe("TYPES_ENTREE_CAISSE / TYPES_SORTIE_CAISSE", () => {
@@ -33,5 +34,12 @@ describe("TYPES_ENTREE_CAISSE / TYPES_SORTIE_CAISSE", () => {
   it("specifically classifies remboursement as a sortie, not an entrée (regression: sessions-caisse/active had this backwards)", () => {
     expect(TYPES_SORTIE_CAISSE).toContain("remboursement");
     expect(TYPES_ENTREE_CAISSE).not.toContain("remboursement");
+  });
+
+  it("classifies caisse-closing adjustments by direction (excédent = entrée, manquant = sortie)", () => {
+    expect(TYPES_ENTREE_CAISSE).toContain("ajustement_positif");
+    expect(TYPES_SORTIE_CAISSE).not.toContain("ajustement_positif");
+    expect(TYPES_SORTIE_CAISSE).toContain("ajustement_negatif");
+    expect(TYPES_ENTREE_CAISSE).not.toContain("ajustement_negatif");
   });
 });

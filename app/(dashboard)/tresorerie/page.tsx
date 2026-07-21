@@ -23,6 +23,8 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; badge: string; 
   achat_direct:       { label: "Achat direct",          icon: "🛍️", badge: "badge-orange", flux: "sortie" },
   depot_tiers:        { label: "Dépôt tiers",           icon: "👤", badge: "badge-purple", flux: "entree" },
   retrait_tiers:      { label: "Retrait tiers",         icon: "👤", badge: "badge-orange", flux: "sortie" },
+  ajustement_positif: { label: "Ajustement (excédent)", icon: "➕", badge: "badge-green",  flux: "entree" },
+  ajustement_negatif: { label: "Ajustement (manquant)", icon: "➖", badge: "badge-red",    flux: "sortie" },
 };
 
 const CAT_LABEL: Record<string, string> = {
