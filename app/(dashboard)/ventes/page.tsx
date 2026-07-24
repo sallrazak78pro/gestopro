@@ -9,6 +9,11 @@ import Pagination from "@/components/ui/Pagination";
 import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+const todayStr = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 const STATUT_BADGE: Record<string, string> = {
   payee: "badge-green", en_attente: "badge-orange", annulee: "badge-red",
 };
@@ -27,8 +32,8 @@ export default function VentesPage() {
   const [search,   setSearch]   = useState("");
   const [filtreStatut,   setFiltreStatut]   = useState("");
   const [filtreBoutique, setFiltreBoutique] = useState("");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin,   setDateFin]   = useState("");
+  const [dateDebut, setDateDebut] = useState(todayStr);
+  const [dateFin,   setDateFin]   = useState(todayStr);
   const { boutiques: boutiquesToutes } = useAppData();
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [page,  setPage]  = useState(1);
