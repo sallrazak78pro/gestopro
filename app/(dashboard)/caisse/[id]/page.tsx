@@ -28,6 +28,7 @@ export default function RapportCaissePage() {
   const router = useRouter();
   const [data, setData]     = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [soldeCaisse, setSoldeCaisse] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/sessions-caisse/${id}`)
@@ -35,6 +36,17 @@ export default function RapportCaissePage() {
       .then(j => j.success && setData(j.data))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Montant physique en caisse (solde courant, tout historique confondu) —
+  // uniquement pertinent tant que la session est en cours ; une fois fermée,
+  // le "Réel" compté à la fermeture fait déjà foi pour cette période-là.
+  useEffect(() => {
+    const boutiqueId = data?.session?.boutique?._id;
+    if (!boutiqueId || data.session.statut !== "ouverte") return;
+    fetch(`/api/tresorerie/solde?boutiqueId=${boutiqueId}`)
+      .then(r => r.json())
+      .then(j => j.success && setSoldeCaisse(j.data.soldeCaisse));
+  }, [data]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted font-mono text-sm gap-3">
@@ -93,10 +105,9 @@ export default function RapportCaissePage() {
         <h2 className="card-title mb-4">Bilan financier</h2>
         <div className="space-y-2 mb-5">
           {[
-            { label: "Fond d'ouverture",  value: session.fondOuverture,   sign: "",  color: "text-muted2" },
-            { label: "Total ventes",      value: session.totalVentes,      sign: "+", color: "text-success" },
-            { label: "Entrées d'argent",  value: session.totalEntrees,     sign: "+", color: "text-success" },
-            { label: "Sorties d'argent",  value: session.totalSorties,     sign: "−", color: "text-danger" },
+            { label: "Fond d'ouverture",              value: session.fondOuverture,                          sign: "",  color: "text-muted2" },
+            { label: "Entrées d'argent (ventes incl.)", value: session.totalVentes + session.totalEntrees,     sign: "+", color: "text-success" },
+            { label: "Sorties d'argent",              value: session.totalSorties,                           sign: "−", color: "text-danger" },
           ].map((row, i) => (
             <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/50">
               <span className="text-sm text-muted2">{row.label}</span>
@@ -109,6 +120,15 @@ export default function RapportCaissePage() {
             <span className="font-bold">Montant attendu</span>
             <span className="font-mono font-extrabold text-xl text-accent">{fmt(session.montantAttendu)} F</span>
           </div>
+          {!isFermee && soldeCaisse !== null && (
+            <div className="flex items-center justify-between bg-surface2 rounded-xl px-4 py-3">
+              <div>
+                <span className="font-bold">Montant physique en caisse</span>
+                <p className="text-[10px] font-mono text-muted mt-0.5">Solde réel courant de la boutique</p>
+              </div>
+              <span className="font-mono font-extrabold text-xl">{fmt(soldeCaisse)} F</span>
+            </div>
+          )}
         </div>
 
         {/* Comparaison si fermée */}
