@@ -167,7 +167,7 @@ export default function NouvelleVenteModal({
     const body = {
       boutiqueId, client, lignes: panier,
       modePaiement, montantRecu: montantRecu || total,
-      note, statut,
+      note, statut, employeId,
     };
     const result = await submit({
       endpoint: "/api/ventes",
