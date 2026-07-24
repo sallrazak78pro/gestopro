@@ -27,6 +27,8 @@ export default function VentesPage() {
   const [search,   setSearch]   = useState("");
   const [filtreStatut,   setFiltreStatut]   = useState("");
   const [filtreBoutique, setFiltreBoutique] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin,   setDateFin]   = useState("");
   const { boutiques: boutiquesToutes } = useAppData();
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [page,  setPage]  = useState(1);
@@ -39,6 +41,8 @@ export default function VentesPage() {
     if (search)         params.set("search",   search);
     if (filtreStatut)   params.set("statut",   filtreStatut);
     if (filtreBoutique) params.set("boutique", filtreBoutique);
+    if (dateDebut)      params.set("debut",    dateDebut);
+    if (dateFin)        params.set("fin",      dateFin);
     const res  = await fetch(`/api/ventes?${params}`);
     const json = await res.json();
     if (json.success) {
@@ -47,10 +51,10 @@ export default function VentesPage() {
       setTotal(json.pagination?.total ?? 0);
     }
     setLoading(false);
-  }, [search, filtreStatut, filtreBoutique, page]);
+  }, [search, filtreStatut, filtreBoutique, dateDebut, dateFin, page]);
 
   useEffect(() => { fetchVentes(); }, [fetchVentes]);
-  useEffect(() => { setPage(1); }, [search, filtreStatut, filtreBoutique]);
+  useEffect(() => { setPage(1); }, [search, filtreStatut, filtreBoutique, dateDebut, dateFin]);
 
   const filtered = ventes;
 
@@ -89,6 +93,19 @@ export default function VentesPage() {
               <option value="">Toutes boutiques</option>
               {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
             </select>
+            <div className="flex items-center gap-1">
+              <input type="date" className="input w-36" value={dateDebut}
+                max={dateFin || undefined}
+                onChange={e => setDateDebut(e.target.value)} />
+              <span className="text-muted text-xs">→</span>
+              <input type="date" className="input w-36" value={dateFin}
+                min={dateDebut || undefined}
+                onChange={e => setDateFin(e.target.value)} />
+              {(dateDebut || dateFin) && (
+                <button className="btn-ghost btn-sm" title="Réinitialiser les dates"
+                  onClick={() => { setDateDebut(""); setDateFin(""); }}>✕</button>
+              )}
+            </div>
             <ExportButton type="ventes" />
             <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>
               + Nouvelle vente

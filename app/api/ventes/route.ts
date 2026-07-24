@@ -1,5 +1,6 @@
 // app/api/ventes/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "25");
     const skip  = (page - 1) * limit;
 
-    const [ventes, total] = await Promise.all([
+    const [ventes, total, statsAgg] = await Promise.all([
       Vente.find(query)
         .populate("boutique", "nom")
         .populate("employe",  "nom prenom")
@@ -51,17 +52,32 @@ export async function GET(req: NextRequest) {
         .skip(skip)
         .limit(limit),
       Vente.countDocuments(query),
+      // Stats calculées sur toute la période filtrée, pas sur la seule page affichée.
+      // aggregate() ne caste pas les types comme find() : tenantId/boutique
+      // doivent être convertis en ObjectId à la main pour matcher.
+      Vente.aggregate([
+        { $match: {
+            ...query,
+            tenantId: new mongoose.Types.ObjectId(ctx.tenantId),
+            ...(query.boutique ? { boutique: new mongoose.Types.ObjectId(query.boutique) } : {}),
+        } },
+        { $group: {
+            _id: "$statut",
+            count: { $sum: 1 },
+            montant: { $sum: "$montantTotal" },
+        } },
+      ]),
     ]);
 
-    const totalCA = ventes.filter(v => v.statut === "payee").reduce((s, v) => s + v.montantTotal, 0);
+    const totalCA    = statsAgg.find(s => s._id === "payee")?.montant ?? 0;
+    const nbPayees    = statsAgg.find(s => s._id === "payee")?.count ?? 0;
+    const nbAttente   = statsAgg.find(s => s._id === "en_attente")?.count ?? 0;
+    const totalToutes = statsAgg.reduce((s, r) => s + r.count, 0);
+
     return NextResponse.json({
       success: true, data: ventes,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-      stats: {
-        totalCA, total: ventes.length,
-        nbPayees:  ventes.filter(v => v.statut === "payee").length,
-        nbAttente: ventes.filter(v => v.statut === "en_attente").length,
-      },
+      stats: { totalCA, total: totalToutes, nbPayees, nbAttente },
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
