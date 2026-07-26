@@ -205,12 +205,11 @@ export default function LoginPage() {
           {/* Rôles */}
           <div className="mt-8 pt-6 border-t" style={{ borderColor: "var(--color-border)" }}>
             <p className="text-[10px] font-mono text-muted uppercase tracking-[0.2em] mb-3">Niveaux d&apos;accès</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { role: "Admin",        icon: "👑", desc: "Accès complet" },
                 { role: "Gestionnaire", icon: "📊", desc: "Supervision" },
                 { role: "Caissier",     icon: "🏧", desc: "Caisse & ventes" },
-                { role: "Super Admin",  icon: "⚡", desc: "Plateforme" },
               ].map(r => (
                 <div key={r.role} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl"
                   style={{ background: "var(--color-surface2)" }}>

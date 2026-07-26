@@ -5,7 +5,7 @@ const FEATURES = [
   {
     icon: "🧾",
     title: "Ventes & Caisse",
-    desc: "Vente au comptoir en quelques secondes, plusieurs modes de paiement. Ouverture/fermeture de caisse avec fond de départ et calcul automatique de l'écart.",
+    desc: "Vente au comptoir en quelques secondes, plusieurs modes de paiement. Ouverture/fermeture de caisse avec fond de départ, comptage réel et calcul automatique de l'écart.",
     color: "#00d4ff",
   },
   {
@@ -29,8 +29,14 @@ const FEATURES = [
   {
     icon: "💰",
     title: "Trésorerie",
-    desc: "Tous les mouvements d'argent au même endroit : versements entre boutiques, dépenses, avances de caisse. Soldes de caisse et de banque en temps réel.",
+    desc: "Tous les mouvements d'argent au même endroit : dépenses, avances de caisse, dépôts/retraits tiers. Soldes de caisse et de banque en temps réel, par boutique.",
     color: "#f59e0b",
+  },
+  {
+    icon: "💸",
+    title: "Versements inter-boutiques",
+    desc: "Transférez de l'argent entre vos points de vente en toute traçabilité, avec un circuit de validation par l'administrateur avant confirmation ou rejet.",
+    color: "#06b6d4",
   },
   {
     icon: "👥",
@@ -69,6 +75,24 @@ const FEATURES = [
     color: "#f59e0b",
   },
   {
+    icon: "👤",
+    title: "Utilisateurs & Rôles",
+    desc: "Créez des comptes pour votre équipe, assignez-les à une boutique précise et choisissez leur niveau de responsabilité.",
+    color: "#ef4444",
+  },
+  {
+    icon: "🛡️",
+    title: "Permissions personnalisables",
+    desc: "Décidez précisément, module par module, ce que chaque rôle peut voir, créer, modifier ou supprimer. Une configuration entièrement à votre main.",
+    color: "#7c3aed",
+  },
+  {
+    icon: "📋",
+    title: "Journal d'activité",
+    desc: "Chaque action importante est enregistrée : qui a fait quoi, où, et quand. Une traçabilité complète pour garder le contrôle.",
+    color: "#8b5cf6",
+  },
+  {
     icon: "📥",
     title: "Import & Export",
     desc: "Importez votre catalogue produits depuis Excel, exportez vos données en CSV, imprimez factures, rapports et états de stock.",
@@ -84,7 +108,7 @@ const STEPS = [
 ];
 
 const STATS = [
-  { v: "12", l: "Modules intégrés" },
+  { v: "16", l: "Modules intégrés" },
   { v: "∞",  l: "Boutiques gérées" },
   { v: "100%", l: "Gratuit" },
 ];
@@ -232,7 +256,7 @@ export default function LandingPage() {
             fontSize: 11, fontFamily: "var(--font-dm-mono, monospace)",
             color: "#0891b2", letterSpacing: "0.15em", textTransform: "uppercase",
             marginBottom: 12, fontWeight: 600,
-          }}>12 modules intégrés</p>
+          }}>16 modules intégrés</p>
           <h2 style={{ fontSize: "clamp(26px, 3.5vw, 40px)", fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: "-0.3px" }}>
             Tout ce qu&apos;il vous faut, rien de superflu
           </h2>
@@ -329,13 +353,14 @@ export default function LandingPage() {
           <h2 style={{ fontSize: "clamp(26px, 3.5vw, 40px)", fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: "-0.3px" }}>
             Chaque rôle a ses droits
           </h2>
-          <p style={{ color: "#64748b", fontSize: 15 }}>Contrôlez précisément qui voit quoi et qui peut faire quoi.</p>
+          <p style={{ color: "#64748b", fontSize: 15 }}>
+            Trois niveaux d&apos;accès de base, et des permissions entièrement personnalisables module par module.
+          </p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
           {[
-            { icon: "⚡", role: "Super Admin",  color: "#00d4ff", desc: "Gestion de la plateforme multi-tenant. Vision globale." },
-            { icon: "👑", role: "Admin",         color: "#7c3aed", desc: "Accès complet à toutes les données de l'entreprise." },
+            { icon: "👑", role: "Admin",         color: "#7c3aed", desc: "Accès complet à toutes les données de l'entreprise, y compris la configuration des permissions." },
             { icon: "📊", role: "Gestionnaire",  color: "#10b981", desc: "Supervision des ventes, stocks et trésorerie." },
             { icon: "🏧", role: "Caissier",      color: "#f59e0b", desc: "Caisse, ventes et consultation du stock assigné." },
           ].map((r, i) => (
