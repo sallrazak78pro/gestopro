@@ -2,14 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Stock from "@/lib/models/Stock";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["superadmin", "admin", "gestionnaire", "caissier"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "stock", "edit");
+    if (denied) return denied;
     await connectDB();
     const { produitId, boutiqueId, quantite } = await req.json();
     if (quantite < 0)

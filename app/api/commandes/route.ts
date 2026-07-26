@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
 import Produit from "@/lib/models/Produit";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(req: NextRequest) {
@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin","superadmin","gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "commandes", "create");
+    if (denied) return denied;
     await connectDB();
     const { fournisseurId, destinationId, lignes, dateLivraison, note, statut } = await req.json();
     if (!fournisseurId || !destinationId || !lignes?.length)

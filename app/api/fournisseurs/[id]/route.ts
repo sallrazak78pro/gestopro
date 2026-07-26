@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Fournisseur from "@/lib/models/Fournisseur";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,8 +31,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "fournisseurs", "edit");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     const { soldeCredit, tenantId, ...safeBody } = body;
@@ -49,8 +49,8 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "fournisseurs", "delete");
+    if (denied) return denied;
     await connectDB();
     await Fournisseur.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
     return NextResponse.json({ success: true });

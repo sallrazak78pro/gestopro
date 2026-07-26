@@ -10,6 +10,19 @@ import NotificationPanel from "@/components/ui/NotificationPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import GlobalSearch from "@/components/ui/GlobalSearch";
 import { AppDataProvider, useAppData } from "@/lib/context/AppDataContext";
+import { hasPermission } from "@/lib/utils/permissions";
+
+// Correspondance route → clé de module pour la matrice de permissions.
+// Absent de cette liste = pas de case "voir" configurable (dashboard/alertes,
+// toujours visibles à tous les rôles autorisés par NAV.roles).
+const NAV_MODULE: Record<string, string> = {
+  "/ventes": "ventes", "/marges": "marges", "/stock": "stock",
+  "/mouvements": "mouvements", "/tresorerie": "tresorerie", "/versements": "versements",
+  "/tiers": "tiers", "/caisse": "caisse", "/employes": "employes",
+  "/fournisseurs": "fournisseurs", "/commandes": "commandes", "/salaires": "salaires",
+  "/boutiques": "boutiques", "/utilisateurs": "utilisateurs",
+  "/activite": "journal", "/parametres": "parametres",
+};
 
 const NAV = [
   { href: "/dashboard",   icon: "⚡", label: "Tableau de bord",        roles: ["superadmin","admin","gestionnaire","caissier"] },
@@ -69,7 +82,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { data: session }   = useSession();
   const pathname            = usePathname();
   const router              = useRouter();
-  const { boutiques: boutiquesToutes, notifications, notifLoading, refetchNotifications, mouvementsActifs } = useAppData();
+  const { boutiques: boutiquesToutes, notifications, notifLoading, refetchNotifications, mouvementsActifs, tenant } = useAppData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop,   setIsDesktop]   = useState(true);
   const [notifOpen,  setNotifOpen]    = useState(false);
@@ -81,12 +94,21 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const role    = (session?.user as any)?.role ?? "";
   const isAdmin = role === "superadmin" || role === "admin";
 
-  // Filtrer la nav selon le rôle ET les paramètres
+  // Filtrer la nav selon le rôle, les paramètres, et les permissions configurables
+  const canViewNavItem = (href: string) => {
+    const moduleKey = NAV_MODULE[href];
+    if (!moduleKey) return true; // pas de module configurable → toujours visible
+    return hasPermission(role, tenant?.permissions, moduleKey, "view");
+  };
+
   const visibleNav = NAV.filter(item => {
     if (!item.roles.includes(role)) return false;
     if (item.href === "/mouvements" && !mouvementsActifs) return false;
+    if (!canViewNavItem(item.href)) return false;
     return true;
   });
+
+  const visibleAdminNav = isAdmin ? ADMIN_NAV : ADMIN_NAV.filter(item => canViewNavItem(item.href));
 
   // Détecter desktop/mobile
   useEffect(() => {
@@ -162,11 +184,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           <NavLink key={item.href} item={item} onClick={() => { if (!isDesktop) setSidebarOpen(false); }} />
         ))}
 
-        {isAdmin && (
+        {visibleAdminNav.length > 0 && (
           <>
             <div className="divider" />
             <p className="text-[9px] font-mono text-muted uppercase tracking-[0.2em] px-3 pb-2">Administration</p>
-            {ADMIN_NAV.map(item => {
+            {visibleAdminNav.map(item => {
               const active = pathname === item.href;
               return (
                 <Link key={item.href} href={item.href}
@@ -252,7 +274,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
-              {isAdmin && ADMIN_NAV.map(item => (
+              {visibleAdminNav.map(item => (
                 <Link key={item.href} href={item.href}
                   className={clsx("flex items-center justify-center p-2.5 rounded-xl transition-all",
                     pathname === item.href ? "bg-accent/10 text-accent" : "text-muted2 hover:bg-white/5 hover:text-fg")}>

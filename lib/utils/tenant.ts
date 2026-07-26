@@ -2,6 +2,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { hasPermission, type Action } from "@/lib/utils/permissions";
 
 export interface TenantContext {
   tenantId: string;
@@ -10,6 +11,9 @@ export interface TenantContext {
   isSuperAdmin: boolean;
   // Si non-null : l'utilisateur est restreint à cette boutique uniquement
   boutiqueAssignee: string | null;
+  // Matrice de permissions du tenant (Gestionnaire/Caissier) — voir
+  // lib/utils/permissions.ts. {} si le tenant n'a rien personnalisé.
+  tenantPermissions: Record<string, unknown>;
 }
 
 export async function getTenantContext(): Promise<
@@ -35,7 +39,9 @@ export async function getTenantContext(): Promise<
     return { ctx: null, error: NextResponse.json({ success: false, message: "Tenant introuvable" }, { status: 403 }) };
   }
 
-  // Vérifier que le tenant est actif (sauf superadmin)
+  // Vérifier que le tenant est actif (sauf superadmin), et récupérer sa
+  // matrice de permissions au passage — aucune requête DB supplémentaire.
+  let tenantPermissions: Record<string, unknown> = {};
   if (!isSuperAdmin && user.tenantId) {
     const { connectDB } = await import("@/lib/mongodb");
     const Tenant = (await import("@/lib/models/Tenant")).default;
@@ -48,6 +54,7 @@ export async function getTenantContext(): Promise<
         code: "TENANT_SUSPENDED",
       }, { status: 403 }) };
     }
+    tenantPermissions = tenant?.permissions ?? {};
   }
 
   // boutiqueAssignee = la boutique spécifique assignée au user (null = accès global)
@@ -66,6 +73,7 @@ export async function getTenantContext(): Promise<
       role: user.role,
       isSuperAdmin,
       boutiqueAssignee,
+      tenantPermissions,
     },
     error: null,
   };
@@ -90,6 +98,17 @@ export function baseFilter(ctx: TenantContext, extra?: Record<string, any>) {
 export function canAccessBoutique(ctx: TenantContext, boutiqueId: string): boolean {
   if (!ctx.boutiqueAssignee) return true; // accès global
   return ctx.boutiqueAssignee === boutiqueId;
+}
+
+/**
+ * Retourne une réponse 403 si `ctx.role` n'a pas le droit `action` sur
+ * `module` (selon la matrice de permissions du tenant), sinon `null`.
+ * À utiliser en remplacement des checks `["admin","superadmin"].includes(ctx.role)`
+ * codés en dur — voir lib/utils/permissions.ts pour les valeurs par défaut.
+ */
+export function requirePermission(ctx: TenantContext, moduleKey: string, action: Action): NextResponse | null {
+  if (hasPermission(ctx.role, ctx.tenantPermissions, moduleKey, action)) return null;
+  return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
 }
 
 /**

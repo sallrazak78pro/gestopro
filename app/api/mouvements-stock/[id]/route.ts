@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
 import Boutique from "@/lib/models/Boutique";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -41,8 +41,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante." }, { status: 403 });
+    const denied = requirePermission(ctx, "mouvements", "delete");
+    if (denied) return denied;
 
     await connectDB();
     const m = await MouvementStock.findOne({ _id: id, tenantId: ctx.tenantId });

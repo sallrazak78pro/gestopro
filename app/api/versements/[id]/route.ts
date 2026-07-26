@@ -1,7 +1,7 @@
 // app/api/versements/[id]/route.ts — Confirmer ou rejeter un versement
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 
 export async function PUT(
@@ -12,9 +12,9 @@ export async function PUT(
     const { ctx, error } = await getTenantContext();
     if (error) return error;
 
-    // Seul l'admin peut confirmer/rejeter
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Accès refusé." }, { status: 403 });
+    // Seul l'admin peut confirmer/rejeter (par défaut — configurable)
+    const denied = requirePermission(ctx, "versements", "edit");
+    if (denied) return denied;
 
     await connectDB();
     const { id } = await params;

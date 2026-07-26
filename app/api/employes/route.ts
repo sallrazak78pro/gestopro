@@ -2,12 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Employe from "@/lib/models/Employe";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "employes", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -41,8 +43,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "employes", "create");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     if (!body.nom || !body.prenom || !body.poste || !body.boutique || !body.salaireBase || !body.dateEmbauche)

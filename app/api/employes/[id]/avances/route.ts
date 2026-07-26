@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,8 +27,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    // Repli sur le même droit que la modification d'un employé — voir
+    // lib/utils/permissions.ts (une seule case "modifier" par module).
+    const denied = requirePermission(ctx, "employes", "edit");
+    if (denied) return denied;
     await connectDB();
 
     const { montant, motif, moisDeduction, anneeDeduction, boutiqueId } = await req.json();

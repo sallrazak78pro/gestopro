@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { MODULES, DEFAULT_PERMISSIONS, type Action, type ConfigurableRole } from "@/lib/utils/permissions";
 
 const PAYS = [
   { code: "CI", nom: "Côte d'Ivoire" }, { code: "SN", nom: "Sénégal" },
@@ -17,7 +18,30 @@ const PAYS = [
   { code: "AU", nom: "Autre" },
 ];
 
-type Tab = "entreprise" | "securite" | "plan" | "signaler";
+type Tab = "entreprise" | "permissions" | "securite" | "plan" | "signaler";
+type Matrix = Record<ConfigurableRole, Record<string, Partial<Record<Action, boolean>>>>;
+
+function buildMatrix(tenantPermissions: any): Matrix {
+  const roles: ConfigurableRole[] = ["gestionnaire", "caissier"];
+  const matrix = {} as Matrix;
+  for (const role of roles) {
+    matrix[role] = {};
+    for (const mod of MODULES) {
+      const cell: Partial<Record<Action, boolean>> = {};
+      for (const action of mod.actions) {
+        cell[action] = tenantPermissions?.[role]?.[mod.key]?.[action]
+          ?? DEFAULT_PERMISSIONS[role][mod.key]?.[action]
+          ?? false;
+      }
+      matrix[role][mod.key] = cell;
+    }
+  }
+  return matrix;
+}
+
+const ACTION_LABEL: Record<Action, string> = {
+  view: "Voir", create: "Créer", edit: "Modifier", delete: "Supprimer",
+};
 
 export default function ParametresPage() {
   const { data: session } = useSession();
@@ -34,6 +58,11 @@ export default function ParametresPage() {
   // Entreprise form
   const [entForm, setEntForm] = useState({ nom: "", email: "", telephone: "", ville: "", pays: "CI" });
   const [mouvementsActifs, setMouvementsActifs] = useState(true);
+
+  // Permissions form
+  const [permMatrix, setPermMatrix] = useState<Matrix | null>(null);
+  const [permRole, setPermRole] = useState<ConfigurableRole>("gestionnaire");
+  const [permSaving, setPermSaving] = useState(false);
 
   // Sécurité form
   const [secForm, setSecForm] = useState({ ancienPassword: "", nouveauPassword: "", confirmer: "" });
@@ -55,7 +84,36 @@ export default function ParametresPage() {
       pays:      tenant.pays      || "CI",
     });
     setMouvementsActifs(tenant.mouvementsActifs ?? true);
+    setPermMatrix(buildMatrix(tenant.permissions));
   }, [tenant]);
+
+  function togglePerm(moduleKey: string, action: Action) {
+    setPermMatrix(prev => {
+      if (!prev) return prev;
+      const current = prev[permRole][moduleKey]?.[action] ?? false;
+      return {
+        ...prev,
+        [permRole]: {
+          ...prev[permRole],
+          [moduleKey]: { ...prev[permRole][moduleKey], [action]: !current },
+        },
+      };
+    });
+  }
+
+  async function savePermissions() {
+    if (!permMatrix) return;
+    setPermSaving(true);
+    const res = await fetch("/api/parametres/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ permissions: permMatrix }),
+    });
+    const json = await res.json();
+    setPermSaving(false);
+    if (json.success) { await refetchParametres(); flash("Permissions mises à jour !"); }
+    else flash(json.message, true);
+  }
 
   function flash(msg: string, isErr = false) {
     if (isErr) { setError(msg); setSuccess(""); }
@@ -123,6 +181,7 @@ export default function ParametresPage() {
 
   const TABS: { id: Tab; icon: string; label: string }[] = [
     { id: "entreprise", icon: "🏢", label: "Mon entreprise" },
+    ...(isAdmin ? [{ id: "permissions" as Tab, icon: "🛡️", label: "Permissions" }] : []),
     { id: "securite",   icon: "🔒", label: "Sécurité" },
     { id: "plan",       icon: "📋", label: "Mon plan" },
     { id: "signaler",   icon: "🐛", label: "Signaler un problème" },
@@ -264,6 +323,62 @@ export default function ParametresPage() {
               </>
             )}
           </form>
+        </div>
+      )}
+
+      {/* ── TAB : PERMISSIONS ─────────────────────────────── */}
+      {tab === "permissions" && isAdmin && permMatrix && (
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Permissions par rôle</h2>
+              <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
+                Ce que Gestionnaire et Caissier peuvent voir et modifier
+              </p>
+            </div>
+            <div className="flex items-center gap-2 bg-surface2 p-1 rounded-xl">
+              {(["gestionnaire", "caissier"] as ConfigurableRole[]).map(r => (
+                <button key={r} onClick={() => setPermRole(r)}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all",
+                    permRole === r ? "bg-surface text-white shadow-card border border-border" : "text-muted hover:text-white"
+                  )}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 space-y-1">
+            <p className="text-xs text-muted mb-3">
+              Admin et Superadmin gardent toujours un accès complet — non modifiable ici.
+            </p>
+            {MODULES.map(mod => (
+              <div key={mod.key}
+                className="flex items-center justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">
+                <span className="text-sm font-semibold">{mod.label}</span>
+                <div className="flex items-center gap-4">
+                  {mod.actions.map(action => (
+                    <label key={action} className="flex items-center gap-1.5 text-xs text-muted2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={permMatrix[permRole][mod.key]?.[action] ?? false}
+                        onChange={() => togglePerm(mod.key, action)}
+                        className="w-3.5 h-3.5 accent-accent cursor-pointer"
+                      />
+                      {ACTION_LABEL[action]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end px-6 pb-6">
+            <button onClick={savePermissions} disabled={permSaving} className="btn-primary disabled:opacity-60">
+              {permSaving ? "Enregistrement..." : "✓ Sauvegarder les permissions"}
+            </button>
+          </div>
         </div>
       )}
 

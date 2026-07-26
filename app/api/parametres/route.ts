@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Tenant from "@/lib/models/Tenant";
 import User from "@/lib/models/User";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 // GET — infos du tenant + stats
 export async function GET() {
@@ -32,8 +32,8 @@ export async function PUT(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "parametres", "edit");
+    if (denied) return denied;
     await connectDB();
 
     const body = await req.json();

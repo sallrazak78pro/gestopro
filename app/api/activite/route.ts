@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import ActivityLog from "@/lib/models/ActivityLog";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 const MODULE_ICONS: Record<string, string> = {
   ventes: "🧾", caisse: "🏧", stock: "📦",
@@ -31,9 +31,8 @@ export async function GET(req: NextRequest) {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
 
-    // Réservé aux admins
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Accès refusé." }, { status: 403 });
+    const denied = requirePermission(ctx, "journal", "view");
+    if (denied) return denied;
 
     await connectDB();
     const { searchParams } = new URL(req.url);

@@ -5,15 +5,15 @@ import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "commandes", "edit");
+    if (denied) return denied;
     await connectDB();
 
     const { montant, boutiqueId, note } = await req.json();

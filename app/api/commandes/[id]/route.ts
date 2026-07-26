@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,8 +34,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "commandes", "edit");
+    if (denied) return denied;
     await connectDB();
     const { statut, fraisLivraison } = await req.json();
     const commande = await CommandeFournisseur.findOne({ _id: id, tenantId: ctx.tenantId });

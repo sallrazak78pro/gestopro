@@ -14,6 +14,9 @@ export interface ITenant extends Document {
   nbBoutiquesMax: number;
   nbUsersMax: number;
   mouvementsActifs: boolean; // transferts entre boutiques activés
+  // Permissions par rôle configurables depuis Paramètres — voir
+  // lib/utils/permissions.ts pour la forme exacte et les valeurs par défaut.
+  permissions: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -31,6 +34,7 @@ const TenantSchema = new Schema<ITenant>(
     nbBoutiquesMax: { type: Number, default: 5 },
     nbUsersMax:     { type: Number, default: 10 },
     mouvementsActifs: { type: Boolean, default: true }, // activé par défaut
+    permissions: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

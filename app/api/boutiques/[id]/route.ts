@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Boutique from "@/lib/models/Boutique";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,8 +24,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "boutiques", "edit");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
 
@@ -54,8 +54,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "boutiques", "delete");
+    if (denied) return denied;
     await connectDB();
 
     // Empêcher de supprimer la boutique principale

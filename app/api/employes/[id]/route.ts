@@ -4,13 +4,15 @@ import { connectDB } from "@/lib/mongodb";
 import Employe from "@/lib/models/Employe";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import PaiementSalaire from "@/lib/models/PaiementSalaire";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "employes", "view");
+    if (denied) return denied;
     await connectDB();
 
     const employe = await Employe.findOne({ _id: id, tenantId: ctx.tenantId })
@@ -44,8 +46,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "employes", "edit");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     const employe = await Employe.findOneAndUpdate(
@@ -65,8 +67,8 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "employes", "delete");
+    if (denied) return denied;
     await connectDB();
     await Employe.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
     return NextResponse.json({ success: true, message: "Employé désactivé." });

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import CompteTiers from "@/lib/models/CompteTiers";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,8 +30,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "tiers", "edit");
+    if (denied) return denied;
     await connectDB();
 
     const existing = await CompteTiers.findOne({ _id: id, tenantId: ctx.tenantId });

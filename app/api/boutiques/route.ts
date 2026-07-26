@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Boutique from "@/lib/models/Boutique";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "boutiques", "create");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     if (body.estPrincipale) {

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 // PUT — modifier un utilisateur (infos, rôle, boutique, actif)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,8 +10,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "utilisateurs", "edit");
+    if (denied) return denied;
 
     await connectDB();
 
@@ -71,8 +71,8 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "utilisateurs", "delete");
+    if (denied) return denied;
 
     if (id === ctx.userId)
       return NextResponse.json({ success: false, message: "Vous ne pouvez pas désactiver votre propre compte." }, { status: 400 });

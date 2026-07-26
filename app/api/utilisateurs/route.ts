@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import Boutique from "@/lib/models/Boutique";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 // GET — liste des utilisateurs du tenant
 export async function GET(req: NextRequest) {
@@ -11,9 +11,8 @@ export async function GET(req: NextRequest) {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
 
-    // Seuls admin et superadmin peuvent gérer les utilisateurs
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "utilisateurs", "view");
+    if (denied) return denied;
 
     await connectDB();
     const { searchParams } = new URL(req.url);
@@ -55,8 +54,8 @@ export async function POST(req: NextRequest) {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
 
-    if (!["admin", "superadmin"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "utilisateurs", "create");
+    if (denied) return denied;
 
     await connectDB();
     const { nom, email, password, role, boutiqueId } = await req.json();

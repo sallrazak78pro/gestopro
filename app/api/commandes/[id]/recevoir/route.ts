@@ -8,7 +8,7 @@ import Stock from "@/lib/models/Stock";
 import MouvementStock from "@/lib/models/MouvementStock";
 import Produit from "@/lib/models/Produit";
 import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .populate("fournisseur")
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { calculerCUMP } from "@/lib/utils/cump";
 import { genererReference } from "@/lib/utils/reference";
 
@@ -16,8 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
-    if (!["admin", "superadmin", "gestionnaire"].includes(ctx.role))
-      return NextResponse.json({ success: false, message: "Permission insuffisante" }, { status: 403 });
+    const denied = requirePermission(ctx, "commandes", "edit");
+    if (denied) return denied;
     await connectDB();
 
     // receptions = [{ ligneIndex: number, quantiteRecue: number }]
