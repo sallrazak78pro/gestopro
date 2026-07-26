@@ -10,13 +10,6 @@ interface Tiers    { _id: string; nom: string; telephone: string; solde: number;
 
 const TYPES = [
   {
-    value: "versement_boutique",
-    icon: "💸", label: "Versement à la boutique principale",
-    desc: "Une boutique secondaire envoie son argent à la boutique principale",
-    color: "border-success/50 bg-success/5", flux: "sortie",
-    roles: ["all"],
-  },
-  {
     value: "versement_banque",
     icon: "🏦", label: "Versement à la banque",
     desc: "La boutique principale dépose de l'argent en banque",
@@ -98,7 +91,7 @@ export default function MouvementArgentModal({
 
   // Charger le solde de la boutique pour les types qui nécessitent une vérification
   useEffect(() => {
-    const typesAvecControle = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement"];
+    const typesAvecControle = ["versement_banque", "depense", "achat_direct", "remboursement"];
     if (!form.boutiqueId || !typesAvecControle.includes(type)) { setSoldeCaisse(null); return; }
     setSoldeLoading(true);
     fetch(`/api/tresorerie/solde?boutiqueId=${form.boutiqueId}`)
@@ -108,12 +101,18 @@ export default function MouvementArgentModal({
   }, [form.boutiqueId, type]);
 
   const selectedType  = TYPES.find(t => t.value === type);
-  const principale    = boutiques.find(b => b.estPrincipale);
   const selectedTiers = tiers.find(t => t._id === form.tiersId);
+
+  // Un versement en banque ne peut venir que de la boutique principale — les
+  // versements boutique → boutique principale se font désormais exclusivement
+  // depuis la page dédiée /versements (une seule façon de faire, pas deux).
+  const boutiquesSource = useMemo(() => {
+    if (type === "versement_banque") return boutiques.filter(b => b.estPrincipale);
+    return boutiques;
+  }, [boutiques, type]);
 
   // Logique boutique source/dest selon le type
   const boutiqueSrcLabel: Record<string, string> = {
-    versement_boutique: "Boutique qui verse (secondaire)",
     versement_banque:   "Boutique principale (qui envoie en banque)",
     avance_caisse:      "Boutique qui reçoit l'avance (secondaire)",
     remboursement:      "Boutique qui rembourse",
@@ -122,7 +121,7 @@ export default function MouvementArgentModal({
     depot_tiers:        "Boutique du dépôt",
     retrait_tiers:      "Boutique du retrait",
   };
-  const showDestination = ["versement_boutique", "avance_caisse", "remboursement"].includes(type);
+  const showDestination = ["avance_caisse", "remboursement"].includes(type);
   const showBanque      = type === "versement_banque";
   const showCategorie   = type === "depense";
   const showAchat       = type === "achat_direct";
@@ -229,16 +228,21 @@ export default function MouvementArgentModal({
               <select className="select" value={form.boutiqueId}
                 onChange={e => set("boutiqueId", e.target.value)} required>
                 <option value="">Choisir une boutique...</option>
-                {boutiques.map(b => (
+                {boutiquesSource.map(b => (
                   <option key={b._id} value={b._id}>
                     {b.nom}{b.estPrincipale ? " ★ (Principale)" : ""}
                   </option>
                 ))}
               </select>
+              {type === "versement_banque" && boutiquesSource.length === 0 && (
+                <p className="text-[10px] font-mono text-warning mt-1">
+                  ⚠ Aucune boutique principale configurée — définissez-en une dans Boutiques &amp; Dépôts.
+                </p>
+              )}
             </div>
 
             {/* ── Solde de caisse disponible ─────────────────── */}
-            {soldeCaisse !== null && !soldeLoading && ["versement_boutique","versement_banque","depense","achat_direct","remboursement"].includes(type) && (
+            {soldeCaisse !== null && !soldeLoading && ["versement_banque","depense","achat_direct","remboursement"].includes(type) && (
               <div className={`flex items-center justify-between px-4 py-3 rounded-xl border font-mono text-sm
                 ${form.montant && parseFloat(form.montant) > soldeCaisse
                   ? "bg-danger/10 border-danger/30 text-danger"
@@ -249,13 +253,11 @@ export default function MouvementArgentModal({
             )}
             {soldeLoading && <p className="text-xs font-mono text-muted animate-pulse">Calcul du solde...</p>}
 
-            {/* Boutique destination (versement boutique, avance, remboursement) */}
+            {/* Boutique destination (avance, remboursement) */}
             {showDestination && (
               <div>
                 <label className="input-label">
-                  {type === "versement_boutique" ? "Boutique principale (qui reçoit) *"
-                   : type === "avance_caisse"    ? "Boutique secondaire qui reçoit l'avance *"
-                   : "Boutique remboursée *"}
+                  {type === "avance_caisse" ? "Boutique secondaire qui reçoit l'avance *" : "Boutique remboursée *"}
                 </label>
                 <select className="select" value={form.boutiqueDestinationId}
                   onChange={e => set("boutiqueDestinationId", e.target.value)} required>
@@ -268,11 +270,6 @@ export default function MouvementArgentModal({
                       </option>
                     ))}
                 </select>
-                {type === "versement_boutique" && principale && (
-                  <p className="text-[10px] font-mono text-success mt-1">
-                    ★ Boutique principale : {principale.nom}
-                  </p>
-                )}
               </div>
             )}
 

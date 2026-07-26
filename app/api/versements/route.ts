@@ -65,6 +65,17 @@ export async function POST(req: NextRequest) {
     if (!sourceBoutiqueId)
       return NextResponse.json({ success: false, message: "Boutique source manquante." }, { status: 400 });
 
+    // Un versement ne va que d'une boutique secondaire vers la principale —
+    // la principale ne peut pas s'auto-verser.
+    const boutiqueSource = await Boutique.findOne({ _id: sourceBoutiqueId, tenantId: ctx.tenantId }).lean() as any;
+    if (!boutiqueSource)
+      return NextResponse.json({ success: false, message: "Boutique introuvable." }, { status: 404 });
+    if (boutiqueSource.estPrincipale)
+      return NextResponse.json({
+        success: false,
+        message: "La boutique principale ne peut pas effectuer de versement — ce type est réservé aux boutiques secondaires.",
+      }, { status: 400 });
+
     // Vérifier le solde disponible — sans ce contrôle, un versement pouvait
     // dépasser ce qu'il y a réellement en caisse. Le solde affiché est ensuite
     // plafonné à 0 (jamais négatif), donc un déficit masquait silencieusement

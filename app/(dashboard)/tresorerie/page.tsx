@@ -203,9 +203,10 @@ export default function TresoreriePage() {
         </div>
       )}
 
-      {/* Actions rapides */}
+      {/* Actions rapides — le versement boutique → principale se fait
+          exclusivement depuis la page dédiée /versements, pas d'ici. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Object.entries(TYPE_CONFIG).map(([type, cfg]) => (
+        {Object.entries(TYPE_CONFIG).filter(([type]) => type !== "versement_boutique").map(([type, cfg]) => (
           <button key={type} onClick={() => openModal(type)}
             className={clsx(
               "flex flex-col items-center gap-2 px-3 py-4 rounded-2xl border-2",

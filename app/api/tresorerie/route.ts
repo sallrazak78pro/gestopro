@@ -93,8 +93,10 @@ export async function POST(req: NextRequest) {
     if (error) return error;
     await connectDB();
 
-    const { type, boutiqueId, boutiqueDestinationId, montant, categorieDepense,
-            tiersId, motif, avanceRef, banqueNom } = await req.json();
+    const body = await req.json();
+    const { type, boutiqueId, montant, categorieDepense,
+            tiersId, motif, avanceRef, banqueNom } = body;
+    let boutiqueDestinationId = body.boutiqueDestinationId;
 
     if (!montant || montant <= 0) return NextResponse.json({ success: false, message: "Montant invalide." }, { status: 400 });
     if (!boutiqueId) return NextResponse.json({ success: false, message: "Boutique requise." }, { status: 400 });
@@ -102,6 +104,28 @@ export async function POST(req: NextRequest) {
     // Vérifier accès boutique
     if (!canAccessBoutique(ctx, boutiqueId))
       return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
+
+    // Un versement boutique → principale ne se crée que depuis /api/versements
+    // (un seul chemin de création, avec le workflow de validation admin).
+    if (type === "versement_boutique") {
+      return NextResponse.json({
+        success: false,
+        message: "Utilisez la page Versements pour envoyer de l'argent à la boutique principale.",
+      }, { status: 400 });
+    }
+
+    // Un versement en banque ne peut venir que de la boutique principale.
+    if (type === "versement_banque") {
+      const boutiqueSource = await Boutique.findOne({ _id: boutiqueId, tenantId: ctx.tenantId }).lean() as any;
+      if (!boutiqueSource)
+        return NextResponse.json({ success: false, message: "Boutique introuvable." }, { status: 404 });
+      if (!boutiqueSource.estPrincipale) {
+        return NextResponse.json({
+          success: false,
+          message: "Seule la boutique principale peut effectuer un versement vers la banque.",
+        }, { status: 400 });
+      }
+    }
 
     // Vérification solde caisse pour les types qui retirent de l'argent
     const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueId);

@@ -24,7 +24,9 @@ export default function VersementsPage() {
 
   const [versements, setVersements] = useState<any[]>([]);
   const { boutiques: boutiquesToutes } = useAppData();
-  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
+  // Un versement ne va que d'une boutique secondaire vers la principale —
+  // celle-ci ne peut donc pas être choisie comme source.
+  const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique" && !b.estPrincipale), [boutiquesToutes]);
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState("");
