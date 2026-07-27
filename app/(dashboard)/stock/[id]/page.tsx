@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import ProduitModal from "@/components/stock/ProduitModal";
 
@@ -10,6 +11,8 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 export default function ProduitDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = ["admin", "superadmin"].includes((session?.user as any)?.role);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -37,8 +40,10 @@ export default function ProduitDetailPage() {
 
   const { produit, stocks } = data;
   const totalQte = stocks.reduce((s: number, st: any) => s + st.quantite, 0);
-  const marge = produit.prixVente - produit.prixAchat;
-  const margePct = ((marge / produit.prixAchat) * 100).toFixed(1);
+  // Le prix d'achat (prix de revient) n'est renvoyé par l'API qu'à l'admin —
+  // absent pour tout autre rôle, donc la marge ne se calcule pas pour eux.
+  const marge = isAdmin ? produit.prixVente - produit.prixAchat : null;
+  const margePct = isAdmin && produit.prixAchat > 0 ? ((marge! / produit.prixAchat) * 100).toFixed(1) : null;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -66,9 +71,11 @@ export default function ProduitDetailPage() {
         {/* Stats produit */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
           {[
-            { label: "Prix d'achat", value: fmt(produit.prixAchat) + " F", color: "text-muted2" },
+            ...(isAdmin ? [
+              { label: "Prix d'achat", value: fmt(produit.prixAchat) + " F", color: "text-muted2" },
+              { label: "Marge brute", value: margePct !== null ? `+${fmt(marge!)} F (${margePct}%)` : "—", color: "text-success" },
+            ] : []),
             { label: "Prix de vente", value: fmt(produit.prixVente) + " F", color: "text-white" },
-            { label: "Marge brute", value: `+${fmt(marge)} F (${margePct}%)`, color: "text-success" },
             { label: "Unité", value: produit.unite, color: "text-accent" },
           ].map((s, i) => (
             <div key={i} className="bg-surface2 rounded-xl px-4 py-3">

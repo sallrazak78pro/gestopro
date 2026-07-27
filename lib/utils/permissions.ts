@@ -45,7 +45,9 @@ type PermissionMatrix = Record<string, Partial<Record<Action, boolean>>>;
 export const DEFAULT_PERMISSIONS: Record<ConfigurableRole, PermissionMatrix> = {
   gestionnaire: {
     ventes:       { view: true,  create: true,  edit: true },
-    marges:       { view: true },
+    // Marges et prix de revient restent réservés à l'admin — décision
+    // explicite du client, pas seulement l'ancien alignement sur le menu.
+    marges:       { view: false },
     stock:        { view: true,  edit: true },
     mouvements:   { view: true,  create: true,  delete: true },
     tresorerie:   { view: true },

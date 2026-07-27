@@ -20,8 +20,12 @@ export async function GET(req: NextRequest) {
 
     // L'image (base64) est lourde et rarement utile — exclue par défaut,
     // seule la vente au comptoir (miniature produit) la redemande explicitement.
-    const projection = searchParams.get("avecImage") ? undefined : "-image";
-    const produits = await Produit.find(query, projection).sort({ nom: 1 }).lean();
+    // Le prix d'achat (prix de revient) ne doit être visible qu'à l'admin.
+    const exclude = [
+      searchParams.get("avecImage") ? null : "image",
+      ["admin", "superadmin"].includes(ctx.role) ? null : "prixAchat",
+    ].filter(Boolean).map(f => `-${f}`).join(" ");
+    const produits = await Produit.find(query, exclude || undefined).sort({ nom: 1 }).lean();
     return NextResponse.json({ success: true, data: produits });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
@@ -37,8 +41,13 @@ export async function POST(req: NextRequest) {
     if (!body.reference) {
       body.reference = await genererReference(ctx.tenantId, "PRD");
     }
+    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
+    // Le prix de revient est réservé à l'admin — un rôle non-admin qui crée
+    // un produit ne le fixe pas ; l'admin le complètera plus tard.
+    if (!isAdminRole) body.prixAchat = 0;
     const produit = await Produit.create({ ...body, tenantId: ctx.tenantId });
-    return NextResponse.json({ success: true, data: produit }, { status: 201 });
+    const data = isAdminRole ? produit : (({ prixAchat, ...rest }) => rest)(produit.toObject());
+    return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (err: any) {
     if (err.code === 11000)
       return NextResponse.json({ success: false, message: "Référence déjà utilisée" }, { status: 400 });

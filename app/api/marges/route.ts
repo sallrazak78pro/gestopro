@@ -1,7 +1,7 @@
 // app/api/marges/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import Vente from "@/lib/models/Vente";
 import Produit from "@/lib/models/Produit";
 import MouvementArgent from "@/lib/models/MouvementArgent";
@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "marges", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);

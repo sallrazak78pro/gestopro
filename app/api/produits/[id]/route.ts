@@ -11,7 +11,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { ctx, error } = await getTenantContext();
     if (error) return error;
     await connectDB();
-    const produit = await Produit.findOne({ _id: id, tenantId: ctx.tenantId }, "-image").lean();
+    // Le prix d'achat (prix de revient) ne doit être visible qu'à l'admin.
+    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
+    const produit = await Produit.findOne(
+      { _id: id, tenantId: ctx.tenantId },
+      isAdminRole ? "-image" : "-image -prixAchat"
+    ).lean();
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
     const stocks = await Stock.find({ produit: id, tenantId: ctx.tenantId }).populate("boutique", "nom type").lean();
     return NextResponse.json({ success: true, data: { produit, stocks } });
@@ -27,10 +32,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error) return error;
     await connectDB();
     const body = await req.json();
+    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
+    // Le prix d'achat (prix de revient) ne doit être ni lu ni modifié par un
+    // rôle non-admin — on l'ignore silencieusement plutôt que de rejeter la
+    // requête, la modale ne l'envoie de toute façon plus pour ces rôles.
+    if (!isAdminRole) delete body.prixAchat;
     const produit = await Produit.findOneAndUpdate(
       { _id: id, tenantId: ctx.tenantId },
       body, { new: true, runValidators: true }
-    );
+    ).select(isAdminRole ? undefined : "-prixAchat");
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
     return NextResponse.json({ success: true, data: produit });
   } catch (err: any) {
