@@ -335,6 +335,11 @@
   .ticket {
     border:     none !important;
     padding:    3mm 2mm;
+    /* Marge basse généreuse : sans elle, le papier s'arrête juste après le
+       TOTAL et il faut tirer manuellement pour le faire sortir de
+       l'imprimante — cet espace force l'avance du papier jusqu'à ce que
+       le ticket soit physiquement éjecté. */
+    padding-bottom: 20mm;
     min-width:  0;
     max-width:  none;
     width:      100%;
