@@ -38,6 +38,7 @@ export default function VentesPage() {
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [page,  setPage]  = useState(1);
   const [total, setTotal] = useState(0);
+  const [stockWarning, setStockWarning] = useState("");
   const LIMIT = 25;
 
   const fetchVentes = useCallback(async () => {
@@ -67,6 +68,12 @@ export default function VentesPage() {
 
   return (
     <div className="space-y-6">
+
+      {stockWarning && (
+        <div className="bg-warning/10 border border-warning/30 text-warning text-sm px-5 py-3 rounded-xl flex items-center gap-2">
+          ⚠ Vente enregistrée — {stockWarning}. Pensez à ajuster votre inventaire.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -195,7 +202,14 @@ export default function VentesPage() {
       {showModal && (
         <NouvelleVenteModal
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); fetchVentes(); }}
+          onSaved={(warning) => {
+            setShowModal(false);
+            fetchVentes();
+            if (warning) {
+              setStockWarning(warning);
+              setTimeout(() => setStockWarning(""), 8000);
+            }
+          }}
         />
       )}
     </div>

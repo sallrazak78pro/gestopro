@@ -135,14 +135,20 @@ export async function POST(req: NextRequest) {
     const suiviMap: Record<string, boolean> = {};
     produits.forEach((p: any) => { suiviMap[p._id.toString()] = p.suiviStock ?? true; });
 
+    // Le stock insuffisant n'empêche plus la vente — juste un avertissement
+    // renvoyé au client pour lui suggérer d'ajuster son inventaire. La
+    // quantité disponible relevée ici sert aussi à plafonner la décrémentation
+    // à 0 plus bas (jamais de stock négatif).
+    const dispoMap: Record<string, number> = {};
+    const stockWarnings: string[] = [];
     for (const ligne of lignes) {
       if (!suiviMap[ligne.produitId]) continue; // suivi de stock désactivé pour ce produit
       const stock = await Stock.findOne({ produit: ligne.produitId, boutique: boutiqueId, tenantId: ctx.tenantId });
-      if (!stock || stock.quantite < ligne.quantite)
-        return NextResponse.json({
-          success: false,
-          message: `Stock insuffisant : ${ligne.nomProduit} (dispo: ${stock?.quantite ?? 0})`,
-        }, { status: 400 });
+      const dispo = stock?.quantite ?? 0;
+      dispoMap[ligne.produitId] = dispo;
+      if (dispo < ligne.quantite) {
+        stockWarnings.push(`${ligne.nomProduit} (dispo : ${dispo}, vendu : ${ligne.quantite})`);
+      }
     }
 
     const montantTotal = lignes.reduce((s: number, l: any) => s + l.sousTotal, 0);
@@ -171,9 +177,13 @@ export async function POST(req: NextRequest) {
     if (vente.statut === "payee") {
       for (const ligne of lignes) {
         if (!suiviMap[ligne.produitId]) continue; // suivi de stock désactivé pour ce produit
+        // Plafonné à 0 : une vente qui dépasse le stock disponible ne doit
+        // jamais faire passer la quantité en négatif.
+        const dispo = dispoMap[ligne.produitId] ?? 0;
+        const nouvelleQte = Math.max(0, dispo - ligne.quantite);
         await Stock.findOneAndUpdate(
           { produit: ligne.produitId, boutique: boutiqueId, tenantId: ctx.tenantId },
-          { $inc: { quantite: -ligne.quantite } }
+          { $set: { quantite: nouvelleQte } }
         );
       }
     }
@@ -187,7 +197,10 @@ export async function POST(req: NextRequest) {
       reference, boutique: boutiqueId,
     });
 
-    return NextResponse.json({ success: true, data: vente }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      data: { ...vente.toObject(), stockWarnings },
+    }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

@@ -23,7 +23,7 @@ const fmtQte = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2);
 
 export default function NouvelleVenteModal({
   onClose, onSaved,
-}: { onClose: () => void; onSaved: () => void }) {
+}: { onClose: () => void; onSaved: (stockWarning?: string) => void }) {
   const { submit } = useOfflineQueue();
   const { data: session } = useSession();
   const userBoutique = (session?.user as any)?.boutique ?? "";
@@ -191,7 +191,15 @@ export default function NouvelleVenteModal({
     } else {
       printTab?.close();
     }
-    onSaved();
+    // Stock insuffisant n'empêche plus la vente — juste une suggestion à
+    // l'utilisateur d'ajuster son inventaire, affichée après coup sur la
+    // page (le modal se ferme déjà à ce stade).
+    const warnings = (result as any).data?.stockWarnings as string[] | undefined;
+    onSaved(
+      warnings?.length
+        ? `Stock à ajuster : ${warnings.join(", ")}`
+        : undefined
+    );
   }
 
   return (
