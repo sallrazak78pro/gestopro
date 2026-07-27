@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const statut    = searchParams.get("statut") ?? "";
     const boutiqueId = searchParams.get("boutique") ?? "";
+    const debut = searchParams.get("debut");
+    const fin   = searchParams.get("fin");
 
     const query: any = {
       tenantId: ctx.tenantId,
@@ -27,6 +29,12 @@ export async function GET(req: NextRequest) {
     else if (boutiqueId)      query.boutique = boutiqueId;
 
     if (statut) query.statut = statut;
+
+    if (debut || fin) {
+      query.createdAt = {};
+      if (debut) query.createdAt.$gte = new Date(debut + "T00:00:00");
+      if (fin)   query.createdAt.$lte = new Date(fin   + "T23:59:59");
+    }
 
     const versements = await MouvementArgent.find(query)
       .populate("boutique",       "nom")

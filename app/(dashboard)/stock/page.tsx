@@ -8,6 +8,7 @@ import ExportButton from "@/components/ui/ExportButton";
 import AjustementModal from "@/components/stock/AjustementModal";
 import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 interface Boutique { _id: string; nom: string; type: string; }
 interface StockRow {
@@ -26,6 +27,8 @@ export default function StockPage() {
   const [search, setSearch] = useState("");
   const [filtreAlerte, setFiltreAlerte] = useState(false);
   const [filtreCat, setFiltreCat] = useState("");
+  const [filtreBoutique, setFiltreBoutique] = useState("");
+  const { boutiques: toutesLesBoutiques } = useAppData();
   const [showProduitModal, setShowProduitModal] = useState(false);
   const [showImportModal, setShowImportModal]   = useState(false);
   const [editProduit, setEditProduit]           = useState<any>(null);
@@ -38,6 +41,7 @@ export default function StockPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (filtreAlerte) params.set("alertes", "true");
+    if (filtreBoutique) params.set("boutique", filtreBoutique);
     const res = await fetch(`/api/stock?${params}`);
     const json = await res.json();
     if (json.success) {
@@ -45,7 +49,7 @@ export default function StockPage() {
       setBoutiques(json.boutiques);
     }
     setLoading(false);
-  }, [filtreAlerte]);
+  }, [filtreAlerte, filtreBoutique]);
 
   useEffect(() => { fetchStock(); }, [fetchStock]);
 
@@ -100,6 +104,15 @@ export default function StockPage() {
             >
               <option value="">Toutes catégories</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {/* Boutique filter */}
+            <select
+              className="select w-44"
+              value={filtreBoutique}
+              onChange={e => setFiltreBoutique(e.target.value)}
+            >
+              <option value="">Toutes les boutiques</option>
+              {toutesLesBoutiques.map((b: any) => <option key={b._id} value={b._id}>{b.nom}</option>)}
             </select>
             {/* Alerte toggle */}
             <button

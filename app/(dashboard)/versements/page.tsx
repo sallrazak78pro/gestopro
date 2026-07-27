@@ -32,6 +32,9 @@ export default function VersementsPage() {
   const [error,      setError]      = useState("");
   const [success,    setSuccess]    = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
+  const [filtreBoutique, setFiltreBoutique] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin,   setDateFin]   = useState("");
 
   // Modal nouveau versement
   const [showModal, setShowModal]   = useState(false);
@@ -51,12 +54,15 @@ export default function VersementsPage() {
   const fetchVersements = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (filtreStatut) params.set("statut", filtreStatut);
+    if (filtreStatut)   params.set("statut",   filtreStatut);
+    if (filtreBoutique) params.set("boutique", filtreBoutique);
+    if (dateDebut)       params.set("debut",    dateDebut);
+    if (dateFin)         params.set("fin",      dateFin);
     const res  = await fetch(`/api/versements?${params}`);
     const json = await res.json();
     if (json.success) setVersements(json.data);
     setLoading(false);
-  }, [filtreStatut]);
+  }, [filtreStatut, filtreBoutique, dateDebut, dateFin]);
 
   useEffect(() => { fetchVersements(); }, [fetchVersements]);
 
@@ -162,6 +168,29 @@ export default function VersementsPage() {
             {f.label}
           </button>
         ))}
+
+        {isAdmin && (
+          <select className="select w-44" value={filtreBoutique}
+            onChange={e => setFiltreBoutique(e.target.value)}>
+            <option value="">Toutes les boutiques</option>
+            {boutiques.map((b: any) => <option key={b._id} value={b._id}>{b.nom}</option>)}
+          </select>
+        )}
+
+        <div className="flex items-center gap-1">
+          <input type="date" className="input w-36" value={dateDebut}
+            max={dateFin || undefined}
+            onChange={e => setDateDebut(e.target.value)} />
+          <span className="text-muted text-xs">→</span>
+          <input type="date" className="input w-36" value={dateFin}
+            min={dateDebut || undefined}
+            onChange={e => setDateFin(e.target.value)} />
+          {(dateDebut || dateFin) && (
+            <button className="btn-ghost btn-sm" title="Réinitialiser les dates"
+              onClick={() => { setDateDebut(""); setDateFin(""); }}>✕</button>
+          )}
+        </div>
+
         <button onClick={fetchVersements} className="btn-ghost btn-sm ml-auto">🔄</button>
       </div>
 

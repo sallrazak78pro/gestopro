@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Legend,
 } from "recharts";
 import clsx from "clsx";
+import { useAppData } from "@/lib/context/AppDataContext";
 
 const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const pct  = (n: number) => `${n.toFixed(1)}%`;
@@ -57,6 +58,9 @@ export default function MargesPage() {
   const [debut,   setDebut]   = useState("");
   const [fin,     setFin]     = useState("");
   const [loading, setLoading] = useState(true);
+  const { boutiques: boutiquesToutes } = useAppData();
+  const boutiques = boutiquesToutes.filter((b: any) => b.type === "boutique");
+  const [filtreBoutique, setFiltreBoutique] = useState("");
 
   const [stats,       setStats]       = useState<any>(null);
   const [evolution,   setEvolution]   = useState<any[]>([]);
@@ -71,6 +75,7 @@ export default function MargesPage() {
       params.set("debut", debut);
       params.set("fin",   fin);
     }
+    if (filtreBoutique) params.set("boutique", filtreBoutique);
     const res  = await fetch(`/api/marges?${params}`);
     const json = await res.json();
     if (json.success) {
@@ -81,11 +86,11 @@ export default function MargesPage() {
       setParBoutique(json.parBoutique);
     }
     setLoading(false);
-  }, [mode, debut, fin]);
+  }, [mode, debut, fin, filtreBoutique]);
 
   useEffect(() => {
     if (mode !== "plage" || (debut && fin)) fetchMarges();
-  }, [fetchMarges, mode, debut, fin]);
+  }, [fetchMarges, mode, debut, fin, filtreBoutique]);
 
   const maxMarge = Math.max(...topProduits.map(p => p.marge), 1);
 
@@ -136,6 +141,12 @@ export default function MargesPage() {
               min={debut || undefined} />
           </div>
         )}
+
+        <select className="select py-1.5 text-xs w-44 ml-auto" value={filtreBoutique}
+          onChange={e => setFiltreBoutique(e.target.value)}>
+          <option value="">Toutes les boutiques</option>
+          {boutiques.map((b: any) => <option key={b._id} value={b._id}>{b.nom}</option>)}
+        </select>
       </div>
 
       {loading ? (
