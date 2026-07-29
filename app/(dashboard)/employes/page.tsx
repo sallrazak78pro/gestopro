@@ -16,6 +16,8 @@ export default function EmployesPage() {
   const [filtreActif, setFiltreActif]       = useState("true");
   const [showModal, setShowModal] = useState(false);
   const [editEmploye, setEdit]    = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [deleting, setDeleting]   = useState(false);
 
   const fetchEmployes = useCallback(async () => {
     setLoading(true);
@@ -31,7 +33,9 @@ export default function EmployesPage() {
 
   useEffect(() => { fetchEmployes(); }, [fetchEmployes]);
   useEffect(() => {
-    fetch("/api/boutiques?type=boutique").then(r => r.json())
+    // Tous les emplacements (boutiques ET dépôts) — un employé peut être
+    // rattaché à un dépôt, le filtre/formulaire doit donc le proposer aussi.
+    fetch("/api/boutiques").then(r => r.json())
       .then(j => j.success && setBoutiques(j.data));
   }, []);
 
@@ -40,6 +44,14 @@ export default function EmployesPage() {
 
   function openCreate() { setEdit(null); setShowModal(true); }
   function openEdit(e: any) { setEdit(e); setShowModal(true); }
+
+  async function reactiver(e: any) {
+    await fetch(`/api/employes/${e._id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actif: true }),
+    });
+    fetchEmployes();
+  }
 
   return (
     <div className="space-y-6">
@@ -142,6 +154,15 @@ export default function EmployesPage() {
                       <div className="flex items-center gap-1">
                         <Link href={`/employes/${e._id}`} className="btn-ghost btn-sm">👁</Link>
                         <button onClick={() => openEdit(e)} className="btn-ghost btn-sm">✏️</button>
+                        {e.actif ? (
+                          <button onClick={() => setConfirmDelete(e)}
+                            className="btn-ghost btn-sm text-danger/70 hover:text-danger"
+                            title="Désactiver l'employé">🗑️</button>
+                        ) : (
+                          <button onClick={() => reactiver(e)}
+                            className="btn-ghost btn-sm text-success/70 hover:text-success"
+                            title="Réactiver l'employé">↩️</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -168,6 +189,44 @@ export default function EmployesPage() {
           onClose={() => { setShowModal(false); setEdit(null); }}
           onSaved={() => { setShowModal(false); setEdit(null); fetchEmployes(); }}
         />
+      )}
+
+      {/* Confirmation désactivation */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+          <div className="card w-full max-w-sm p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center text-lg shrink-0">🗑️</div>
+              <div>
+                <h3 className="font-bold text-sm" style={{ color: "var(--color-fg)" }}>Désactiver cet employé ?</h3>
+                <p className="text-xs text-muted mt-0.5">Il n&apos;apparaîtra plus dans les listes actives — réversible.</p>
+              </div>
+            </div>
+            <div className="bg-surface2 rounded-xl px-4 py-3 text-sm">
+              <p className="font-semibold">{confirmDelete.prenom} {confirmDelete.nom}</p>
+              <p className="text-xs text-muted mt-0.5">{confirmDelete.poste} — {confirmDelete.boutique?.nom}</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-ghost btn-sm" onClick={() => setConfirmDelete(null)} disabled={deleting}>
+                Annuler
+              </button>
+              <button
+                className="btn-sm bg-danger/90 hover:bg-danger text-white font-semibold px-4 py-2 rounded-xl transition-colors disabled:opacity-60"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await fetch(`/api/employes/${confirmDelete._id}`, { method: "DELETE" });
+                  setDeleting(false);
+                  setConfirmDelete(null);
+                  fetchEmployes();
+                }}
+              >
+                {deleting ? "Désactivation..." : "Oui, désactiver"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

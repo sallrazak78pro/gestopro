@@ -49,6 +49,25 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body.nom || !body.prenom || !body.poste || !body.boutique || !body.salaireBase || !body.dateEmbauche)
       return NextResponse.json({ success: false, message: "Champs obligatoires manquants." }, { status: 400 });
+
+    // Empêcher le doublon (même nom + prénom, même boutique) — insensible à
+    // la casse et aux espaces superflus. Couvre aussi les fiches désactivées :
+    // on suggère de la réactiver plutôt que d'en recréer une identique.
+    const nomRegex    = new RegExp(`^${body.nom.trim()}$`, "i");
+    const prenomRegex = new RegExp(`^${body.prenom.trim()}$`, "i");
+    const existant = await Employe.findOne({
+      tenantId: ctx.tenantId, boutique: body.boutique,
+      nom: nomRegex, prenom: prenomRegex,
+    });
+    if (existant) {
+      return NextResponse.json({
+        success: false,
+        message: existant.actif
+          ? `${body.prenom} ${body.nom} existe déjà dans cette boutique.`
+          : `${body.prenom} ${body.nom} existe déjà dans cette boutique (désactivé) — réactivez-le plutôt que d'en créer un nouveau.`,
+      }, { status: 409 });
+    }
+
     const employe = await Employe.create({ ...body, tenantId: ctx.tenantId });
     const populated = await Employe.findById(employe._id).populate("boutique", "nom");
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
