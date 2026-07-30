@@ -212,7 +212,7 @@ export default function NouvelleVenteModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-4xl card animate-slide-up flex flex-col min-h-[60vh] max-h-[92vh]">
+      <div className="relative w-full max-w-5xl card animate-slide-up flex flex-col min-h-[60vh] max-h-[92vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -356,10 +356,10 @@ export default function NouvelleVenteModal({
                 <div className="flex items-center gap-2 px-4 pt-3 pb-1 border-b border-border/50 shrink-0">
                   <p className="flex-1 text-[10px] font-mono text-muted uppercase tracking-wider">Produit</p>
                   <p className="w-28 text-[10px] font-mono text-muted uppercase tracking-wider text-center">Qté</p>
-                  <p className="w-28 text-[10px] font-mono text-muted uppercase tracking-wider text-center">
+                  <p className="w-24 text-[10px] font-mono text-muted uppercase tracking-wider text-center">
                     Prix unit. <span className="text-accent/70">(modifiable)</span>
                   </p>
-                  <p className="w-24 text-[10px] font-mono text-muted uppercase tracking-wider text-right">Sous-total</p>
+                  <p className="w-20 text-[10px] font-mono text-muted uppercase tracking-wider text-right">Sous-total</p>
                   <div className="w-6" />
                 </div>
               )}
@@ -406,7 +406,7 @@ export default function NouvelleVenteModal({
                     </div>
 
                     {/* Prix unitaire modifiable */}
-                    <div className="w-28 shrink-0">
+                    <div className="w-24 shrink-0">
                       {editPrix === l.produitId ? (
                         <div className="relative">
                           <input
@@ -445,7 +445,7 @@ export default function NouvelleVenteModal({
                     </div>
 
                     {/* Sous-total */}
-                    <div className="w-24 text-right shrink-0">
+                    <div className="w-20 text-right shrink-0">
                       <p className="font-mono font-bold text-sm">{formatMontant(l.sousTotal)}</p>
                     </div>
 
