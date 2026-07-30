@@ -67,6 +67,7 @@ export default function MargesPage() {
   const [topProduits, setTopProduits] = useState<any[]>([]);
   const [produitMoinsRentable, setProduitMoinsRentable] = useState<any>(null);
   const [parBoutique, setParBoutique] = useState<any[]>([]);
+  const [ventesParProduit, setVentesParProduit] = useState<any[]>([]);
 
   const fetchMarges = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,7 @@ export default function MargesPage() {
       setTopProduits(json.topProduits);
       setProduitMoinsRentable(json.produitMoinsRentable);
       setParBoutique(json.parBoutique);
+      setVentesParProduit(json.ventesParProduit ?? []);
     }
     setLoading(false);
   }, [mode, debut, fin, filtreBoutique]);
@@ -412,6 +414,38 @@ export default function MargesPage() {
                 </>
               )}
             </div>
+          </div>
+
+          {/* ── Ventes par produit (quantité + CA, période sélectionnée) ──── */}
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-sm font-bold" style={{ color: "var(--color-fg)" }}>📦 Ventes par produit</h2>
+              <span className="text-xs font-mono text-muted">{ventesParProduit.length} produit{ventesParProduit.length > 1 ? "s" : ""} vendu{ventesParProduit.length > 1 ? "s" : ""}</span>
+            </div>
+            {ventesParProduit.length === 0 ? (
+              <p className="text-center py-8 text-muted font-mono text-sm">Aucune vente sur la période</p>
+            ) : (
+              <div className="table-wrapper max-h-96 overflow-y-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Produit</th>
+                      <th className="text-right">Quantité vendue</th>
+                      <th className="text-right">Chiffre d&apos;affaires</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventesParProduit.map((p, i) => (
+                      <tr key={i}>
+                        <td className="font-semibold text-sm">{p.nom}</td>
+                        <td className="text-right font-mono text-sm">{p.qte % 1 === 0 ? p.qte : p.qte.toFixed(2)}</td>
+                        <td className="text-right font-mono font-bold text-sm text-accent">{fmt(p.ca)} F</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* ── Indicateur de santé ──────────────────────────────────────── */}

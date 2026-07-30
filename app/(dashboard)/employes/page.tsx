@@ -19,6 +19,13 @@ export default function EmployesPage() {
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [deleting, setDeleting]   = useState(false);
 
+  // Classement des ventes par employé
+  const [classement, setClassement] = useState<any[]>([]);
+  const [classementLoading, setClassementLoading] = useState(true);
+  const [statsDebut, setStatsDebut] = useState("");
+  const [statsFin,   setStatsFin]   = useState("");
+  const [statsBoutique, setStatsBoutique] = useState("");
+
   const fetchEmployes = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -31,7 +38,20 @@ export default function EmployesPage() {
     setLoading(false);
   }, [search, filtreBoutique, filtreActif]);
 
+  const fetchClassement = useCallback(async () => {
+    setClassementLoading(true);
+    const params = new URLSearchParams();
+    if (statsDebut)    params.set("debut",    statsDebut);
+    if (statsFin)      params.set("fin",      statsFin);
+    if (statsBoutique) params.set("boutique", statsBoutique);
+    const res  = await fetch(`/api/employes/stats?${params}`);
+    const json = await res.json();
+    if (json.success) setClassement(json.data);
+    setClassementLoading(false);
+  }, [statsDebut, statsFin, statsBoutique]);
+
   useEffect(() => { fetchEmployes(); }, [fetchEmployes]);
+  useEffect(() => { fetchClassement(); }, [fetchClassement]);
   useEffect(() => {
     // Tous les emplacements (boutiques ET dépôts) — un employé peut être
     // rattaché à un dépôt, le filtre/formulaire doit donc le proposer aussi.
@@ -180,6 +200,80 @@ export default function EmployesPage() {
             <button onClick={fetchEmployes} className="btn-ghost btn-sm">🔄</button>
           </div>
         )}
+      </div>
+
+      {/* Classement des ventes par employé */}
+      <div className="card">
+        <div className="card-header flex-wrap gap-3">
+          <div>
+            <h2 className="card-title">🏆 Classement des ventes</h2>
+            <p className="text-[11px] font-mono text-muted mt-0.5 uppercase tracking-widest">
+              Performance par employé sur la période
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select className="select w-44" value={statsBoutique} onChange={e => setStatsBoutique(e.target.value)}>
+              <option value="">Toutes les boutiques</option>
+              {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
+            </select>
+            <input type="date" className="input w-36" value={statsDebut}
+              max={statsFin || undefined}
+              onChange={e => setStatsDebut(e.target.value)} />
+            <span className="text-muted text-xs">→</span>
+            <input type="date" className="input w-36" value={statsFin}
+              min={statsDebut || undefined}
+              onChange={e => setStatsFin(e.target.value)} />
+            {(statsDebut || statsFin) && (
+              <button className="btn-ghost btn-sm" title="Réinitialiser les dates"
+                onClick={() => { setStatsDebut(""); setStatsFin(""); }}>✕</button>
+            )}
+          </div>
+        </div>
+
+        <div className="table-wrapper">
+          {classementLoading ? (
+            <div className="flex items-center justify-center py-16 text-muted font-mono text-sm gap-3">
+              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              Calcul du classement...
+            </div>
+          ) : classement.length === 0 ? (
+            <div className="text-center py-16 text-muted font-mono text-sm">
+              Aucune vente sur la période sélectionnée
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Rang</th>
+                  <th>Employé</th>
+                  <th>Poste</th>
+                  <th>Boutique</th>
+                  <th className="text-right">Nb ventes</th>
+                  <th className="text-right">CA généré</th>
+                  <th className="text-right">Panier moyen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classement.map((c, i) => (
+                  <tr key={c.employeId ?? c.nom}>
+                    <td className="font-mono text-sm text-muted">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                    </td>
+                    <td className="font-semibold text-sm">{c.nom}</td>
+                    <td>{c.poste ? <span className="badge-purple text-xs">{c.poste}</span> : <span className="text-muted text-xs">—</span>}</td>
+                    <td className="text-sm text-muted2">{c.boutique || "—"}</td>
+                    <td className="text-right font-mono text-sm">{c.nbVentes}</td>
+                    <td className="text-right font-mono font-bold text-accent">{fmt(c.totalCA)} F</td>
+                    <td className="text-right font-mono text-sm text-muted">{fmt(c.panierMoyen)} F</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {showModal && (

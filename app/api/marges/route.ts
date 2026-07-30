@@ -129,6 +129,11 @@ export async function GET(req: NextRequest) {
     // topProduits.at(-1) ne serait que le 10e meilleur dès qu'il y a plus de 10 produits.
     const produitMoinsRentable = produitsTries.length > 0 ? produitsTries[produitsTries.length - 1] : null;
 
+    // ── Ventes par produit (tous, triés par CA — pas seulement le top marge) ──
+    const ventesParProduit = [...parProduit.values()]
+      .sort((a, b) => b.ca - a.ca)
+      .map(p => ({ nom: p.nom, qte: p.qte, ca: Math.round(p.ca) }));
+
     // ── Grouper par boutique ──────────────────────────────────────────────────
     const parBoutique = new Map<string, { nom: string; ca: number; cout: number; marge: number; charges: number }>();
     ventesAvecMarge.forEach((v: any) => {
@@ -204,6 +209,7 @@ export async function GET(req: NextRequest) {
       evolution,
       topProduits,
       produitMoinsRentable,
+      ventesParProduit,
       parBoutique: [...parBoutique.values()].map(b => ({
         ...b,
         tauxMarge:      b.ca > 0 ? Math.round((b.marge / b.ca) * 100) : 0,
