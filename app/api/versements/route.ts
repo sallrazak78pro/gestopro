@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
+import SessionCaisse from "@/lib/models/SessionCaisse";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 
@@ -83,6 +84,19 @@ export async function POST(req: NextRequest) {
         success: false,
         message: "La boutique principale ne peut pas effectuer de versement — ce type est réservé aux boutiques secondaires.",
       }, { status: 400 });
+
+    // Un mouvement d'argent ne peut être enregistré que caisse ouverte —
+    // sinon il flotte hors de toute session et fausse les rapports de caisse.
+    const sessionOuverte = await SessionCaisse.findOne({
+      tenantId: ctx.tenantId, boutique: sourceBoutiqueId, statut: "ouverte",
+    });
+    if (!sessionOuverte) {
+      return NextResponse.json({
+        success: false,
+        message: "Aucune session de caisse ouverte pour cette boutique. Ouvrez la caisse avant d'effectuer un versement.",
+        code: "NO_SESSION",
+      }, { status: 400 });
+    }
 
     // Vérifier le solde disponible — sans ce contrôle, un versement pouvait
     // dépasser ce qu'il y a réellement en caisse. Le solde affiché est ensuite

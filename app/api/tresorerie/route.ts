@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import CompteTiers from "@/lib/models/CompteTiers";
 import Boutique from "@/lib/models/Boutique";
+import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
@@ -125,6 +126,19 @@ export async function POST(req: NextRequest) {
           message: "Seule la boutique principale peut effectuer un versement vers la banque.",
         }, { status: 400 });
       }
+    }
+
+    // Un mouvement d'argent ne peut être enregistré que caisse ouverte —
+    // sinon il flotte hors de toute session et fausse les rapports de caisse.
+    const sessionOuverte = await SessionCaisse.findOne({
+      tenantId: ctx.tenantId, boutique: boutiqueId, statut: "ouverte",
+    });
+    if (!sessionOuverte) {
+      return NextResponse.json({
+        success: false,
+        message: "Aucune session de caisse ouverte pour cette boutique. Ouvrez la caisse avant d'effectuer ce mouvement.",
+        code: "NO_SESSION",
+      }, { status: 400 });
     }
 
     // Vérification solde caisse pour les types qui retirent de l'argent
