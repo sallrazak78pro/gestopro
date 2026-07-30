@@ -55,6 +55,10 @@ export default function NouvelleVenteModal({
   const [error, setError]         = useState("");
   // Prix éditable en ligne
   const [editPrix, setEditPrix]   = useState<string | null>(null); // produitId en cours d'édition
+  // Texte brut tapé dans le champ Qté, tant que l'édition n'est pas finalisée
+  // (onBlur/Entrée) — évite que le champ ne "rebondisse" à l'ancienne valeur
+  // dès qu'on l'efface pour taper autre chose (ex: effacer "12" pour taper "0.5").
+  const [qteDraft, setQteDraft]   = useState<Record<string, string>>({});
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -133,18 +137,48 @@ export default function NouvelleVenteModal({
   }
 
   // ── Modifier la quantité (décimale) ──────────────────────
+  function applyQte(produitId: string, qte: number) {
+    setPanier(prev => prev.map(l =>
+      l.produitId === produitId
+        ? { ...l, quantite: qte, sousTotal: +(qte * l.prixUnitaire).toFixed(2) }
+        : l
+    ));
+  }
+
+  // Utilisé par les boutons -/+ : valeur déjà calculée et définitive.
   function updateQte(produitId: string, qteStr: string) {
+    setQteDraft(prev => { const { [produitId]: _, ...rest } = prev; return rest; });
     const qte = parseFloat(qteStr);
     if (isNaN(qte) || qte < 0) return;
     if (qte === 0) {
       setPanier(prev => prev.filter(l => l.produitId !== produitId));
       return;
     }
-    setPanier(prev => prev.map(l =>
-      l.produitId === produitId
-        ? { ...l, quantite: qte, sousTotal: +(qte * l.prixUnitaire).toFixed(2) }
-        : l
-    ));
+    applyQte(produitId, qte);
+  }
+
+  // Pendant la saisie au clavier : on garde le texte tel quel (même vide ou
+  // "0" en cours de frappe) et on ne recalcule le panier que si la valeur
+  // est déjà un nombre valide > 0 — pas de suppression prématurée de la
+  // ligne tant que la saisie n'est pas terminée.
+  function handleQteInput(produitId: string, raw: string) {
+    setQteDraft(prev => ({ ...prev, [produitId]: raw }));
+    const qte = parseFloat(raw);
+    if (!isNaN(qte) && qte > 0) applyQte(produitId, qte);
+  }
+
+  // Finalise la saisie (perte du focus ou Entrée) : une valeur nulle/vide/
+  // invalide à ce stade supprime la ligne, comme le bouton "-" jusqu'à 0.
+  function commitQteInput(produitId: string) {
+    const raw = qteDraft[produitId];
+    setQteDraft(prev => { const { [produitId]: _, ...rest } = prev; return rest; });
+    if (raw === undefined) return;
+    const qte = parseFloat(raw);
+    if (isNaN(qte) || qte <= 0) {
+      setPanier(prev => prev.filter(l => l.produitId !== produitId));
+    } else {
+      applyQte(produitId, qte);
+    }
   }
 
   // ── Modifier le prix à la vente ───────────────────────────
@@ -395,8 +429,10 @@ export default function NouvelleVenteModal({
                         step="0.001"
                         className="w-14 bg-transparent text-center font-mono font-bold text-sm outline-none
                                    border border-border rounded-md px-1 py-0.5 focus:border-accent"
-                        value={l.quantite}
-                        onChange={e => updateQte(l.produitId, e.target.value)}
+                        value={qteDraft[l.produitId] ?? fmtQte(l.quantite)}
+                        onChange={e => handleQteInput(l.produitId, e.target.value)}
+                        onBlur={() => commitQteInput(l.produitId)}
+                        onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                       />
                       <button type="button"
                         onClick={() => updateQte(l.produitId, String(+(l.quantite + 1).toFixed(3)))}
