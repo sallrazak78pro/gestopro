@@ -20,6 +20,9 @@ interface Ligne {
 
 const fmt    = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const fmtQte = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2);
+// Mémorise la dernière boutique choisie (admin multi-boutiques) pour ne pas
+// avoir à la resélectionner à chaque nouvelle vente.
+const LAST_BOUTIQUE_KEY = "gestopro:derniere-boutique-vente";
 
 export default function NouvelleVenteModal({
   onClose, onSaved,
@@ -62,6 +65,9 @@ export default function NouvelleVenteModal({
       setBoutiqueId(userBoutique);
     } else if (boutiques.length === 1) {
       setBoutiqueId(boutiques[0]._id);
+    } else {
+      const derniere = localStorage.getItem(LAST_BOUTIQUE_KEY);
+      if (derniere && boutiques.some((b: any) => b._id === derniere)) setBoutiqueId(derniere);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, boutiques]);
@@ -206,7 +212,7 @@ export default function NouvelleVenteModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-4xl card animate-slide-up flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-4xl card animate-slide-up flex flex-col h-[92vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -248,7 +254,13 @@ export default function NouvelleVenteModal({
                   </div>
                 ) : (
                   <select className="select text-sm" value={boutiqueId}
-                    onChange={e => { setBoutiqueId(e.target.value); setPanier([]); }}>
+                    onChange={e => {
+                      const v = e.target.value;
+                      setBoutiqueId(v);
+                      setPanier([]);
+                      if (v) localStorage.setItem(LAST_BOUTIQUE_KEY, v);
+                      else localStorage.removeItem(LAST_BOUTIQUE_KEY);
+                    }}>
                     <option value="">Choisir...</option>
                     {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
                   </select>
