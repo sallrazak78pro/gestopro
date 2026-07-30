@@ -38,6 +38,8 @@ function buildTicketText(vente: any) {
   lignes.push(sep);
 
   lignes.push(`TOTAL : ${fmt(vente.montantTotal)} F`);
+  lignes.push(sep);
+  lignes.push("Merci de votre achat !");
 
   return lignes.join("\n");
 }
@@ -72,6 +74,8 @@ function buildTicketDrawLines(vente: any): TicketDrawLine[] {
   lines.push({ kind: "sep" });
 
   lines.push({ kind: "row", left: "TOTAL", right: `${fmt(vente.montantTotal)} F`, bold: true, size: 15 });
+  lines.push({ kind: "sep" });
+  lines.push({ kind: "center", text: "Merci de votre achat !", bold: true, size: 10 });
 
   return lines;
 }
@@ -185,10 +189,10 @@ function Ticket({ vente }: { vente: any }) {
     <div className="ticket">
 
       {/* ── EN-TÊTE : logo de la boutique si disponible, sinon son nom ── */}
-      <div className="ticket-center ticket-bold" style={{ fontSize: 18, letterSpacing: 0.5 }}>
+      <div className="ticket-center ticket-bold" style={{ fontSize: 18, letterSpacing: 0.5, width: "100%", textAlign: "center" }}>
         {vente.boutique?.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={vente.boutique.logo} alt={vente.boutique?.nom ?? ""} style={{ maxHeight: 44, maxWidth: "100%" }} />
+          <img src={vente.boutique.logo} alt={vente.boutique?.nom ?? ""} style={{ maxHeight: 44, maxWidth: "100%", display: "block", margin: "0 auto" }} />
         ) : (
           vente.boutique?.nom || "Boutique"
         )}
@@ -235,6 +239,9 @@ function Ticket({ vente }: { vente: any }) {
         <span>TOTAL</span>
         <span className="ticket-mono">{fmt(vente.montantTotal)} F</span>
       </div>
+
+      {/* ── REMERCIEMENT ── */}
+      <div className="ticket-center ticket-merci">Merci de votre achat !</div>
     </div>
   );
 }

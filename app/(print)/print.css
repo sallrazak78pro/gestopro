@@ -312,6 +312,12 @@
   padding-top:     3px;
 }
 
+.ticket-merci {
+  margin-top: 8px;
+  font-size:  13px;
+  font-style: italic;
+}
+
 /* ══ @media print — ticket thermique ══════════════════
    Imprimante ~3 à 4cm de large (ex. Milestone). Un seul exemplaire
    (client) désormais imprimé. */
@@ -335,6 +341,9 @@
   .ticket {
     border:     none !important;
     padding:    3mm 2mm;
+    /* Marge haute : espace avant le nom/logo de la boutique, pour que le
+       ticket ne commence pas à ras du bord du papier. */
+    padding-top: 8mm;
     /* Marge basse généreuse : sans elle, le papier s'arrête juste après le
        TOTAL et il faut tirer manuellement pour le faire sortir de
        l'imprimante — cet espace force l'avance du papier jusqu'à ce que
