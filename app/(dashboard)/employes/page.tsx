@@ -2,12 +2,16 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import EmployeModal from "@/components/employes/EmployeModal";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function EmployesPage() {
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role ?? "";
+
   const [employes, setEmployes]   = useState<any[]>([]);
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -25,6 +29,11 @@ export default function EmployesPage() {
   const [statsDebut, setStatsDebut] = useState("");
   const [statsFin,   setStatsFin]   = useState("");
   const [statsBoutique, setStatsBoutique] = useState("");
+
+  // Migration des anciennes ventes dont employe pointait vers User au lieu d'Employe
+  const [toMigrer, setToMigrer]     = useState<number | null>(null);
+  const [migrating, setMigrating]   = useState(false);
+  const [migrateMsg, setMigrateMsg] = useState("");
 
   const fetchEmployes = useCallback(async () => {
     setLoading(true);
@@ -53,6 +62,10 @@ export default function EmployesPage() {
   useEffect(() => { fetchEmployes(); }, [fetchEmployes]);
   useEffect(() => { fetchClassement(); }, [fetchClassement]);
   useEffect(() => {
+    if (!["admin", "superadmin"].includes(role)) return;
+    fetch("/api/ventes/migrate-employe").then(r => r.json()).then(j => j.success && setToMigrer(j.count));
+  }, [role]);
+  useEffect(() => {
     // Tous les emplacements (boutiques ET dépôts) — un employé peut être
     // rattaché à un dépôt, le filtre/formulaire doit donc le proposer aussi.
     fetch("/api/boutiques").then(r => r.json())
@@ -64,6 +77,15 @@ export default function EmployesPage() {
 
   function openCreate() { setEdit(null); setShowModal(true); }
   function openEdit(e: any) { setEdit(e); setShowModal(true); }
+
+  async function migrer() {
+    setMigrating(true); setMigrateMsg("");
+    const res  = await fetch("/api/ventes/migrate-employe", { method: "POST" });
+    const json = await res.json();
+    setMigrating(false);
+    setMigrateMsg(json.message ?? (json.success ? "OK" : "Erreur"));
+    if (json.success) { setToMigrer(0); fetchClassement(); }
+  }
 
   async function reactiver(e: any) {
     await fetch(`/api/employes/${e._id}`, {
@@ -201,6 +223,22 @@ export default function EmployesPage() {
           </div>
         )}
       </div>
+
+      {/* Bandeau migration */}
+      {["admin", "superadmin"].includes(role) && !!toMigrer && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl px-5 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-warning text-sm">⚠</span>
+          <p className="text-sm text-warning flex-1">
+            {toMigrer} vente(s) ancienne(s) ont un lien employé incorrect — poste et boutique manquants dans le classement.
+          </p>
+          {migrateMsg && <span className="text-xs font-mono text-success">{migrateMsg}</span>}
+          <button onClick={migrer} disabled={migrating}
+            className="btn-sm bg-warning/20 hover:bg-warning/30 text-warning font-semibold px-4 py-2
+                       rounded-xl transition-colors disabled:opacity-50 text-xs">
+            {migrating ? "Migration en cours..." : "🔄 Corriger les ventes"}
+          </button>
+        </div>
+      )}
 
       {/* Classement des ventes par employé */}
       <div className="card">
