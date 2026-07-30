@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
+// Intl.NumberFormat("fr-FR") sépare les milliers avec un espace insécable
+// fin (U+202F) — invisible à l'écran, mais absent des tables de caractères
+// des imprimantes thermiques (ESC/POS et similaires), qui l'impriment comme
+// un carré. On le remplace par un espace normal, universellement supporté.
+const fmt = (n: number) =>
+  new Intl.NumberFormat("fr-FR").format(Math.round(n)).replace(/[  ]/g, " ");
 
 // Le vendeur (employe) n'est affiché que s'il diffère du caissier (createdBy) —
 // sinon on afficherait deux fois la même personne. "employe" pointe vers une
