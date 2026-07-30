@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file     = formData.get("file") as File | null;
+    const type     = formData.get("type") === "boutique" ? "boutique" : "produit";
 
     if (!file)
       return NextResponse.json({ success: false, message: "Aucun fichier." }, { status: 400 });
@@ -32,13 +33,14 @@ export async function POST(req: NextRequest) {
     const bytes  = await file.arrayBuffer();
     const base64 = `data:${file.type};base64,${btoa(String.fromCharCode(...new Uint8Array(bytes)))}`;
 
-    // Upload sur Cloudinary
+    // Upload sur Cloudinary — un logo est cadré en "fit" (jamais rogné, une
+    // enseigne peut être large et non carrée), un produit reste en "fill"
+    // (miniature carrée).
     const result = await cloudinary.uploader.upload(base64, {
-      folder:         `gestopro/${ctx.tenantId}/produits`,
-      transformation: [
-        { width: 400, height: 400, crop: "fill", gravity: "auto" },
-        { quality: "auto", fetch_format: "auto" },
-      ],
+      folder: `gestopro/${ctx.tenantId}/${type === "boutique" ? "boutiques" : "produits"}`,
+      transformation: type === "boutique"
+        ? [{ width: 500, height: 200, crop: "fit" }, { quality: "auto", fetch_format: "auto" }]
+        : [{ width: 400, height: 400, crop: "fill", gravity: "auto" }, { quality: "auto", fetch_format: "auto" }],
     });
 
     return NextResponse.json({ success: true, url: result.secure_url });

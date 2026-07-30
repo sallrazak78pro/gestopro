@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/mouvementArgentTypes";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -377,8 +378,6 @@ export default function TresoreriePage() {
 // ── Helpers ────────────────────────────────────────────────────
 function buildChartData(mouvements: any[]) {
   const days: Record<string, { entrees: number; sorties: number }> = {};
-  const ENTREE_TYPES = ["avance_caisse", "depot_tiers"];
-  const SORTIE_TYPES = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers"];
 
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
@@ -390,8 +389,8 @@ function buildChartData(mouvements: any[]) {
     const d = new Date(m.createdAt);
     const key = d.toLocaleDateString("fr-FR", { weekday: "short" });
     if (!days[key]) return;
-    if (ENTREE_TYPES.includes(m.type)) days[key].entrees += m.montant;
-    if (SORTIE_TYPES.includes(m.type)) days[key].sorties += m.montant;
+    if (TYPES_ENTREE_CAISSE.includes(m.type)) days[key].entrees += m.montant;
+    if (TYPES_SORTIE_CAISSE.includes(m.type)) days[key].sorties += m.montant;
   });
 
   return Object.entries(days).map(([jour, v]) => ({ jour, ...v }));

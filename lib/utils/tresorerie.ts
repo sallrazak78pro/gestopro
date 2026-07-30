@@ -9,9 +9,9 @@
 import mongoose from "mongoose";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Vente from "@/lib/models/Vente";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/mouvementArgentTypes";
 
-export const TYPES_ENTREE_CAISSE = ["depot_tiers", "avance_caisse", "ajustement_positif"];
-export const TYPES_SORTIE_CAISSE = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers", "ajustement_negatif"];
+export { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE };
 
 export interface DetailSoldeCaisse {
   totalVentes: number;
