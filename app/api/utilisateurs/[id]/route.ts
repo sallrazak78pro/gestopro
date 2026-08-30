@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 // PUT — modifier un utilisateur (infos, rôle, boutique, actif)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -50,12 +51,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       user.password = password; // sera hashé par le pre-save hook
       await user.save();
       const { password: _, ...safe } = user.toObject();
+
+      await logActivity({
+        tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+        action: ACTIONS.USER_MODIFIE, module: MODULES.UTILISATEURS,
+        details: `Utilisateur modifié (+ mot de passe) — ${user.nom} (${user.email})`,
+      });
+
       return NextResponse.json({ success: true, data: safe });
     }
 
     const updated = await User.findByIdAndUpdate(id, update, { new: true })
       .populate("boutique", "nom type")
       .select("-password");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.USER_MODIFIE, module: MODULES.UTILISATEURS,
+      details: `Utilisateur modifié — ${updated?.nom} (${updated?.email})`,
+    });
 
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
@@ -83,6 +97,13 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ success: false, message: "Utilisateur introuvable" }, { status: 404 });
 
     await User.findByIdAndUpdate(id, { actif: false });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.USER_SUPPRIME, module: MODULES.UTILISATEURS,
+      details: `Utilisateur désactivé — ${user.nom} (${user.email})`,
+    });
+
     return NextResponse.json({ success: true, message: "Utilisateur désactivé." });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

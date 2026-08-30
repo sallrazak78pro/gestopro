@@ -6,6 +6,8 @@ import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -45,6 +47,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!canAccessBoutique(ctx, boutiqueSource))
       return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
 
+    // Une avance retire physiquement de l'argent de la caisse de la boutique
+    // source — on ne peut pas avancer plus que ce qui y est disponible.
+    const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueSource);
+    if (montant > soldeCaisse)
+      return NextResponse.json({
+        success: false,
+        message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
+      }, { status: 400 });
+
     // Créer l'avance
     const avance = await AvanceSalaire.create({
       tenantId: ctx.tenantId,
@@ -68,6 +79,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       categorieDepense: "salaire",
       motif: `Avance sur salaire — ${employe.prenom} ${employe.nom}${motif ? ` — ${motif}` : ""}`,
       createdBy: ctx.userId,
+    });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.AVANCE_CREEE, module: MODULES.EMPLOYES,
+      details: `Avance sur salaire — ${employe.prenom} ${employe.nom} — ${new Intl.NumberFormat("fr-FR").format(montant)} F`,
+      reference, boutique: (boutiqueId || employe.boutique)?.toString(),
     });
 
     return NextResponse.json({ success: true, data: avance }, { status: 201 });

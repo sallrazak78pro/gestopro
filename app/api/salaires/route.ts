@@ -7,6 +7,8 @@ import Employe from "@/lib/models/Employe";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 const MOIS_NOM = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
@@ -73,6 +75,17 @@ export async function POST(req: NextRequest) {
     const totalAvances = avancesADeduire.reduce((s, a) => s + a.montant, 0);
     const montantNet   = Math.max(0, employe.salaireBase - totalAvances);
 
+    // Un paiement de salaire retire physiquement de l'argent de la caisse
+    // source — on ne peut pas payer plus que ce qui y est disponible.
+    if (montantNet > 0) {
+      const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueSourceId);
+      if (montantNet > soldeCaisse)
+        return NextResponse.json({
+          success: false,
+          message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
+        }, { status: 400 });
+    }
+
     // Générer la référence
     const reference = await genererReference(ctx.tenantId, `SAL-${annee}-${String(mois).padStart(2, "0")}`);
 
@@ -120,6 +133,13 @@ export async function POST(req: NextRequest) {
       .populate("employe", "nom prenom poste")
       .populate("boutiqueSource", "nom")
       .populate("createdBy", "nom");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.SALAIRE_PAYE, module: MODULES.EMPLOYES,
+      details: `Salaire payé — ${employe.prenom} ${employe.nom} — ${MOIS_NOM[mois]} ${annee} — ${new Intl.NumberFormat("fr-FR").format(montantNet)} F`,
+      reference, boutique: boutiqueSourceId,
+    });
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {

@@ -7,6 +7,8 @@ import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,6 +30,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const montantAPayer = Math.min(montant, commande.montantDu);
     if (montantAPayer <= 0)
       return NextResponse.json({ success: false, message: "Cette commande est déjà entièrement réglée." }, { status: 400 });
+
+    // Ce paiement retire physiquement de l'argent de la caisse de la
+    // boutique payeuse (dépense directe ou versement vers la principale) —
+    // on ne peut pas payer plus que ce qui y est disponible.
+    if (boutiqueId) {
+      const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueId);
+      if (montantAPayer > soldeCaisse)
+        return NextResponse.json({
+          success: false,
+          message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
+        }, { status: 400 });
+    }
 
     // Mettre à jour la commande
     commande.montantPaye += montantAPayer;
@@ -79,6 +93,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
       }
     }
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.COMMANDE_PAYEE, module: MODULES.COMMANDES,
+      details: `Paiement commande ${commande.reference} — ${(commande.fournisseur as any)?.nom ?? ""} — ${new Intl.NumberFormat("fr-FR").format(montantAPayer)} F`,
+      reference: commande.reference, boutique: boutiqueId,
+    });
 
     return NextResponse.json({
       success: true,

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
       await Boutique.updateMany({ tenantId: ctx.tenantId }, { estPrincipale: false });
     }
     const boutique = await Boutique.create({ ...body, tenantId: ctx.tenantId });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.BOUTIQUE_CREEE, module: MODULES.BOUTIQUES,
+      details: `Boutique créée — ${boutique.nom}`,
+      boutique: boutique._id.toString(),
+    });
+
     return NextResponse.json({ success: true, data: boutique }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

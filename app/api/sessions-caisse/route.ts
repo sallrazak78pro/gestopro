@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 // GET — historique des sessions (avec filtre boutique)
 export async function GET(req: NextRequest) {
@@ -77,6 +78,13 @@ export async function POST(req: NextRequest) {
     const populated = await SessionCaisse.findById(session._id)
       .populate("boutique", "nom")
       .populate("ouvertPar", "nom");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.CAISSE_OUVERTE, module: MODULES.CAISSE,
+      details: `Ouverture de caisse — fond ${new Intl.NumberFormat("fr-FR").format(fondOuverture ?? 0)} F`,
+      boutique: boutiqueId,
+    });
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {

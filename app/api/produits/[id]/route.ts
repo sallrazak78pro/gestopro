@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,6 +43,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       body, { new: true, runValidators: true }
     ).select(isAdminRole ? undefined : "-prixAchat");
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.PRODUIT_MODIFIE, module: MODULES.STOCK,
+      details: `Produit modifié — ${produit.nom} (${produit.reference})`,
+      reference: produit.reference,
+    });
+
     return NextResponse.json({ success: true, data: produit });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
@@ -54,7 +63,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { ctx, error } = await getTenantContext();
     if (error) return error;
     await connectDB();
-    await Produit.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
+    const produit = await Produit.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
+
+    if (produit) {
+      await logActivity({
+        tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+        action: ACTIONS.PRODUIT_SUPPRIME, module: MODULES.STOCK,
+        details: `Produit désactivé — ${produit.nom} (${produit.reference})`,
+        reference: produit.reference,
+      });
+    }
+
     return NextResponse.json({ success: true, message: "Produit désactivé" });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

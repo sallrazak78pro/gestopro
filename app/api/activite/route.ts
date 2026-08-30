@@ -5,8 +5,10 @@ import ActivityLog from "@/lib/models/ActivityLog";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 const MODULE_ICONS: Record<string, string> = {
-  ventes: "🧾", caisse: "🏧", stock: "📦",
-  tresorerie: "💳", employes: "👷", auth: "🔐", utilisateurs: "👤",
+  ventes: "🧾", caisse: "🏧", stock: "📦", mouvements: "🔄",
+  tresorerie: "💳", versements: "💸", employes: "👷",
+  fournisseurs: "🏭", commandes: "🛒", tiers: "👥", boutiques: "🏪",
+  auth: "🔐", utilisateurs: "👤",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -19,11 +21,29 @@ const ACTION_LABELS: Record<string, string> = {
   produit_cree:   "Produit créé",
   produit_modifie:"Produit modifié",
   produit_supprime:"Produit supprimé",
-  mouvement_cree: "Mouvement créé",
+  mouvement_stock_cree: "Mouvement de stock",
+  mouvement_cree: "Mouvement de trésorerie",
+  versement_cree:     "Versement soumis",
+  versement_confirme: "Versement confirmé",
+  versement_rejete:   "Versement rejeté",
   user_cree:      "Utilisateur créé",
   user_modifie:   "Utilisateur modifié",
   user_supprime:  "Utilisateur supprimé",
+  employe_cree:    "Employé créé",
+  employe_modifie: "Employé modifié",
+  employe_supprime:"Employé désactivé",
+  avance_creee:    "Avance sur salaire",
+  salaire_paye:    "Salaire payé",
+  fournisseur_cree:   "Fournisseur créé",
+  fournisseur_modifie:"Fournisseur modifié",
+  commande_creee:        "Commande créée",
+  commande_payee:        "Commande payée",
+  commande_receptionnee: "Commande réceptionnée",
+  tiers_cree: "Compte tiers créé",
+  boutique_creee:   "Boutique créée",
+  boutique_modifiee:"Boutique modifiée",
   connexion:      "Connexion",
+  deconnexion:    "Déconnexion",
 };
 
 export async function GET(req: NextRequest) {

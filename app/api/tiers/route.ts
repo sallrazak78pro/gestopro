@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import CompteTiers from "@/lib/models/CompteTiers";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,6 +52,14 @@ export async function POST(req: NextRequest) {
     if (!canAccessBoutique(ctx, boutiqueId))
       return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
     const tiers = await CompteTiers.create({ nom: body.nom, telephone: body.telephone, description: body.description, boutique: boutiqueId, tenantId: ctx.tenantId, solde: 0 });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.TIERS_CREE, module: MODULES.TIERS,
+      details: `Compte tiers créé — ${tiers.nom}`,
+      boutique: boutiqueId,
+    });
+
     return NextResponse.json({ success: true, data: tiers }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 // GET — liste des utilisateurs du tenant
 export async function GET(req: NextRequest) {
@@ -95,6 +96,13 @@ export async function POST(req: NextRequest) {
       role: role || "caissier",
       boutique: boutiqueId || null,
       actif: true,
+    });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.USER_CREE, module: MODULES.UTILISATEURS,
+      details: `Utilisateur créé — ${nom} (${email}, ${role || "caissier"})`,
+      boutique: boutiqueId || undefined,
     });
 
     // Retourner sans le mot de passe

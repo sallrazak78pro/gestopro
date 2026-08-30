@@ -11,6 +11,7 @@ import "@/lib/models/Fournisseur"; // enregistre le schéma Mongoose pour .popul
 import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { calculerCUMP } from "@/lib/utils/cump";
 import { genererReference } from "@/lib/utils/reference";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -133,6 +134,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const populated = await CommandeFournisseur.findById(commande._id)
       .populate("fournisseur","nom").populate("destination","nom type");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.COMMANDE_RECEPTIONNEE, module: MODULES.COMMANDES,
+      details: `Réception commande ${commande.reference} — ${(populated as any)?.fournisseur?.nom ?? ""} — ${totalQteRecue} unité${totalQteRecue > 1 ? "s" : ""}`,
+      reference: commande.reference, boutique: commande.destination?.toString(),
+    });
+
     return NextResponse.json({ success: true, data: populated });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

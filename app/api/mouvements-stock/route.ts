@@ -9,6 +9,7 @@ import Boutique from "@/lib/models/Boutique";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -222,6 +223,13 @@ export async function POST(req: NextRequest) {
     const populated = await MouvementStock.findById(firstMvt._id)
       .populate("boutique",       "nom type")
       .populate("lignes.produit", "nom reference unite");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.MOUVEMENT_STOCK_CREE, module: MODULES.MOUVEMENTS,
+      details: `${isTransfer ? "Transfert" : sourceId ? "Sortie" : "Entrée"} stock — ${lignesResolues.length} produit${lignesResolues.length > 1 ? "s" : ""}, ${new Intl.NumberFormat("fr-FR").format(montantTotal)} F${motif ? ` — ${motif}` : ""}`,
+      boutique: (destId || sourceId) as string,
+    });
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {

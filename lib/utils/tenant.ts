@@ -7,6 +7,7 @@ import { hasPermission, type Action } from "@/lib/utils/permissions";
 export interface TenantContext {
   tenantId: string;
   userId: string;
+  userNom: string;
   role: string;
   isSuperAdmin: boolean;
   // Si non-null : l'utilisateur est restreint à cette boutique uniquement
@@ -70,6 +71,7 @@ export async function getTenantContext(): Promise<
     ctx: {
       tenantId: user.tenantId ?? null,
       userId: user.id,
+      userNom: user.name ?? "",
       role: user.role,
       isSuperAdmin,
       boutiqueAssignee,

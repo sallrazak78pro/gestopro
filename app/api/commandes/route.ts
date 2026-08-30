@@ -6,6 +6,7 @@ import Fournisseur from "@/lib/models/Fournisseur";
 import Produit from "@/lib/models/Produit";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -123,6 +124,14 @@ export async function POST(req: NextRequest) {
 
     const populated = await CommandeFournisseur.findById(commande._id)
       .populate("fournisseur", "nom").populate("destination", "nom type");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.COMMANDE_CREEE, module: MODULES.COMMANDES,
+      details: `Commande créée — ${(populated as any)?.fournisseur?.nom ?? ""} — ${new Intl.NumberFormat("fr-FR").format(montantTotal)} F`,
+      reference, boutique: destinationId,
+    });
+
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

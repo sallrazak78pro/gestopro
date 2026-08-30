@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Employe from "@/lib/models/Employe";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,6 +71,14 @@ export async function POST(req: NextRequest) {
 
     const employe = await Employe.create({ ...body, tenantId: ctx.tenantId });
     const populated = await Employe.findById(employe._id).populate("boutique", "nom");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.EMPLOYE_CREE, module: MODULES.EMPLOYES,
+      details: `Employé créé — ${employe.prenom} ${employe.nom} (${employe.poste})`,
+      boutique: employe.boutique?.toString(),
+    });
+
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

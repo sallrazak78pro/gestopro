@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Fournisseur from "@/lib/models/Fournisseur";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
     if (!body.nom?.trim())
       return NextResponse.json({ success: false, message: "Nom requis." }, { status: 400 });
     const f = await Fournisseur.create({ ...body, tenantId: ctx.tenantId, soldeCredit: 0 });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.FOURNISSEUR_CREE, module: MODULES.FOURNISSEURS,
+      details: `Fournisseur créé — ${f.nom}`,
+    });
+
     return NextResponse.json({ success: true, data: f }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

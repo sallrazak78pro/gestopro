@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { canAccessBoutique, baseFilter, TenantContext } from "@/lib/utils/tenant";
 
 function ctxAdmin(): TenantContext {
-  return { tenantId: "t1", userId: "u1", role: "admin", isSuperAdmin: false, boutiqueAssignee: null, tenantPermissions: {} };
+  return { tenantId: "t1", userId: "u1", userNom: "Admin", role: "admin", isSuperAdmin: false, boutiqueAssignee: null, tenantPermissions: {} };
 }
 function ctxCaissier(boutiqueId: string): TenantContext {
-  return { tenantId: "t1", userId: "u2", role: "caissier", isSuperAdmin: false, boutiqueAssignee: boutiqueId, tenantPermissions: {} };
+  return { tenantId: "t1", userId: "u2", userNom: "Caissier", role: "caissier", isSuperAdmin: false, boutiqueAssignee: boutiqueId, tenantPermissions: {} };
 }
 
 describe("canAccessBoutique", () => {

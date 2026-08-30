@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function PUT(
   req: NextRequest,
@@ -43,6 +44,14 @@ export async function PUT(
     }
 
     await versement.save();
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: action === "confirmer" ? ACTIONS.VERSEMENT_CONFIRME : ACTIONS.VERSEMENT_REJETE,
+      module: MODULES.VERSEMENTS,
+      details: `Versement ${action === "confirmer" ? "confirmé" : "rejeté"} — ${new Intl.NumberFormat("fr-FR").format(versement.montant)} F${rejetMotif ? ` — ${rejetMotif}` : ""}`,
+      reference: versement.reference, boutique: versement.boutique?.toString(),
+    });
 
     return NextResponse.json({ success: true, data: versement });
   } catch (err: any) {

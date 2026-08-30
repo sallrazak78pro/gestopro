@@ -8,6 +8,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -180,6 +181,13 @@ export async function POST(req: NextRequest) {
 
     const populated = await MouvementArgent.findById(mouvement._id)
       .populate("boutique", "nom").populate("boutiqueDestination", "nom").populate("tiers", "nom");
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.MOUVEMENT_CREE, module: MODULES.TRESORERIE,
+      details: `${type} — ${new Intl.NumberFormat("fr-FR").format(montant)} F${tiersNom ? ` — ${tiersNom}` : ""}${motif ? ` — ${motif}` : ""}`,
+      reference, boutique: boutiqueId,
+    });
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (err: any) {

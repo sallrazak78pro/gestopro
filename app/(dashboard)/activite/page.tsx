@@ -12,11 +12,18 @@ const fmt = (d: any) => new Date(d).toLocaleString("fr-FR", {
 
 const MODULES = [
   { value: "", label: "Tous les modules" },
+  { value: "auth",        label: "🔐 Connexions" },
   { value: "ventes",      label: "🧾 Ventes" },
   { value: "caisse",      label: "🏧 Caisse" },
   { value: "stock",       label: "📦 Stock" },
+  { value: "mouvements",  label: "🔄 Mouvements" },
   { value: "tresorerie",  label: "💳 Trésorerie" },
+  { value: "versements",  label: "💸 Versements" },
   { value: "employes",    label: "👷 Employés" },
+  { value: "fournisseurs",label: "🏭 Fournisseurs" },
+  { value: "commandes",   label: "🛒 Commandes" },
+  { value: "tiers",       label: "👥 Tiers" },
+  { value: "boutiques",   label: "🏪 Boutiques" },
   { value: "utilisateurs",label: "👤 Utilisateurs" },
 ];
 

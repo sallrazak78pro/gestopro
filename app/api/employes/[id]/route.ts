@@ -5,6 +5,7 @@ import Employe from "@/lib/models/Employe";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
 import PaiementSalaire from "@/lib/models/PaiementSalaire";
 import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -56,6 +57,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ).populate("boutique", "nom");
     if (!employe)
       return NextResponse.json({ success: false, message: "Employé introuvable" }, { status: 404 });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.EMPLOYE_MODIFIE, module: MODULES.EMPLOYES,
+      details: `Employé modifié — ${employe.prenom} ${employe.nom}`,
+      boutique: employe.boutique?._id?.toString() ?? employe.boutique?.toString(),
+    });
+
     return NextResponse.json({ success: true, data: employe });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
@@ -70,7 +79,17 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const denied = requirePermission(ctx, "employes", "delete");
     if (denied) return denied;
     await connectDB();
-    await Employe.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
+    const employe = await Employe.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
+
+    if (employe) {
+      await logActivity({
+        tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+        action: ACTIONS.EMPLOYE_SUPPRIME, module: MODULES.EMPLOYES,
+        details: `Employé désactivé — ${employe.prenom} ${employe.nom}`,
+        boutique: employe.boutique?.toString(),
+      });
+    }
+
     return NextResponse.json({ success: true, message: "Employé désactivé." });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

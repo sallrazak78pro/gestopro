@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Fournisseur from "@/lib/models/Fournisseur";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,6 +39,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { soldeCredit, tenantId, ...safeBody } = body;
     const f = await Fournisseur.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, safeBody, { new: true });
     if (!f) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.FOURNISSEUR_MODIFIE, module: MODULES.FOURNISSEURS,
+      details: `Fournisseur modifié — ${f.nom}`,
+    });
+
     return NextResponse.json({ success: true, data: f });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

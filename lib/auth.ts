@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { checkRateLimit, resetRateLimit } from "@/lib/utils/rateLimit";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -61,6 +62,32 @@ export const authOptions: AuthOptions = {
         (session.user as any).boutique = token.boutique;
       }
       return session;
+    },
+  },
+  // "Qui s'est connecté et quand" est la première chose qu'on cherche dans un
+  // journal d'audit — les events NextAuth (plutôt que authorize(), qui ne
+  // doit se soucier que de la validation des identifiants) sont l'endroit
+  // recommandé pour ce genre d'effet de bord.
+  events: {
+    async signIn({ user }) {
+      const u = user as any;
+      if (!u.tenantId) return; // superadmin plateforme, hors tenant
+      await connectDB();
+      await logActivity({
+        tenantId: u.tenantId, userId: u.id, userNom: u.name ?? "", role: u.role,
+        action: ACTIONS.CONNEXION, module: MODULES.AUTH,
+        details: `Connexion — ${u.email}`,
+      });
+    },
+    async signOut({ token }) {
+      const t = token as any;
+      if (!t?.tenantId || !t?.sub) return;
+      await connectDB();
+      await logActivity({
+        tenantId: t.tenantId, userId: t.sub, userNom: t.name ?? "", role: t.role,
+        action: ACTIONS.DECONNEXION, module: MODULES.AUTH,
+        details: `Déconnexion — ${t.email ?? ""}`,
+      });
     },
   },
   pages:   { signIn: "/login", error: "/login" },
