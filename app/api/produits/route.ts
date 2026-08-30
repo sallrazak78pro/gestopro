@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "stock", "create");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     if (!body.reference) {
@@ -47,6 +50,14 @@ export async function POST(req: NextRequest) {
     if (!isAdminRole) body.prixAchat = 0;
     const produit = await Produit.create({ ...body, tenantId: ctx.tenantId });
     const data = isAdminRole ? produit : (({ prixAchat, ...rest }) => rest)(produit.toObject());
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.PRODUIT_CREE, module: MODULES.STOCK,
+      details: `Produit créé — ${produit.nom} (${produit.reference})`,
+      reference: produit.reference,
+    });
+
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (err: any) {
     if (err.code === 11000)

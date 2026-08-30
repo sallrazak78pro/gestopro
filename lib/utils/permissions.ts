@@ -20,7 +20,7 @@ export interface ModuleDef {
 export const MODULES: ModuleDef[] = [
   { key: "ventes",       label: "Ventes",              actions: ["view", "create", "edit"] },
   { key: "marges",       label: "Marges",              actions: ["view"] },
-  { key: "stock",        label: "Stock",               actions: ["view", "edit"] },
+  { key: "stock",        label: "Stock",               actions: ["view", "create", "edit"] },
   { key: "mouvements",   label: "Mouvements",          actions: ["view", "create", "delete"] },
   { key: "tresorerie",   label: "Trésorerie",          actions: ["view"] },
   { key: "versements",   label: "Versements",          actions: ["view", "create", "edit"] },
@@ -48,7 +48,9 @@ export const DEFAULT_PERMISSIONS: Record<ConfigurableRole, PermissionMatrix> = {
     // Marges et prix de revient restent réservés à l'admin — décision
     // explicite du client, pas seulement l'ancien alignement sur le menu.
     marges:       { view: false },
-    stock:        { view: true,  edit: true },
+    // Création de produit réservée à l'admin/gestionnaire — un gestionnaire
+    // peut compléter le catalogue, un caissier ne modifie que les quantités.
+    stock:        { view: true,  create: true,  edit: true },
     mouvements:   { view: true,  create: true,  delete: true },
     tresorerie:   { view: true },
     versements:   { view: true,  create: true,  edit: false },
@@ -66,7 +68,7 @@ export const DEFAULT_PERMISSIONS: Record<ConfigurableRole, PermissionMatrix> = {
   caissier: {
     ventes:       { view: true,  create: true,  edit: true },
     marges:       { view: false },
-    stock:        { view: true,  edit: true },
+    stock:        { view: true,  create: false, edit: true },
     mouvements:   { view: true,  create: true,  delete: false },
     tresorerie:   { view: true },
     versements:   { view: true,  create: true,  edit: false },
