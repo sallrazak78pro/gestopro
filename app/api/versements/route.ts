@@ -5,8 +5,10 @@ import { getTenantContext } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
+import mongoose from "mongoose";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,7 +54,33 @@ export async function GET(req: NextRequest) {
       ...(ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {}),
     });
 
-    return NextResponse.json({ success: true, data: versements, nbEnAttente });
+    // Total versé ce mois-ci par boutique — toujours le mois calendaire en
+    // cours, indépendamment des filtres de date de la liste ci-dessus.
+    const maintenant   = new Date();
+    const debutDuMois  = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+
+    const boutiquesSecondaires = await Boutique.find({
+      tenantId: ctx.tenantId, type: "boutique", estPrincipale: { $ne: true },
+      ...(ctx.boutiqueAssignee ? { _id: ctx.boutiqueAssignee } : {}),
+    }).select("nom").lean();
+    const boutiqueIds = boutiquesSecondaires.map(b => b._id);
+
+    const versesCeMoisRes = await MouvementArgent.aggregate([
+      { $match: {
+          tenantId: new mongoose.Types.ObjectId(ctx.tenantId), boutique: { $in: boutiqueIds },
+          type: "versement_boutique", statut: { $ne: "rejete" },
+          createdAt: { $gte: debutDuMois },
+      } },
+      { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
+    ]);
+    const versesCeMoisMap = Object.fromEntries(versesCeMoisRes.map(r => [r._id.toString(), r.total]));
+
+    const parBoutique = boutiquesSecondaires.map(b => ({
+      boutiqueId: b._id, boutique: b.nom,
+      verseCeMois: versesCeMoisMap[b._id.toString()] ?? 0,
+    }));
+
+    return NextResponse.json({ success: true, data: versements, nbEnAttente, parBoutique });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
@@ -141,6 +169,13 @@ export async function POST(req: NextRequest) {
       statut:              "en_attente",      // ← toujours en attente à la création
       createdBy:           ctx.userId,
       createdAt,
+    });
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.VERSEMENT_CREE, module: MODULES.VERSEMENTS,
+      details: `Versement soumis — ${new Intl.NumberFormat("fr-FR").format(Math.round(montant))} F`,
+      reference, boutique: sourceBoutiqueId,
     });
 
     return NextResponse.json({ success: true, data: versement }, { status: 201 });

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { toLocalISODate } from "@/lib/utils/date";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtDate = (d: string) => new Date(d).toLocaleString("fr-FR", {
@@ -23,6 +24,7 @@ export default function VersementsPage() {
   const isAdmin  = ["admin", "superadmin"].includes(role);
 
   const [versements, setVersements] = useState<any[]>([]);
+  const [parBoutique, setParBoutique] = useState<any[]>([]);
   const { boutiques: boutiquesToutes } = useAppData();
   // Un versement ne va que d'une boutique secondaire vers la principale —
   // celle-ci ne peut donc pas être choisie comme source.
@@ -39,7 +41,7 @@ export default function VersementsPage() {
   // Modal nouveau versement
   const [showModal, setShowModal]   = useState(false);
   const [montant,   setMontant]     = useState("");
-  const [date,      setDate]        = useState(new Date().toISOString().split("T")[0]);
+  const [date,      setDate]        = useState(toLocalISODate(new Date()));
   const [boutiqueId,setBoutiqueId]  = useState("");
 
   // Modal confirmation/rejet
@@ -60,7 +62,7 @@ export default function VersementsPage() {
     if (dateFin)         params.set("fin",      dateFin);
     const res  = await fetch(`/api/versements?${params}`);
     const json = await res.json();
-    if (json.success) setVersements(json.data);
+    if (json.success) { setVersements(json.data); setParBoutique(json.parBoutique ?? []); }
     setLoading(false);
   }, [filtreStatut, filtreBoutique, dateDebut, dateFin]);
 
@@ -78,7 +80,7 @@ export default function VersementsPage() {
     const json = await res.json();
     setSaving(false);
     if (json.success) {
-      setShowModal(false); setMontant(""); setDate(new Date().toISOString().split("T")[0]);
+      setShowModal(false); setMontant(""); setDate(toLocalISODate(new Date()));
       flash("Versement soumis. En attente de confirmation admin.");
       fetchVersements();
     } else {
@@ -106,7 +108,7 @@ export default function VersementsPage() {
   }
 
   const nbEnAttente = versements.filter(v => v.statut === "en_attente").length;
-  const totalConfirme = versements.filter(v => v.statut === "confirme").reduce((s, v) => s + v.montant, 0);
+  const nomMois = new Date().toLocaleDateString("fr-FR", { month: "long" });
 
   return (
     <div className="space-y-5">
@@ -131,7 +133,7 @@ export default function VersementsPage() {
       {success && <div className="text-xs text-success bg-success/10 border border-success/20 rounded-xl px-4 py-3">✓ {success}</div>}
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="card p-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-warning" />
           <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">En attente</p>
@@ -139,16 +141,29 @@ export default function VersementsPage() {
           <p className="text-xs text-muted">versement{nbEnAttente > 1 ? "s" : ""} à valider</p>
         </div>
         <div className="card p-4 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-success" />
-          <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Total confirmé</p>
-          <p className="text-xl font-extrabold text-success">{fmt(totalConfirme)} <span className="text-sm font-mono text-muted">F</span></p>
-        </div>
-        <div className="card p-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-accent" />
           <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1">Total versements</p>
           <p className="text-2xl font-extrabold" style={{ color: "var(--color-fg)" }}>{versements.length}</p>
         </div>
       </div>
+
+      {/* Versé ce mois-ci, par boutique */}
+      {parBoutique.length > 0 && (
+        <div>
+          <p className="text-[11px] font-mono text-muted uppercase tracking-widest mb-2">
+            Versé en {nomMois} — par boutique
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {parBoutique.map(b => (
+              <div key={b.boutiqueId} className="card p-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-success" />
+                <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1 truncate">{b.boutique}</p>
+                <p className="text-xl font-extrabold text-success">{fmt(b.verseCeMois)} <span className="text-sm font-mono text-muted">F</span></p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filtres statut */}
       <div className="card p-4 flex flex-wrap items-center gap-2">
@@ -319,7 +334,7 @@ export default function VersementsPage() {
                   <label className="label">Date du versement</label>
                   <input type="date" className="input" value={date}
                     onChange={e => setDate(e.target.value)}
-                    max={new Date().toISOString().split("T")[0]} required />
+                    max={toLocalISODate(new Date())} required />
                 </div>
               </div>
               <div className="modal-footer">
