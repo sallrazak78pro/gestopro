@@ -127,10 +127,12 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
               )}
             </div>
 
-            {/* Lignes */}
+            {/* Lignes — en-tête masqué sur mobile, où les colonnes sont trop
+                étroites pour être lisibles ; les lignes elles-mêmes restent
+                compactes mais sur une seule rangée (comme sur Ventes). */}
             {lignes.length > 0 && (
               <div className="border border-border rounded-xl overflow-hidden">
-                <div className="flex items-center px-4 py-2 bg-surface2 border-b border-border text-[10px] font-mono text-muted uppercase tracking-wider">
+                <div className="hidden sm:flex items-center px-4 py-2 bg-surface2 border-b border-border text-[10px] font-mono text-muted uppercase tracking-wider">
                   <span className="flex-1">Produit</span>
                   <span className="w-24 text-center">Quantité</span>
                   <span className="w-28 text-center">Prix achat (F)</span>
@@ -138,17 +140,17 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
                   <div className="w-8" />
                 </div>
                 {lignes.map(l=>(
-                  <div key={l.produitId} className="flex items-center gap-2 px-4 py-2.5 border-b border-border/50 last:border-0">
+                  <div key={l.produitId} className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 border-b border-border/50 last:border-0">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{l.nomProduit}</p>
+                      <p className="text-xs sm:text-sm font-semibold truncate">{l.nomProduit}</p>
                     </div>
-                    <input type="number" min={0.001} step="0.001" className="w-24 input text-center text-sm font-mono py-1.5"
+                    <input type="number" min={0.001} step="0.001" className="w-14 sm:w-24 input text-center text-xs sm:text-sm font-mono py-1 sm:py-1.5 px-1"
                       value={l.quantite} onChange={e=>updateLigne(l.produitId,"quantite",+e.target.value)} />
-                    <input type="number" min={0} step="1" className="w-28 input text-center text-sm font-mono py-1.5"
+                    <input type="number" min={0} step="1" className="w-16 sm:w-28 input text-center text-xs sm:text-sm font-mono py-1 sm:py-1.5 px-1"
                       value={l.prixUnitaire} onChange={e=>updateLigne(l.produitId,"prixUnitaire",+e.target.value)} />
-                    <span className="w-24 text-right font-mono font-bold text-sm">{fmt(l.sousTotal)} F</span>
+                    <span className="w-16 sm:w-24 text-right font-mono font-bold text-xs sm:text-sm whitespace-nowrap">{fmt(l.sousTotal)} F</span>
                     <button type="button" onClick={()=>setLignes(p=>p.filter(x=>x.produitId!==l.produitId))}
-                      className="w-8 h-8 flex items-center justify-center text-muted hover:text-danger transition-colors">✕</button>
+                      className="w-6 h-6 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center text-muted hover:text-danger transition-colors">✕</button>
                   </div>
                 ))}
                 <div className="flex justify-between px-4 py-3 bg-surface2 border-t border-border">

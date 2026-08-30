@@ -36,6 +36,10 @@ export default function NouvelleVenteModal({
   const boutiqueVerrouillee = !!userBoutique;
 
   const [step, setStep]         = useState<"panier" | "paiement">("panier");
+  // Sur mobile, catalogue et panier ne peuvent pas tenir tous les deux à
+  // l'écran en même temps sans devenir illisibles — on bascule entre les deux
+  // plutôt que de les empiler sur une hauteur trop réduite pour l'un ou l'autre.
+  const [vueMobile, setVueMobile] = useState<"catalogue" | "panier">("catalogue");
   const { boutiques: boutiquesToutes } = useAppData();
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
   const [produits, setProduits]   = useState<Produit[]>([]);
@@ -59,6 +63,10 @@ export default function NouvelleVenteModal({
   // (onBlur/Entrée) — évite que le champ ne "rebondisse" à l'ancienne valeur
   // dès qu'on l'efface pour taper autre chose (ex: effacer "12" pour taper "0.5").
   const [qteDraft, setQteDraft]   = useState<Record<string, string>>({});
+  // Confirmation avant de fermer avec un panier non vide — un window.confirm()
+  // natif est parfois filtré/masqué dans un contexte PWA installé sur mobile,
+  // d'où une boîte de dialogue maison, garantie de s'afficher.
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +122,14 @@ export default function NouvelleVenteModal({
 
   const total   = panier.reduce((s, l) => s + l.sousTotal, 0);
   const monnaie = montantRecu !== "" ? +montantRecu - total : 0;
+
+  // Un clic accidentel en dehors (ou sur ✕) ne doit pas faire perdre un
+  // panier déjà constitué — seule une confirmation explicite, ou une
+  // suppression article par article, doit pouvoir le vider.
+  function handleClose() {
+    if (panier.length > 0) { setConfirmClose(true); return; }
+    onClose();
+  }
 
   // ── Ajouter un produit au panier ──────────────────────────
   function ajouterProduit(p: Produit) {
@@ -243,16 +259,23 @@ export default function NouvelleVenteModal({
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
 
-      <div className="relative w-full max-w-5xl card animate-slide-up flex flex-col min-h-[60vh] max-h-[92vh]">
+      {/* Hauteur fixe (pas min/max) — sinon la modale grandit et rétrécit à
+          chaque changement de contenu (ajout d'un article, bascule
+          catalogue/panier, passage à l'étape paiement...), ce qui fait
+          "sauter" l'écran au lieu de rester stable. */}
+      <div className="relative w-full max-w-5xl card animate-slide-up flex flex-col h-[92vh]">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        {/* Header — compact sur mobile : le titre disparaît (redondant avec
+            le contexte) et les marges rétrécissent, pour laisser le plus de
+            hauteur possible au panier en dessous. */}
+        <div className="flex items-center justify-between px-4 py-2 sm:px-6 sm:py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-lg font-bold">Nouvelle vente</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <h2 className="hidden sm:block text-lg font-bold">Nouvelle vente</h2>
+            <div className="flex items-center gap-2 sm:mt-1">
               {["panier", "paiement"].map((s, i) => (
                 <div key={s} className="flex items-center gap-2">
                   {i > 0 && <div className="w-8 h-px bg-border" />}
@@ -268,15 +291,35 @@ export default function NouvelleVenteModal({
               ))}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="btn-ghost btn-sm">✕</button>
+          <button type="button" onClick={handleClose} className="btn-ghost btn-sm">✕</button>
         </div>
 
         {/* ── ÉTAPE 1 : PANIER ──────────────────────────── */}
         {step === "panier" && (
-          <div className="flex flex-1 overflow-hidden">
+          <>
+            {/* Bascule catalogue/panier — mobile uniquement. Chaque section
+                prend alors toute la hauteur disponible plutôt que de se
+                partager un espace trop réduit pour être utilisable. */}
+            <div className="flex md:hidden shrink-0 border-b border-border p-1.5 gap-1.5">
+              <button type="button" onClick={() => setVueMobile("catalogue")}
+                className={clsx("flex-1 text-xs font-mono font-semibold py-2 rounded-lg transition-all",
+                  vueMobile === "catalogue" ? "bg-accent text-bg" : "bg-surface2 text-muted")}>
+                🔍 Produits
+              </button>
+              <button type="button" onClick={() => setVueMobile("panier")}
+                className={clsx("flex-1 text-xs font-mono font-semibold py-2 rounded-lg transition-all",
+                  vueMobile === "panier" ? "bg-accent text-bg" : "bg-surface2 text-muted")}>
+                🛒 Panier{panier.length > 0 ? ` (${panier.length})` : ""}
+              </button>
+            </div>
+
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
             {/* LEFT — catalogue */}
-            <div className="w-5/12 border-r border-border flex flex-col p-4 gap-3 overflow-hidden shrink-0">
+            <div className={clsx(
+              vueMobile === "catalogue" ? "flex" : "hidden", "md:flex",
+              "w-full md:w-5/12 border-b md:border-b-0 md:border-r border-border flex-col p-2.5 sm:p-4 gap-2 sm:gap-3 overflow-hidden shrink-0"
+            )}>
 
               <div>
                 <label className="input-label">Boutique *</label>
@@ -357,23 +400,23 @@ export default function NouvelleVenteModal({
                   <p className="text-center text-muted font-mono text-xs py-8">Aucun produit</p>
                 ) : produits.map(p => (
                   <button key={p._id} type="button" onClick={() => ajouterProduit(p)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl
+                    className="w-full flex items-center gap-2 sm:gap-2.5 px-2 sm:px-3 py-1.5 sm:py-2.5 rounded-xl
                                bg-surface2 hover:bg-surface hover:border-border2 border border-transparent
                                transition-all text-left group">
                     {/* Miniature image */}
-                    <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden flex items-center justify-center text-lg"
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shrink-0 overflow-hidden flex items-center justify-center text-base sm:text-lg"
                       style={{ background: "var(--color-surface3)", border: "1px solid var(--color-border)" }}>
                       {p.image
                         ? <img src={p.image} alt={p.nom} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         : "📦"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{p.nom}</p>
-                      <p className="text-[10px] font-mono text-muted">{p.reference} · {p.unite}</p>
+                      <p className="text-xs sm:text-sm font-semibold truncate">{p.nom}</p>
+                      <p className="text-[9px] sm:text-[10px] font-mono text-muted truncate">{p.reference} · {p.unite}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-mono font-bold text-accent">{formatMontant(p.prixVente)}</p>
-                      <p className="text-[10px] text-success opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-xs sm:text-sm font-mono font-bold text-accent whitespace-nowrap">{formatMontant(p.prixVente)}</p>
+                      <p className="hidden sm:block text-[10px] text-success opacity-0 group-hover:opacity-100 transition-opacity">
                         + Ajouter
                       </p>
                     </div>
@@ -383,11 +426,12 @@ export default function NouvelleVenteModal({
             </div>
 
             {/* RIGHT — panier */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className={clsx(vueMobile === "panier" ? "flex" : "hidden", "md:flex", "flex-1 flex-col overflow-hidden")}>
 
-              {/* En-têtes colonnes */}
+              {/* En-têtes colonnes — masqués sur mobile, où chaque ligne est
+                  assez compacte pour tenir sur une seule rangée sans elles. */}
               {panier.length > 0 && (
-                <div className="flex items-center gap-2 px-4 pt-3 pb-1 border-b border-border/50 shrink-0">
+                <div className="hidden sm:flex items-center gap-2 px-4 pt-3 pb-1 border-b border-border/50 shrink-0">
                   <p className="flex-1 text-[10px] font-mono text-muted uppercase tracking-wider">Produit</p>
                   <p className="w-28 text-[10px] font-mono text-muted uppercase tracking-wider text-center">Qté</p>
                   <p className="w-24 text-[10px] font-mono text-muted uppercase tracking-wider text-center">
@@ -408,27 +452,30 @@ export default function NouvelleVenteModal({
                   </div>
                 ) : panier.map(l => (
                   <div key={l.produitId}
-                    className="flex items-center gap-2 bg-surface2 rounded-xl px-3 py-2.5 group">
+                    className="flex items-center gap-1.5 sm:gap-2 bg-surface2 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2.5 group">
 
-                    {/* Nom */}
+                    {/* Nom — une seule ligne compacte, tronquée si besoin ;
+                        l'unité passe en suffixe pour ne pas prendre une
+                        deuxième ligne à elle seule. */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{l.nomProduit}</p>
-                      <p className="text-[10px] font-mono text-muted">{l.unite}</p>
+                      <p className="text-xs sm:text-sm font-semibold truncate">
+                        {l.nomProduit} <span className="font-normal text-muted">· {l.unite}</span>
+                      </p>
                     </div>
 
                     {/* Quantité décimale */}
-                    <div className="w-28 flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                       <button type="button"
                         onClick={() => updateQte(l.produitId, String(Math.max(0, +(l.quantite - 1).toFixed(3))))}
-                        className="w-6 h-6 rounded-md bg-surface hover:bg-danger/20 text-sm font-bold transition-colors shrink-0">
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-surface hover:bg-danger/20 text-xs sm:text-sm font-bold transition-colors shrink-0">
                         −
                       </button>
                       <input
                         type="number"
                         min="0"
                         step="0.001"
-                        className="w-14 bg-transparent text-center font-mono font-bold text-sm outline-none
-                                   border border-border rounded-md px-1 py-0.5 focus:border-accent"
+                        className="w-8 sm:w-14 bg-transparent text-center font-mono font-bold text-xs sm:text-sm outline-none
+                                   border border-border rounded-md px-0.5 sm:px-1 py-0.5 focus:border-accent"
                         value={qteDraft[l.produitId] ?? fmtQte(l.quantite)}
                         onChange={e => handleQteInput(l.produitId, e.target.value)}
                         onBlur={() => commitQteInput(l.produitId)}
@@ -436,13 +483,13 @@ export default function NouvelleVenteModal({
                       />
                       <button type="button"
                         onClick={() => updateQte(l.produitId, String(+(l.quantite + 1).toFixed(3)))}
-                        className="w-6 h-6 rounded-md bg-surface hover:bg-success/20 text-sm font-bold transition-colors shrink-0">
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-surface hover:bg-success/20 text-xs sm:text-sm font-bold transition-colors shrink-0">
                         +
                       </button>
                     </div>
 
                     {/* Prix unitaire modifiable */}
-                    <div className="w-24 shrink-0">
+                    <div className="w-16 sm:w-24 shrink-0">
                       {editPrix === l.produitId ? (
                         <div className="relative">
                           <input
@@ -450,8 +497,8 @@ export default function NouvelleVenteModal({
                             min="0"
                             step="1"
                             autoFocus
-                            className="w-full bg-surface border border-accent rounded-md px-2 py-1
-                                       text-sm font-mono text-center outline-none text-accent"
+                            className="w-full bg-surface border border-accent rounded-md px-1 sm:px-2 py-0.5 sm:py-1
+                                       text-xs sm:text-sm font-mono text-center outline-none text-accent"
                             defaultValue={l.prixUnitaire}
                             onBlur={e => { updatePrix(l.produitId, e.target.value); setEditPrix(null); }}
                             onKeyDown={e => {
@@ -459,20 +506,20 @@ export default function NouvelleVenteModal({
                               if (e.key === "Escape") setEditPrix(null);
                             }}
                           />
-                          <p className="text-[9px] font-mono text-muted text-center mt-0.5">Entrée pour valider</p>
+                          <p className="hidden sm:block text-[9px] font-mono text-muted text-center mt-0.5">Entrée pour valider</p>
                         </div>
                       ) : (
                         <button type="button"
                           onClick={() => setEditPrix(l.produitId)}
                           className={clsx(
-                            "w-full text-center font-mono text-sm font-bold px-2 py-1 rounded-md transition-all",
+                            "w-full text-center font-mono text-[11px] sm:text-sm font-bold px-1 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all whitespace-nowrap",
                             "hover:bg-accent/10 hover:text-accent border border-transparent hover:border-accent/30",
                             l.prixUnitaire !== l.prixRef ? "text-warning" : "text-white"
                           )}
                           title="Cliquer pour modifier le prix">
                           {formatMontant(l.prixUnitaire)}
                           {l.prixUnitaire !== l.prixRef && (
-                            <span className="block text-[9px] font-mono opacity-70">
+                            <span className="hidden sm:block text-[9px] font-mono opacity-70">
                               Réf: {formatMontant(l.prixRef)}
                             </span>
                           )}
@@ -481,25 +528,28 @@ export default function NouvelleVenteModal({
                     </div>
 
                     {/* Sous-total */}
-                    <div className="w-20 text-right shrink-0">
-                      <p className="font-mono font-bold text-sm">{formatMontant(l.sousTotal)}</p>
+                    <div className="w-16 sm:w-20 text-right shrink-0">
+                      <p className="font-mono font-bold text-[11px] sm:text-sm whitespace-nowrap">{formatMontant(l.sousTotal)}</p>
                     </div>
 
-                    {/* Supprimer */}
+                    {/* Supprimer — toujours visible sur mobile (pas de survol
+                        possible au doigt), masqué jusqu'au survol sur desktop. */}
                     <button type="button"
                       onClick={() => supprimerLigne(l.produitId)}
-                      className="w-6 h-6 rounded-md text-muted hover:text-danger hover:bg-danger/10
-                                 transition-all text-sm shrink-0 opacity-0 group-hover:opacity-100">
+                      className="w-5 h-5 sm:w-6 sm:h-6 rounded-md text-muted hover:text-danger hover:bg-danger/10
+                                 transition-all text-xs sm:text-sm shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                       ✕
                     </button>
                   </div>
                 ))}
               </div>
 
-              {/* Total + next */}
-              <div className="p-4 border-t border-border space-y-3 shrink-0">
+              {/* Total + next — le récap "X articles · Y unités" et l'astuce
+                  sont superflus sur mobile, où la hauteur manque déjà pour
+                  voir le panier lui-même ; ils restent sur desktop. */}
+              <div className="p-3 sm:p-4 border-t border-border space-y-2 sm:space-y-3 shrink-0">
                 {panier.length > 0 && (
-                  <div className="flex items-center justify-between text-sm text-muted font-mono">
+                  <div className="hidden sm:flex items-center justify-between text-sm text-muted font-mono">
                     <span>{panier.length} article{panier.length > 1 ? "s" : ""} · {panier.reduce((s, l) => s + l.quantite, 0).toFixed(2)} unité{panier.reduce((s, l) => s + l.quantite, 0) > 1 ? "s" : ""}</span>
                     <span className="text-xs">Cliquer sur un prix pour le modifier</span>
                   </div>
@@ -517,6 +567,7 @@ export default function NouvelleVenteModal({
               </div>
             </div>
           </div>
+          </>
         )}
 
         {/* ── ÉTAPE 2 : PAIEMENT ────────────────────────── */}
@@ -654,5 +705,31 @@ export default function NouvelleVenteModal({
         )}
       </div>
     </div>
+
+    {/* Confirmation de fermeture — boîte de dialogue maison plutôt qu'un
+        window.confirm() natif, qui peut rester invisible dans certains
+        navigateurs mobiles ou en PWA installée. */}
+    {confirmClose && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+        <div className="relative w-full max-w-sm card p-5 space-y-4 animate-slide-up">
+          <h3 className="font-bold text-base">Fermer sans enregistrer ?</h3>
+          <p className="text-sm text-muted">
+            Le panier ({panier.length} article{panier.length > 1 ? "s" : ""}) sera perdu si tu fermes maintenant.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setConfirmClose(false)}
+              className="btn-primary flex-1 justify-center">
+              Continuer la vente
+            </button>
+            <button type="button" onClick={() => { setConfirmClose(false); onClose(); }}
+              className="btn-danger flex-1 justify-center">
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
