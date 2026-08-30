@@ -205,9 +205,13 @@ export default function TresoreriePage() {
       )}
 
       {/* Actions rapides — le versement boutique → principale se fait
-          exclusivement depuis la page dédiée /versements, pas d'ici. */}
+          exclusivement depuis la page dédiée /versements, pas d'ici.
+          Les ajustements (excédent/manquant) sont générés automatiquement
+          à la fermeture de caisse en cas d'écart — pas de saisie manuelle. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Object.entries(TYPE_CONFIG).filter(([type]) => type !== "versement_boutique").map(([type, cfg]) => (
+        {Object.entries(TYPE_CONFIG)
+          .filter(([type]) => !["versement_boutique", "ajustement_positif", "ajustement_negatif"].includes(type))
+          .map(([type, cfg]) => (
           <button key={type} onClick={() => openModal(type)}
             className={clsx(
               "flex flex-col items-center gap-2 px-3 py-4 rounded-2xl border-2",
