@@ -19,6 +19,10 @@ interface StockRow {
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+// Les quantités en stock (litres, mètres, kg...) accumulent parfois des
+// imprécisions flottantes (ex: 88.39999999999999 après plusieurs mouvements) —
+// on affiche toujours au plus 2 décimales, jamais la valeur brute.
+const fmtQte = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(n);
 
 export default function StockPage() {
   const [rows, setRows] = useState<StockRow[]>([]);
@@ -215,7 +219,7 @@ export default function StockPage() {
                             )}
                             title="Cliquer pour ajuster"
                           >
-                            {qte}
+                            {fmtQte(qte)}
                           </button>
                         </td>
                       );
