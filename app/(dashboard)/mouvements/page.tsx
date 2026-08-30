@@ -6,13 +6,14 @@ import NouveauMouvementModal, { MouvementACorriger, SOURCE_EXTERNE, DEST_PERTE }
 import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { toLocalISODate } from "@/lib/utils/date";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const fmtTime = (d: string) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-function defaultDebut() { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; }
-function defaultFin()   { return new Date().toISOString().split("T")[0]; }
+function defaultDebut() { const d = new Date(); d.setDate(1); return toLocalISODate(d); }
+function defaultFin()   { return toLocalISODate(new Date()); }
 
 export default function MouvementsPage() {
   const { data: session } = useSession();

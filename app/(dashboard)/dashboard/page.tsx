@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { toLocalISODate } from "@/lib/utils/date";
 
 const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtM = (n: number) =>
@@ -16,7 +17,7 @@ const fmtM = (n: number) =>
   : n >= 1_000   ? (n / 1_000).toFixed(0) + "k"
   : String(Math.round(n));
 
-const toISO = (d: Date) => d.toISOString().split("T")[0];
+const toISO = toLocalISODate;
 
 // Raccourcis prédéfinis
 const today = new Date();
@@ -116,12 +117,12 @@ export default function DashboardPage() {
             <input type="date" value={debut}
               max={fin}
               onChange={e => applyCustom(e.target.value, fin)}
-              className="input py-1.5 text-xs font-mono w-36" />
+              className="input py-1.5 text-xs font-mono flex-1 min-w-[150px]" />
             <span className="text-muted text-xs font-mono">→</span>
             <input type="date" value={fin}
               min={debut} max={toISO(today)}
               onChange={e => applyCustom(debut, e.target.value)}
-              className="input py-1.5 text-xs font-mono w-36" />
+              className="input py-1.5 text-xs font-mono flex-1 min-w-[150px]" />
             <button onClick={fetchData}
               className="btn-primary btn-sm">
               🔍 Appliquer
@@ -190,12 +191,14 @@ export default function DashboardPage() {
               {[
                 { icon: "🧾", label: "CA de la période",   value: fmt(kpis.caPeriode) + " F",  sub: `${kpis.caNb} vente${kpis.caNb > 1 ? "s" : ""}`, evo: kpis.caEvolution, color: "text-accent" },
                 { icon: "💳", label: "Dépenses",           value: fmt(kpis.depenses)  + " F",  sub: "Sur la période",    evo: kpis.depEvolution,    color: "text-danger"  },
-                { icon: "💸", label: "Versements reçus",   value: fmt(kpis.versements) + " F", sub: `${kpis.versementsNb} versement${kpis.versementsNb > 1 ? "s" : ""}`, evo: kpis.versEvolution, color: "text-success" },
+                { icon: "💸", label: kpis.versLabel ?? "Versements reçus", value: fmt(kpis.versements) + " F", sub: `${kpis.versementsNb} versement${kpis.versementsNb > 1 ? "s" : ""}`, evo: kpis.versEvolution, color: "text-success" },
                 { icon: "💰", label: "Solde trésorerie",   value: fmt(kpis.soldeTresorerie) + " F",
                   sub: selectedBoutique
                     ? `Cash physique en caisse, ${boutiques.find((b: any) => b._id === selectedBoutique)?.nom ?? "boutique sélectionnée"}`
                     : "Cash physique en caisse, toutes boutiques",
                   evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
+                { icon: "📥", label: "Marchandise entrée",  value: fmt(kpis.stockEntrees) + " F", sub: `${kpis.stockEntreesNb} mouvement${kpis.stockEntreesNb > 1 ? "s" : ""}`, evo: kpis.stockEntreesEvolution, color: "text-success" },
+                { icon: "📤", label: "Marchandise sortie",  value: fmt(kpis.stockSorties) + " F", sub: `${kpis.stockSortiesNb} mouvement${kpis.stockSortiesNb > 1 ? "s" : ""}`, evo: kpis.stockSortiesEvolution, color: "text-warning" },
               ].map((k, i) => (
                 <div key={i} className="kpi-card">
                   <span className="kpi-icon">{k.icon}</span>

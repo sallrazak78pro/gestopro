@@ -6,6 +6,7 @@ import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
 import Boutique from "@/lib/models/Boutique";
 import MouvementArgent from "@/lib/models/MouvementArgent";
+import MouvementStock from "@/lib/models/MouvementStock";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import Employe from "@/lib/models/Employe";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
@@ -54,8 +55,8 @@ export async function GET(req: NextRequest) {
       : boutiquesAll.map(b => b._id);
     const boutiqueIdStrings = boutiqueIds.map(id => id.toString());
 
-    // ── 1. CA + dépenses + versements (2 périodes en parallèle) ─
-    const [caRes, caDepVers, sessionOuvRes, employeRes] = await Promise.all([
+    // ── 1. CA + dépenses + versements + mouvements de stock (2 périodes) ─
+    const [caRes, depenseRes, versRecusRes, versEffectuesRes, stockMvtRes, sessionOuvRes, employeRes] = await Promise.all([
       // CA période + précédente
       Vente.aggregate([
         { $match: { tenantId: tid, statut: "payee", ...boutiqueFilter,
@@ -65,23 +66,48 @@ export async function GET(req: NextRequest) {
           total: { $sum: "$montantTotal" }, nb: { $sum: 1 },
         }},
       ]),
-      // Dépenses + versements période + précédente
-      // "depense" avec categorieDepense achat_marchandise et le type achat_direct
-      // sont exclus : ce sont des achats de marchandise (COGS), pas des charges
-      // d'exploitation — les compter ici fausserait le KPI Dépenses (cf. Marges).
+      // Dépenses période + précédente, sur la (les) boutique(s) sélectionnée(s)
+      // uniquement — sans ce filtre, une boutique secondaire voyait les
+      // dépenses de tout le tenant. "depense" avec categorieDepense
+      // achat_marchandise et le type achat_direct sont exclus : ce sont des
+      // achats de marchandise (COGS), pas des charges d'exploitation (cf. Marges).
       MouvementArgent.aggregate([
-        { $match: { tenantId: tid, createdAt: { $gte: debutPrec, $lte: fin },
-            $or: [
-              { type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] } },
-              { type: "versement_boutique" },
-            ] } },
+        { $match: { tenantId: tid, ...boutiqueFilter, createdAt: { $gte: debutPrec, $lte: fin },
+            type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] } } },
         { $group: {
-          _id: {
-            periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] },
-            type:    "$type",
-            boutique: "$boutique",
-          },
+          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] } },
           total: { $sum: "$montant" },
+        }},
+      ]),
+      // Versements REÇUS par la (les) boutique(s) sélectionnée(s) — pertinent
+      // pour la principale (ou la vue globale) ; seuls les versements
+      // confirmés créditent réellement la caisse destination.
+      MouvementArgent.aggregate([
+        { $match: { tenantId: tid, type: "versement_boutique", statut: "confirme",
+            boutiqueDestination: { $in: boutiqueIds }, createdAt: { $gte: debutPrec, $lte: fin } } },
+        { $group: {
+          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] } },
+          total: { $sum: "$montant" },
+        }},
+      ]),
+      // Versements EFFECTUÉS par la (les) boutique(s) sélectionnée(s) —
+      // pertinent pour une boutique secondaire ; un versement "en attente" est
+      // déjà physiquement sorti de sa caisse, donc compté ici (seul un rejet ne l'est pas).
+      MouvementArgent.aggregate([
+        { $match: { tenantId: tid, type: "versement_boutique", statut: { $ne: "rejete" },
+            boutique: { $in: boutiqueIds }, createdAt: { $gte: debutPrec, $lte: fin } } },
+        { $group: {
+          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] } },
+          total: { $sum: "$montant" },
+        }},
+      ]),
+      // Mouvements de stock (marchandise) — entrées et sorties, en valeur, sur
+      // la (les) boutique(s) sélectionnée(s) et la période.
+      MouvementStock.aggregate([
+        { $match: { tenantId: tid, ...boutiqueFilter, createdAt: { $gte: debutPrec, $lte: fin } } },
+        { $group: {
+          _id: { periode: { $cond: [{ $gte: ["$createdAt", debut] }, "current", "prev"] }, type: "$type" },
+          total: { $sum: "$montant" }, nb: { $sum: 1 },
         }},
       ]),
       // Sessions ouvertes
@@ -106,18 +132,45 @@ export async function GET(req: NextRequest) {
     const caNb      = caMap.current?.nb   ?? 0;
     const caEvolution = caPrec > 0 ? (((caPeriode - caPrec) / caPrec) * 100).toFixed(1) : null;
 
-    // Parser dépenses + versements
-    const dvMap: Record<string, Record<string, number>> = {};
-    caDepVers.forEach((r: any) => {
-      if (!dvMap[r._id.periode]) dvMap[r._id.periode] = {};
-      dvMap[r._id.periode][r._id.type] = (dvMap[r._id.periode][r._id.type] ?? 0) + r.total;
-    });
-    const dep     = dvMap.current?.depense ?? 0;
-    const depPrec = dvMap.prev?.depense    ?? 0;
-    const vers     = dvMap.current?.versement_boutique ?? 0;
-    const versPrec = dvMap.prev?.versement_boutique    ?? 0;
-    const depEvolution  = depPrec  > 0 ? (((dep  - depPrec)  / depPrec)  * 100).toFixed(1) : null;
+    // Parser dépenses
+    const depMap: Record<string, number> = {};
+    depenseRes.forEach((r: any) => { depMap[r._id.periode] = r.total; });
+    const dep     = depMap.current ?? 0;
+    const depPrec = depMap.prev    ?? 0;
+    const depEvolution = depPrec > 0 ? (((dep - depPrec) / depPrec) * 100).toFixed(1) : null;
+
+    // Versements — une boutique secondaire *envoie* à la principale, elle
+    // n'en *reçoit* jamais : lui montrer "versements reçus" (toujours à 0)
+    // n'a aucun sens, contrairement à "versements effectués".
+    const boutiqueSelectionnee_estSecondaire =
+      !!effectiveBoutiqueId &&
+      boutiquesAll.some(b => b._id.toString() === effectiveBoutiqueId && !b.estPrincipale);
+
+    const recusMap = Object.fromEntries(versRecusRes.map((r: any) => [r._id.periode, r.total]));
+    const effMap   = Object.fromEntries(versEffectuesRes.map((r: any) => [r._id.periode, r.total]));
+
+    const vers     = boutiqueSelectionnee_estSecondaire ? (effMap.current ?? 0) : (recusMap.current ?? 0);
+    const versPrec = boutiqueSelectionnee_estSecondaire ? (effMap.prev    ?? 0) : (recusMap.prev    ?? 0);
     const versEvolution = versPrec > 0 ? (((vers - versPrec) / versPrec) * 100).toFixed(1) : null;
+    const versLabel = boutiqueSelectionnee_estSecondaire ? "Versements effectués" : "Versements reçus";
+
+    // Parser mouvements de stock (entrées/sorties, en valeur)
+    const stockMap: Record<string, Record<string, number>> = {};
+    const stockNbMap: Record<string, Record<string, number>> = {};
+    stockMvtRes.forEach((r: any) => {
+      if (!stockMap[r._id.periode])   stockMap[r._id.periode]   = {};
+      if (!stockNbMap[r._id.periode]) stockNbMap[r._id.periode] = {};
+      stockMap[r._id.periode][r._id.type]   = r.total;
+      stockNbMap[r._id.periode][r._id.type] = r.nb;
+    });
+    const stockEntrees     = stockMap.current?.entree ?? 0;
+    const stockEntreesPrec = stockMap.prev?.entree    ?? 0;
+    const stockSorties     = stockMap.current?.sortie ?? 0;
+    const stockSortiesPrec = stockMap.prev?.sortie    ?? 0;
+    const stockEntreesNb = stockNbMap.current?.entree ?? 0;
+    const stockSortiesNb = stockNbMap.current?.sortie ?? 0;
+    const stockEntreesEvolution = stockEntreesPrec > 0 ? (((stockEntrees - stockEntreesPrec) / stockEntreesPrec) * 100).toFixed(1) : null;
+    const stockSortiesEvolution = stockSortiesPrec > 0 ? (((stockSorties - stockSortiesPrec) / stockSortiesPrec) * 100).toFixed(1) : null;
 
     const masseSalariale = employeRes.reduce((s, e) => s + e.salaireBase, 0);
 
@@ -348,7 +401,9 @@ export async function GET(req: NextRequest) {
         kpis: {
           caPeriode, caNb, caEvolution,
           depenses: dep, depEvolution,
-          versements: vers, versementsNb: 0, versEvolution,
+          versements: vers, versementsNb: 0, versEvolution, versLabel,
+          stockEntrees, stockEntreesNb, stockEntreesEvolution,
+          stockSorties, stockSortiesNb, stockSortiesEvolution,
           soldeTresorerie,
           nbAlertes: nbAlertes + nbRuptures, nbRuptures, nbAlertesSeulement: nbAlertes,
           masseSalariale, nbEmployes: employeRes.length,
