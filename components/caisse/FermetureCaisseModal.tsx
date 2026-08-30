@@ -27,8 +27,7 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
   const [note, setNote]       = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
-  const [etape, setEtape]     = useState<"recap" | "transport" | "comptage" | "confirmation">("recap");
-  const [fraisTransport, setFraisTransport] = useState("");
+  const [etape, setEtape]     = useState<"recap" | "comptage" | "confirmation">("recap");
 
   const totalReel =
     (parseFloat(montants.especes)     || 0) +
@@ -51,7 +50,6 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
         montantReelVirement:    parseFloat(montants.virement)    || 0,
         montantReelCheque:      parseFloat(montants.cheque)      || 0,
         noteFermeture: note,
-        fraisTransport: parseFloat(fraisTransport) || 0,
       },
       label:  `Fermeture caisse — ${session.boutique?.nom ?? ""}`,
       module: "caisse",
@@ -61,8 +59,15 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
     onSaved();
   }
 
+  // Seules les ventes espèces touchent le tiroir-caisse ; les mouvements
+  // d'argent (dépenses, versements, avances...) n'ont pas de mode de
+  // paiement propre — ils sont toujours du cash physique, donc imputés ici.
+  // Sans totalEntrees/totalSorties, un versement ou une dépense n'était
+  // jamais répercuté sur l'attendu espèces, gonflant l'écart d'autant.
   const MODES = [
-    { key: "especes",     label: "Espèces",      icon: "💵", attendu: (live.ventesEspeces ?? 0) + (session.fondOuverture ?? 0) },
+    { key: "especes",     label: "Espèces",      icon: "💵",
+      attendu: (session.fondOuverture ?? 0) + (live.ventesEspeces ?? 0)
+             + (live.totalEntrees ?? 0) - (live.totalSorties ?? 0) },
     { key: "mobileMoney", label: "Mobile Money", icon: "📱", attendu: live.ventesMobileMoney },
     { key: "virement",    label: "Virement",     icon: "🏦", attendu: live.ventesVirement },
     { key: "cheque",      label: "Chèque",       icon: "📝", attendu: live.ventesCheque },
@@ -88,15 +93,13 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
         <div className="flex items-center gap-2 px-6 py-3 border-b border-border shrink-0">
           {[
             { id: "recap",        label: "Récapitulatif" },
-            { id: "transport",    label: "Transport" },
             { id: "comptage",     label: "Comptage" },
             { id: "confirmation", label: "Confirmation" },
           ].map((e, i) => (
             <div key={e.id} className="flex items-center gap-2">
               {i > 0 && <div className={clsx("w-8 h-px",
-                (etape === "transport" && i <= 1) ||
-                (etape === "comptage" && i <= 2) ||
-                (etape === "confirmation" && i <= 3)
+                (etape === "comptage" && i <= 1) ||
+                (etape === "confirmation" && i <= 2)
                   ? "bg-accent/50" : "bg-border")} />}
               <span className={clsx("flex items-center gap-1.5 text-xs font-mono",
                 etape === e.id ? "text-accent" : "text-muted")}>
@@ -124,7 +127,6 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
                   { label: "Total ventes",         value: live.totalVentes,        sign: "+", color: "text-success" },
                   { label: "Autres entrées",       value: live.totalEntrees,       sign: "+", color: "text-success" },
                   { label: "Sorties d'argent",     value: live.totalSorties,       sign: "−", color: "text-danger" },
-                  ...(parseFloat(fraisTransport) > 0 ? [{ label: "Frais transport 🚗", value: parseFloat(fraisTransport), sign: "−", color: "text-warning" }] : []),
                 ].map((row, i) => (
                   <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/50">
                     <span className="text-sm text-muted2">{row.label}</span>
@@ -162,66 +164,6 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={onClose} className="btn-ghost flex-1 justify-center">Annuler</button>
-                <button type="button" onClick={() => setEtape("transport")} className="btn-primary flex-1 justify-center">
-                  Suivant : Transport →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── ÉTAPE 2 : FRAIS TRANSPORT ────────────────── */}
-          {etape === "transport" && (
-            <div className="p-6 space-y-5">
-              <div className="bg-warning/5 border border-warning/20 rounded-2xl p-5">
-                <div className="flex items-start gap-3 mb-4">
-                  <span className="text-2xl">🚗</span>
-                  <div>
-                    <p className="font-bold text-sm" style={{ color: "var(--color-fg)" }}>Frais de transport des employés</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      Ces frais seront déduits de la caisse et enregistrés comme dépense avant fermeture.
-                    </p>
-                  </div>
-                </div>
-                <label className="input-label">Montant total des frais de transport (F)</label>
-                <input
-                  type="number" min={0} step="1"
-                  className="input text-lg font-bold font-mono"
-                  placeholder="0"
-                  value={fraisTransport}
-                  onChange={e => setFraisTransport(e.target.value)}
-                />
-                {parseFloat(fraisTransport) > 0 && (
-                  <div className="mt-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-2.5">
-                    <p className="text-xs font-mono text-warning">
-                      ⚠ {new Intl.NumberFormat("fr-FR").format(parseFloat(fraisTransport))} F seront déduits du montant attendu en caisse.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-surface2 rounded-xl px-4 py-3 space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted">Montant attendu initial</span>
-                  <span className="font-mono">{new Intl.NumberFormat("fr-FR").format(live.montantAttendu)} F</span>
-                </div>
-                <div className="flex justify-between text-warning">
-                  <span>− Frais transport</span>
-                  <span className="font-mono">− {new Intl.NumberFormat("fr-FR").format(parseFloat(fraisTransport) || 0)} F</span>
-                </div>
-                <div className="flex justify-between font-bold border-t pt-1.5" style={{ borderColor: "var(--color-border)" }}>
-                  <span style={{ color: "var(--color-fg)" }}>Montant attendu corrigé</span>
-                  <span className="font-mono text-accent">
-                    {new Intl.NumberFormat("fr-FR").format(live.montantAttendu - (parseFloat(fraisTransport) || 0))} F
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-[11px] font-mono text-muted text-center">
-                Si pas de frais de transport, laisser à 0 et continuer.
-              </p>
-
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setEtape("recap")} className="btn-ghost flex-1 justify-center">← Retour</button>
                 <button type="button" onClick={() => setEtape("comptage")} className="btn-primary flex-1 justify-center">
                   Passer au comptage →
                 </button>
@@ -229,7 +171,7 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
             </div>
           )}
 
-          {/* ── ÉTAPE 3 : COMPTAGE RÉEL ──────────────────── */}
+          {/* ── ÉTAPE 2 : COMPTAGE RÉEL ──────────────────── */}
           {etape === "comptage" && (
             <div className="space-y-5">
               <p className="text-sm text-muted">
@@ -278,7 +220,7 @@ export default function FermetureCaisseModal({ session, live, onClose, onSaved }
               </div>
 
               <div className="flex gap-3">
-                <button type="button" onClick={() => setEtape("transport")} className="btn-ghost flex-1 justify-center">← Retour</button>
+                <button type="button" onClick={() => setEtape("recap")} className="btn-ghost flex-1 justify-center">← Retour</button>
                 <button type="button" onClick={() => setEtape("confirmation")} className="btn-primary flex-1 justify-center">
                   Voir le bilan →
                 </button>

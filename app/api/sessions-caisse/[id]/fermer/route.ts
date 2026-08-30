@@ -7,6 +7,7 @@ import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 import { genererReference } from "@/lib/utils/reference";
+import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,28 +31,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       montantReelVirement    = 0,
       montantReelCheque      = 0,
       noteFermeture          = "",
-      fraisTransport         = 0,
     } = await req.json();
 
     const depuis     = session.dateOuverture;
     const boutiqueId = session.boutique.toString();
 
-    // ── 1. Créer la dépense frais transport (avant fermeture) ─
-    if (fraisTransport > 0) {
-      const reference = await genererReference(ctx.tenantId, `DEP-TRP-${new Date().getFullYear()}`);
-      await MouvementArgent.create({
-        tenantId:         ctx.tenantId,
-        reference,
-        type:             "depense",
-        boutique:         boutiqueId,
-        montant:          fraisTransport,
-        categorieDepense: "divers",
-        motif:            "Frais de transport employés — fermeture caisse",
-        createdBy:        ctx.userId,
-      });
-    }
-
-    // ── 2. Recalculer tous les chiffres ───────────────────────
+    // ── 1. Recalculer tous les chiffres ───────────────────────
     const ventes = await Vente.find({
       tenantId: ctx.tenantId,
       boutique: boutiqueId,
@@ -87,8 +72,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     const totalVersementsRecus = versementsRecusRes.reduce((s, m) => s + m.montant, 0);
 
+    // avance_caisse et remboursement sont chacun un mouvement à deux faces :
+    // le champ `boutique` (déjà compté ci-dessus dans totalEntrees/totalSorties)
+    // porte la face immédiate, `boutiqueDestination` porte l'autre boutique
+    // impliquée (généralement la principale) — sans ça, son propre solde de
+    // caisse ne reflète jamais l'argent qu'elle a envoyé ou reçu en retour.
+    const avancesEnvoyeesRes = await MouvementArgent.find({
+      tenantId: ctx.tenantId,
+      type: "avance_caisse",
+      statut: { $ne: "rejete" },
+      boutiqueDestination: boutiqueId,
+      createdAt: { $gte: depuis },
+    });
+    const totalAvancesEnvoyees = avancesEnvoyeesRes.reduce((s, m) => s + m.montant, 0);
+
+    const remboursementsRecusRes = await MouvementArgent.find({
+      tenantId: ctx.tenantId,
+      type: "remboursement",
+      statut: { $ne: "rejete" },
+      boutiqueDestination: boutiqueId,
+      createdAt: { $gte: depuis },
+    });
+    const totalRemboursementsRecus = remboursementsRecusRes.reduce((s, m) => s + m.montant, 0);
+
     const montantAttendu =
-      session.fondOuverture + totalVentes + totalEntrees + totalVersementsRecus - totalSorties;
+      session.fondOuverture + totalVentes
+      + totalEntrees + totalVersementsRecus + totalRemboursementsRecus
+      - totalSorties - totalAvancesEnvoyees;
 
     const montantReelTotal =
       montantReelEspeces + montantReelMobileMoney + montantReelVirement + montantReelCheque;
@@ -99,7 +109,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // quelques millisecondes plus tard en serait exclu.
     const instantFermeture = new Date();
 
-    // ── 3. Fermer la session ──────────────────────────────────
+    // ── 2. Fermer la session ──────────────────────────────────
     const sessionFermee = await SessionCaisse.findByIdAndUpdate(
       id,
       {
@@ -122,7 +132,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .populate("ouvertPar", "nom")
       .populate("ferméPar", "nom");
 
-    // ── 4. Ajustement si écart au comptage réel ────────────────
+    // ── 3. Ajustement si écart au comptage réel ────────────────
     // Sans ça, le solde de caisse (dashboard, trésorerie, contrôle avant un
     // versement) reste un pur calcul théorique basé sur les transactions,
     // déconnecté de ce qui est réellement compté dans le tiroir à la
@@ -141,6 +151,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         createdBy: ctx.userId,
       });
     }
+
+    await logActivity({
+      tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
+      action: ACTIONS.CAISSE_FERMEE, module: MODULES.CAISSE,
+      details: `Fermeture de caisse — réel ${new Intl.NumberFormat("fr-FR").format(montantReelTotal)} F, écart ${ecart >= 0 ? "+" : ""}${new Intl.NumberFormat("fr-FR").format(ecart)} F`,
+      reference: session.reference || "", boutique: boutiqueId,
+    });
 
     return NextResponse.json({ success: true, data: sessionFermee });
   } catch (err: any) {

@@ -71,8 +71,32 @@ export async function GET(req: NextRequest) {
     });
     const totalVersementsRecus = versementsRecus.reduce((s, m) => s + m.montant, 0);
 
+    // avance_caisse et remboursement sont chacun un mouvement à deux faces —
+    // voir lib/utils/tresorerie.ts pour le même calcul côté fermeture réelle.
+    // Sans ça, cet aperçu "en direct" ne reflète jamais l'argent qu'une
+    // boutique a envoyé ou reçu en retour via ces deux types.
+    const avancesEnvoyees = await MouvementArgent.find({
+      tenantId: ctx.tenantId,
+      type: "avance_caisse",
+      statut: { $ne: "rejete" },
+      boutiqueDestination: boutiqueId,
+      createdAt: { $gte: depuis },
+    });
+    const totalAvancesEnvoyees = avancesEnvoyees.reduce((s, m) => s + m.montant, 0);
+
+    const remboursementsRecus = await MouvementArgent.find({
+      tenantId: ctx.tenantId,
+      type: "remboursement",
+      statut: { $ne: "rejete" },
+      boutiqueDestination: boutiqueId,
+      createdAt: { $gte: depuis },
+    });
+    const totalRemboursementsRecus = remboursementsRecus.reduce((s, m) => s + m.montant, 0);
+
     const montantAttendu =
-      session.fondOuverture + totalVentes + totalEntrees + totalVersementsRecus - totalSorties;
+      session.fondOuverture + totalVentes
+      + totalEntrees + totalVersementsRecus + totalRemboursementsRecus
+      - totalSorties - totalAvancesEnvoyees;
 
     return NextResponse.json({
       success: true,
@@ -80,8 +104,8 @@ export async function GET(req: NextRequest) {
         session,
         live: {
           totalVentes, ventesEspeces, ventesMobileMoney, ventesVirement, ventesCheque,
-          totalEntrees: totalEntrees + totalVersementsRecus,
-          totalSorties,
+          totalEntrees: totalEntrees + totalVersementsRecus + totalRemboursementsRecus,
+          totalSorties: totalSorties + totalAvancesEnvoyees,
           montantAttendu,
           nbVentes: ventes.length,
           nbMouvements: mouvements.length,

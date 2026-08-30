@@ -19,14 +19,14 @@ const TYPES = [
   {
     value: "avance_caisse",
     icon: "🔄", label: "Avance de caisse",
-    desc: "La boutique principale envoie une avance à une boutique secondaire",
+    desc: "La boutique principale envoie de l'argent à une boutique secondaire qui manque de liquide en caisse",
     color: "border-orange-500/50 bg-orange-500/5", flux: "entree",
     roles: ["admin", "superadmin"],
   },
   {
     value: "remboursement",
     icon: "↩️", label: "Remboursement",
-    desc: "Une boutique secondaire rembourse une avance reçue",
+    desc: "Une boutique secondaire rend à la principale l'argent d'une avance de caisse reçue précédemment",
     color: "border-accent/50 bg-accent/5", flux: "sortie",
     roles: ["all"],
   },
@@ -115,11 +115,23 @@ export default function MouvementArgentModal({
   const boutiqueSrcLabel: Record<string, string> = {
     versement_banque:   "Boutique principale (qui envoie en banque)",
     avance_caisse:      "Boutique qui reçoit l'avance (secondaire)",
-    remboursement:      "Boutique qui rembourse",
+    remboursement:      "Boutique qui rembourse (secondaire)",
     depense:            "Boutique qui dépense",
     achat_direct:       "Boutique qui achète",
     depot_tiers:        "Boutique du dépôt",
     retrait_tiers:      "Boutique du retrait",
+  };
+  // Le champ "destination" représente l'autre boutique impliquée dans le
+  // transfert — la principale, dans la quasi-totalité des cas. Distinct du
+  // libellé de la boutique source ci-dessus pour ne pas laisser croire que
+  // les deux boutiques "reçoivent" l'argent.
+  const boutiqueDestLabel: Record<string, string> = {
+    avance_caisse: "Boutique qui envoie l'avance (principale)",
+    remboursement: "Boutique remboursée — celle qui avait envoyé l'avance (principale)",
+  };
+  const boutiqueDestHint: Record<string, string> = {
+    avance_caisse: "Cette boutique verra le montant déduit de sa propre caisse.",
+    remboursement: "Cette boutique verra le montant ajouté à sa propre caisse.",
   };
   const showDestination = ["avance_caisse", "remboursement"].includes(type);
   const showBanque      = type === "versement_banque";
@@ -256,9 +268,7 @@ export default function MouvementArgentModal({
             {/* Boutique destination (avance, remboursement) */}
             {showDestination && (
               <div>
-                <label className="input-label">
-                  {type === "avance_caisse" ? "Boutique secondaire qui reçoit l'avance *" : "Boutique remboursée *"}
-                </label>
+                <label className="input-label">{boutiqueDestLabel[type]} *</label>
                 <select className="select" value={form.boutiqueDestinationId}
                   onChange={e => set("boutiqueDestinationId", e.target.value)} required>
                   <option value="">Choisir...</option>
@@ -270,6 +280,7 @@ export default function MouvementArgentModal({
                       </option>
                     ))}
                 </select>
+                <p className="text-[10px] font-mono text-muted mt-1">{boutiqueDestHint[type]}</p>
               </div>
             )}
 
