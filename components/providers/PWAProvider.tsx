@@ -8,9 +8,24 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
   const [showBanner, setShowBanner]       = useState(false);
   const [, setSwReady]             = useState(false);
 
-  // Enregistrement du Service Worker
+  // Enregistrement du Service Worker — production seulement. En dev, un SW
+  // actif sert le JS mis en cache lors de son installation, même après un
+  // changement de code (Fast Refresh ou rechargement complet) : on passe son
+  // temps à déboguer un bug déjà corrigé sans le savoir. On désinscrit aussi
+  // ceux qui traînent d'une session précédente, pour ne pas avoir à le faire
+  // manuellement à chaque test.
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.unregister());
+      });
+      if (window.caches) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+      return;
+    }
 
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
