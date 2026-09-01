@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
 import Vente from "@/lib/models/Vente";
 import Produit from "@/lib/models/Produit";
-import Employe from "@/lib/models/Employe";
+import Employe, { SANS_COMPTE_UTILISATEUR } from "@/lib/models/Employe";
 import CompteTiers from "@/lib/models/CompteTiers";
 import Fournisseur from "@/lib/models/Fournisseur";
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         .select("reference client montantTotal statut createdAt").sort({ createdAt: -1 }).limit(limit).lean(),
       Produit.find({ tenantId: tid, $or: [{ nom: regex }, { reference: regex }] })
         .select("nom reference prixVente categorie").limit(limit).lean(),
-      Employe.find({ tenantId: tid, $or: [{ nom: regex }, { prenom: regex }, { poste: regex }] })
+      Employe.find({ tenantId: tid, ...SANS_COMPTE_UTILISATEUR, $or: [{ nom: regex }, { prenom: regex }, { poste: regex }] })
         .select("nom prenom poste").limit(limit).lean(),
       CompteTiers.find({ tenantId: tid, $or: [{ nom: regex }, { telephone: regex }] })
         .select("nom type solde telephone").limit(limit).lean(),

@@ -51,6 +51,13 @@ export async function GET(req: NextRequest) {
     const ficheMap = new Map(fiches.map((f: any) => [f._id.toString(), f]));
 
     const classement = [...parEmploye.values()]
+      // Une vente rattachée à une fiche "fantôme" (userId défini — un compte
+      // admin/gestionnaire/caissier ayant dépanné une vente, pas un vrai
+      // employé) n'entre pas dans le classement des employés.
+      .filter(e => {
+        const fiche = e.employeId ? ficheMap.get(e.employeId) : null;
+        return !(fiche as any)?.userId;
+      })
       .map(e => {
         const fiche = e.employeId ? ficheMap.get(e.employeId) : null;
         return {

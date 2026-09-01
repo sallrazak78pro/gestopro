@@ -5,7 +5,7 @@ import { getTenantContext } from "@/lib/utils/tenant";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import MouvementStock from "@/lib/models/MouvementStock";
-import Employe from "@/lib/models/Employe";
+import Employe, { SANS_COMPTE_UTILISATEUR } from "@/lib/models/Employe";
 import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
 
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
       filename = "mouvements-stock";
 
     } else if (type === "employes") {
-      const employes = await Employe.find({ tenantId: ctx.tenantId, ...boutiqueFilter })
+      const employes = await Employe.find({ tenantId: ctx.tenantId, ...boutiqueFilter, ...SANS_COMPTE_UTILISATEUR })
         .populate("boutique", "nom").lean();
 
       const rows = employes.map((e: any) => [

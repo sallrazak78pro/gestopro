@@ -46,4 +46,10 @@ const EmployeSchema = new Schema<IEmploye>(
 const Employe: Model<IEmploye> =
   mongoose.models.Employe || mongoose.model<IEmploye>("Employe", EmployeSchema);
 
+// Un Employe avec userId défini est une fiche auto-provisionnée pour qu'un
+// compte admin/gestionnaire/caissier (User) puisse apparaître comme vendeur
+// sur une vente sans devoir être géré comme un employé — à exclure de toute
+// liste/statistique RH (page Employés, Salaires, export, recherche).
+export const SANS_COMPTE_UTILISATEUR = { userId: null };
+
 export default Employe;

@@ -8,7 +8,7 @@ import Boutique from "@/lib/models/Boutique";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import MouvementStock from "@/lib/models/MouvementStock";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import Employe from "@/lib/models/Employe";
+import Employe, { SANS_COMPTE_UTILISATEUR } from "@/lib/models/Employe";
 import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         ...(effectiveBoutiqueId ? { boutique: effectiveBoutiqueId } : {}) })
         .populate("boutique", "nom").lean(),
       // Employés
-      Employe.find({ tenantId: ctx.tenantId, actif: true,
+      Employe.find({ tenantId: ctx.tenantId, actif: true, ...SANS_COMPTE_UTILISATEUR,
         ...(effectiveBoutiqueId ? { boutique: effectiveBoutiqueId } : {}) }).lean(),
     ]);
 

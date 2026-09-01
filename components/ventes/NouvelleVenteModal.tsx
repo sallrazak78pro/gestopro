@@ -99,7 +99,7 @@ export default function NouvelleVenteModal({
   // Charger les employés de la boutique sélectionnée
   useEffect(() => {
     if (!boutiqueId) { setEmployes([]); setEmployeId(""); return; }
-    fetch(`/api/employes?boutiqueId=${boutiqueId}`)
+    fetch(`/api/employes?boutiqueId=${boutiqueId}&pourVente=1`)
       .then(r => r.json())
       .then(j => {
         if (j.success) {

@@ -6,10 +6,12 @@ import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
 import Employe from "@/lib/models/Employe";
+import User from "@/lib/models/User";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { genererReference } from "@/lib/utils/reference";
+import { ROLE_LABEL } from "@/lib/utils/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -123,9 +125,32 @@ export async function POST(req: NextRequest) {
     // Employe (pas vers un User, qui n'existe que pour ceux ayant un login).
     if (!employeId)
       return NextResponse.json({ success: false, message: "Employé requis." }, { status: 400 });
-    const employe = await Employe.findOne({ _id: employeId, tenantId: ctx.tenantId });
-    if (!employe)
-      return NextResponse.json({ success: false, message: "Employé introuvable." }, { status: 404 });
+
+    let employe;
+    if (typeof employeId === "string" && employeId.startsWith("user:")) {
+      // Vendeur = un compte admin/gestionnaire/caissier sans fiche Employé
+      // classique (sélecteur "pourVente", voir GET /api/employes) — on
+      // rattache (ou crée à la volée) la fiche fantôme liée à ce compte pour
+      // cette boutique, invisible de la page Employés/Salaires (userId défini).
+      const userId = employeId.slice("user:".length);
+      const user = await User.findOne({ _id: userId, tenantId: ctx.tenantId }).lean() as any;
+      if (!user)
+        return NextResponse.json({ success: false, message: "Utilisateur introuvable." }, { status: 404 });
+      employe = await Employe.findOneAndUpdate(
+        { tenantId: ctx.tenantId, boutique: boutiqueId, userId: user._id },
+        { $setOnInsert: {
+            tenantId: ctx.tenantId, boutique: boutiqueId, userId: user._id,
+            nom: user.nom, prenom: user.prenom || "",
+            poste: ROLE_LABEL[user.role] ?? user.role,
+            dateEmbauche: new Date(), salaireBase: 0, actif: true,
+        } },
+        { upsert: true, new: true }
+      );
+    } else {
+      employe = await Employe.findOne({ _id: employeId, tenantId: ctx.tenantId });
+      if (!employe)
+        return NextResponse.json({ success: false, message: "Employé introuvable." }, { status: 404 });
+    }
 
     // Vérifier le stock (uniquement pour les produits avec suivi de stock activé)
     const produits = await Produit.find(

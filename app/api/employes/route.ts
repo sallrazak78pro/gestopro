@@ -1,9 +1,11 @@
 // app/api/employes/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import Employe from "@/lib/models/Employe";
+import Employe, { SANS_COMPTE_UTILISATEUR } from "@/lib/models/Employe";
+import User from "@/lib/models/User";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { ROLE_LABEL } from "@/lib/utils/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,12 +16,25 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
+    const boutiqueId = ctx.boutiqueAssignee
+      ?? searchParams.get("boutiqueId")
+      ?? searchParams.get("boutique");
+
+    // pourVente=1 : utilisé par le sélecteur "vendeur" de la vente — inclut
+    // aussi les comptes admin/gestionnaire/caissier éligibles pour cette
+    // boutique (voir plus bas), et ne masque donc pas les fiches "fantômes"
+    // déjà liées à un compte (sinon elles réapparaîtraient en double).
+    const pourVente = searchParams.get("pourVente") === "1";
+
     const query: any = { tenantId: ctx.tenantId };
-    if (ctx.boutiqueAssignee) query.boutique = ctx.boutiqueAssignee;
-    else if (searchParams.get("boutiqueId")) query.boutique = searchParams.get("boutiqueId");
-    else if (searchParams.get("boutique"))   query.boutique = searchParams.get("boutique");
-    if (searchParams.get("actif") !== null && searchParams.get("actif") !== "")
-      query.actif = searchParams.get("actif") === "true";
+    if (boutiqueId) query.boutique = boutiqueId;
+    if (pourVente) {
+      query.actif = true;
+    } else {
+      Object.assign(query, SANS_COMPTE_UTILISATEUR);
+      if (searchParams.get("actif") !== null && searchParams.get("actif") !== "")
+        query.actif = searchParams.get("actif") === "true";
+    }
     if (searchParams.get("search")) {
       const s = searchParams.get("search");
       query.$or = [
@@ -34,7 +49,39 @@ export async function GET(req: NextRequest) {
       .populate("userId", "nom email role")
       .sort({ nom: 1, prenom: 1 });
 
-    return NextResponse.json({ success: true, data: employes });
+    // Le sélecteur de vendeur doit aussi proposer les comptes utilisateur
+    // (admin/gestionnaire/caissier) qui participent aux ventes sans avoir de
+    // fiche Employé classique — accès global (aucune boutique fixée sur leur
+    // compte) ou explicitement assignés à CETTE boutique. On ne les crée en
+    // fiche réelle qu'au moment où une vente est effectivement enregistrée
+    // (voir POST /api/ventes) pour ne pas polluer la RH pour rien.
+    let data: any[] = employes;
+    if (pourVente && boutiqueId) {
+      const dejaRepresentes = new Set(
+        employes.filter((e: any) => e.userId).map((e: any) => e.userId._id.toString())
+      );
+      const usersEligibles = await User.find({
+        tenantId: ctx.tenantId,
+        role: { $in: ["admin", "gestionnaire", "caissier"] },
+        actif: { $ne: false },
+        $or: [{ boutique: null }, { boutique: boutiqueId }],
+      }).select("nom prenom role").lean();
+
+      const virtuels = usersEligibles
+        .filter((u: any) => !dejaRepresentes.has(u._id.toString()))
+        .map((u: any) => ({
+          _id: `user:${u._id}`,
+          nom: u.nom, prenom: u.prenom || "",
+          poste: ROLE_LABEL[u.role] ?? u.role,
+          actif: true,
+        }));
+
+      data = [...employes, ...virtuels].sort((a, b) =>
+        `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`)
+      );
+    }
+
+    return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
