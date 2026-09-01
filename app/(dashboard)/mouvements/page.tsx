@@ -28,6 +28,7 @@ export default function MouvementsPage() {
     entrees: { count: 0, totalMontant: 0 },
     sorties: { count: 0, totalMontant: 0 },
     balance: 0,
+    entreesParBoutique: [] as { boutiqueId: string; boutique: string; type: string; count: number; totalMontant: number }[],
   });
   const [loading,        setLoading]        = useState(true);
   const [showModal,      setShowModal]      = useState(false);
@@ -148,37 +149,29 @@ export default function MouvementsPage() {
         </div>
       )}
 
-      {/* ── KPIs ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-        <div className="card p-5 border-l-4 border-success">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-mono text-muted uppercase tracking-widest">Entrées période</p>
-            <span className="text-xl">📥</span>
+      {/* ── Entrées par boutique ──────────────────────────────────────────
+          Un transfert entre boutiques crée toujours une entrée ET une
+          sortie de même montant (entrée globale = sortie globale) — un
+          total global des deux n'apprend rien. Ce qui compte, c'est quelle
+          boutique a reçu quoi sur la période. */}
+      <div>
+        <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-3">
+          📥 Entrées par boutique — {dateDebut} → {dateFin}
+        </p>
+        {stats.entreesParBoutique.length === 0 ? (
+          <div className="card p-5 text-center text-muted font-mono text-sm">Aucune entrée sur cette période</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {stats.entreesParBoutique.map(b => (
+              <div key={b.boutiqueId} className="card p-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-success" />
+                <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-1 truncate">{b.boutique}</p>
+                <p className="text-xl font-extrabold text-success">{fmt(b.totalMontant)} <span className="text-sm font-mono text-muted">F</span></p>
+                <p className="text-xs font-mono text-muted mt-1">{b.count} mouvement{b.count > 1 ? "s" : ""}</p>
+              </div>
+            ))}
           </div>
-          <p className="text-3xl font-extrabold text-success">{fmt(stats.entrees.totalMontant)} F</p>
-          <p className="text-xs font-mono text-muted mt-2">{stats.entrees.count} mouvement{stats.entrees.count > 1 ? "s" : ""}</p>
-        </div>
-
-        <div className="card p-5 border-l-4 border-danger">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-mono text-muted uppercase tracking-widest">Sorties période</p>
-            <span className="text-xl">📤</span>
-          </div>
-          <p className="text-3xl font-extrabold text-danger">{fmt(stats.sorties.totalMontant)} F</p>
-          <p className="text-xs font-mono text-muted mt-2">{stats.sorties.count} mouvement{stats.sorties.count > 1 ? "s" : ""}</p>
-        </div>
-
-        <div className={clsx("card p-5 border-l-4", stats.balance >= 0 ? "border-accent" : "border-warning")}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-mono text-muted uppercase tracking-widest">Balance nette</p>
-            <span className="text-xl">{stats.balance >= 0 ? "📈" : "📉"}</span>
-          </div>
-          <p className={clsx("text-3xl font-extrabold", stats.balance >= 0 ? "text-accent" : "text-warning")}>
-            {stats.balance >= 0 ? "+" : ""}{fmt(stats.balance)} F
-          </p>
-          <p className="text-xs font-mono text-muted mt-2">entrées − sorties</p>
-        </div>
+        )}
       </div>
 
       {/* ── Journal ───────────────────────────────────────────────────── */}

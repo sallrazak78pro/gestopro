@@ -68,7 +68,14 @@ export async function GET(req: NextRequest) {
     statsQuery.tenantId = new mongoose.Types.ObjectId(ctx.tenantId.toString());
     if (statsQuery.boutique) statsQuery.boutique = new mongoose.Types.ObjectId(statsQuery.boutique.toString());
 
-    const [mouvements, total, statsAgg] = await Promise.all([
+    // Entrées par boutique — un transfert entre boutiques crée toujours une
+    // entrée ET une sortie de montant identique (entrée globale = sortie
+    // globale), donc afficher les deux au global n'apprend rien ; ce qui est
+    // utile, c'est de savoir QUELLE boutique a reçu QUOI sur la période.
+    // Basé sur statsQuery (ignore le filtre "type", respecte boutique/dates).
+    const entreesParBoutiqueQuery: any = { ...statsQuery, type: "entree" };
+
+    const [mouvements, total, statsAgg, entreesParBoutiqueAgg] = await Promise.all([
       MouvementStock.find(query)
         .populate("boutique",        "nom type")
         .populate("lignes.produit",  "nom reference unite prixAchat")
@@ -87,10 +94,30 @@ export async function GET(req: NextRequest) {
           totalMontant: { $sum: { $sum: "$lignes.montant" } },
         }},
       ]),
+      MouvementStock.aggregate([
+        { $match: entreesParBoutiqueQuery },
+        { $group: {
+          _id:          "$boutique",
+          count:        { $sum: 1 },
+          totalMontant: { $sum: { $sum: "$lignes.montant" } },
+        }},
+        { $sort: { totalMontant: -1 } },
+      ]),
     ]);
 
     const entrees = statsAgg.find((s: any) => s._id === "entree") ?? { count: 0, totalMontant: 0 };
     const sorties = statsAgg.find((s: any) => s._id === "sortie") ?? { count: 0, totalMontant: 0 };
+
+    const boutiqueIds = entreesParBoutiqueAgg.map((r: any) => r._id);
+    const boutiquesInfo = await Boutique.find({ _id: { $in: boutiqueIds } }).select("nom type").lean();
+    const boutiqueInfoMap = new Map(boutiquesInfo.map((b: any) => [b._id.toString(), b]));
+    const entreesParBoutique = entreesParBoutiqueAgg.map((r: any) => ({
+      boutiqueId:   r._id,
+      boutique:     boutiqueInfoMap.get(r._id.toString())?.nom ?? "—",
+      type:         boutiqueInfoMap.get(r._id.toString())?.type ?? "boutique",
+      count:        r.count,
+      totalMontant: r.totalMontant,
+    }));
 
     return NextResponse.json({
       success: true,
@@ -100,6 +127,7 @@ export async function GET(req: NextRequest) {
         entrees: { count: entrees.count, totalMontant: entrees.totalMontant },
         sorties: { count: sorties.count, totalMontant: sorties.totalMontant },
         balance: entrees.totalMontant - sorties.totalMontant,
+        entreesParBoutique,
       },
     });
   } catch (err: any) {
