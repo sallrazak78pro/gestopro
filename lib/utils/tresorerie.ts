@@ -30,9 +30,9 @@ import mongoose from "mongoose";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Vente from "@/lib/models/Vente";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/mouvementArgentTypes";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_VERSEMENT, TYPES_SORTIE_REPORTING } from "@/lib/utils/mouvementArgentTypes";
 
-export { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE };
+export { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_VERSEMENT, TYPES_SORTIE_REPORTING };
 
 export interface DetailSoldeCaisse {
   ancrage: number;

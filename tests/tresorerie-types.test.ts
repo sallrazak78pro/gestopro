@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_VERSEMENT, TYPES_SORTIE_REPORTING } from "@/lib/utils/tresorerie";
 
 // Doit rester en phase avec l'enum `type` de lib/models/MouvementArgent.ts.
 // Mis à jour à la main volontairement : si ce test casse après l'ajout d'un
@@ -41,5 +41,19 @@ describe("TYPES_ENTREE_CAISSE / TYPES_SORTIE_CAISSE", () => {
     expect(TYPES_SORTIE_CAISSE).not.toContain("ajustement_positif");
     expect(TYPES_SORTIE_CAISSE).toContain("ajustement_negatif");
     expect(TYPES_ENTREE_CAISSE).not.toContain("ajustement_negatif");
+  });
+});
+
+describe("TYPES_SORTIE_REPORTING (sorties/dépenses hors versements, pour les rapports)", () => {
+  it("excludes both versement types, kept only in TYPES_SORTIE_CAISSE for le calcul de solde physique", () => {
+    expect(TYPES_SORTIE_REPORTING).not.toContain("versement_boutique");
+    expect(TYPES_SORTIE_REPORTING).not.toContain("versement_banque");
+    expect(TYPES_SORTIE_CAISSE).toContain("versement_boutique");
+    expect(TYPES_SORTIE_CAISSE).toContain("versement_banque");
+  });
+
+  it("still contains every other sortie type unchanged", () => {
+    const autres = TYPES_SORTIE_CAISSE.filter(t => !TYPES_VERSEMENT.includes(t));
+    expect([...TYPES_SORTIE_REPORTING].sort()).toEqual([...autres].sort());
   });
 });

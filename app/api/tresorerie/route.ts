@@ -7,7 +7,7 @@ import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
-import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
+import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_SORTIE_REPORTING } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
@@ -65,7 +65,10 @@ export async function GET(req: NextRequest) {
     // Un versement rejeté n'a jamais eu lieu — il ne doit compter dans aucun total.
     const nonRejetes = tousLesMouvements.filter(m => m.statut !== "rejete");
     const totalEntrees  = nonRejetes.filter(m => TYPES_ENTREE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
-    const totalSorties  = nonRejetes.filter(m => TYPES_SORTIE_CAISSE.includes(m.type)).reduce((s, m) => s + m.montant, 0);
+    // Un versement (boutique ou banque) est un transfert interne, pas une
+    // sortie "réelle" — exclu de ce total (cf. TYPES_SORTIE_REPORTING), même
+    // s'il reste bien compté dans le solde de caisse physique ailleurs.
+    const totalSorties  = nonRejetes.filter(m => TYPES_SORTIE_REPORTING.includes(m.type)).reduce((s, m) => s + m.montant, 0);
     const versementsRecus = nonRejetes.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
     const versementsBanque = nonRejetes.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
     // "depense" catégorie achat_marchandise et "achat_direct" sont du COGS
@@ -82,6 +85,7 @@ export async function GET(req: NextRequest) {
         totalDepenses,
         versementsRecus,
         versementsBanque,
+        totalVersements: versementsRecus + versementsBanque,
       },
     });
   } catch (err: any) {

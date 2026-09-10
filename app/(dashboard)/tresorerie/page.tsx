@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
-import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/mouvementArgentTypes";
+import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_REPORTING, TYPES_VERSEMENT } from "@/lib/utils/mouvementArgentTypes";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -34,7 +34,7 @@ const CAT_LABEL: Record<string, string> = {
 
 export default function TresoreriePage() {
   const [mouvements, setMouvements]   = useState<any[]>([]);
-  const [stats, setStats]             = useState({ totalEntrees: 0, totalSorties: 0, soldeNet: 0, totalDepenses: 0, versementsRecus: 0, versementsBanque: 0 });
+  const [stats, setStats]             = useState({ totalEntrees: 0, totalSorties: 0, soldeNet: 0, totalDepenses: 0, versementsRecus: 0, versementsBanque: 0, totalVersements: 0 });
   const [rapport, setRapport]         = useState<any>(null);
   const [loading, setLoading]         = useState(true);
   const [showModal, setShowModal]     = useState(false);
@@ -81,12 +81,14 @@ export default function TresoreriePage() {
   return (
     <div className="space-y-6">
 
-      {/* KPIs */}
+      {/* KPIs — versement traité comme sa propre catégorie, jamais mélangé
+          aux "Sorties" : c'est un transfert interne (boutique→principale,
+          principale→banque), pas une dépense. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Total entrées" value={fmt(stats.totalEntrees) + " F"} change="Dépôts tiers + avances reçues" trend="up" icon="📥" />
-        <KpiCard label="Total sorties" value={fmt(stats.totalSorties) + " F"} change="Versements + dépenses + retraits" trend="down" icon="📤" />
-        <KpiCard label="Solde net" value={fmt(stats.soldeNet) + " F"} change="Entrées − Sorties" trend={stats.soldeNet >= 0 ? "up" : "down"} icon="⚖️" />
-        <KpiCard label="Versé en banque" value={fmt(stats.versementsBanque) + " F"} change="Dépôts bancaires cumulés" trend="up" icon="🏦" />
+        <KpiCard label="Entrées" value={fmt(stats.totalEntrees) + " F"} change="Dépôts tiers + avances reçues" trend="up" icon="📥" />
+        <KpiCard label="Sorties" value={fmt(stats.totalSorties) + " F"} change="Dépenses + achats + retraits" trend="down" icon="📤" />
+        <KpiCard label="Versement" value={fmt(stats.totalVersements) + " F"} change="Vers boutique principale + banque" trend="up" icon="💸" />
+        <KpiCard label="Solde net" value={fmt(stats.soldeNet) + " F"} change="Entrées − Sorties (hors versements)" trend={stats.soldeNet >= 0 ? "up" : "down"} icon="⚖️" />
       </div>
 
       {/* ── Soldes par boutique en temps réel ──────────────── */}
@@ -236,7 +238,7 @@ export default function TresoreriePage() {
       {/* Graphique */}
       <div className="card p-5">
         <h3 className="card-title mb-1">Flux de trésorerie — 7 derniers jours</h3>
-        <p className="text-[11px] font-mono text-muted mb-5 uppercase tracking-widest">Entrées et sorties d&apos;argent · FCFA</p>
+        <p className="text-[11px] font-mono text-muted mb-5 uppercase tracking-widest">Entrées, sorties et versements · FCFA</p>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -246,6 +248,7 @@ export default function TresoreriePage() {
             <Tooltip content={<ChartTip />} />
             <Bar dataKey="entrees" name="Entrées" fill="#10b981" radius={[4, 4, 0, 0]} />
             <Bar dataKey="sorties" name="Sorties" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="versements" name="Versement" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -381,20 +384,22 @@ export default function TresoreriePage() {
 
 // ── Helpers ────────────────────────────────────────────────────
 function buildChartData(mouvements: any[]) {
-  const days: Record<string, { entrees: number; sorties: number }> = {};
+  const days: Record<string, { entrees: number; sorties: number; versements: number }> = {};
 
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = d.toLocaleDateString("fr-FR", { weekday: "short" });
-    days[key] = { entrees: 0, sorties: 0 };
+    days[key] = { entrees: 0, sorties: 0, versements: 0 };
   }
 
   mouvements.forEach(m => {
+    if (m.statut === "rejete") return;
     const d = new Date(m.createdAt);
     const key = d.toLocaleDateString("fr-FR", { weekday: "short" });
     if (!days[key]) return;
     if (TYPES_ENTREE_CAISSE.includes(m.type)) days[key].entrees += m.montant;
-    if (TYPES_SORTIE_CAISSE.includes(m.type)) days[key].sorties += m.montant;
+    else if (TYPES_VERSEMENT.includes(m.type)) days[key].versements += m.montant;
+    else if (TYPES_SORTIE_REPORTING.includes(m.type)) days[key].sorties += m.montant;
   });
 
   return Object.entries(days).map(([jour, v]) => ({ jour, ...v }));
