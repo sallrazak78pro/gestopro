@@ -52,8 +52,8 @@ export async function GET() {
       ]),
 
       // Mouvements des 4 périodes — un versement rejeté n'a jamais eu lieu, et
-      // "depense" catégorie achat_marchandise / "achat_direct" sont du COGS
-      // (déjà compté dans le coût d'achat), pas des charges d'exploitation.
+      // "depense" catégorie achat_marchandise est du COGS (déjà compté dans
+      // le coût d'achat), pas une charge d'exploitation.
       MouvementArgent.aggregate([
         { $match: { tenantId: tid,
             createdAt: { $gte: debutMoisPrec },

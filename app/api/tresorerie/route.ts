@@ -71,9 +71,9 @@ export async function GET(req: NextRequest) {
     const totalSorties  = nonRejetes.filter(m => TYPES_SORTIE_REPORTING.includes(m.type)).reduce((s, m) => s + m.montant, 0);
     const versementsRecus = nonRejetes.filter(m => m.type === "versement_boutique").reduce((s, m) => s + m.montant, 0);
     const versementsBanque = nonRejetes.filter(m => m.type === "versement_banque").reduce((s, m) => s + m.montant, 0);
-    // "depense" catégorie achat_marchandise et "achat_direct" sont du COGS
-    // (achat de marchandise), pas des charges d'exploitation — exclus ici
-    // comme sur le dashboard, sinon la dépense affichée est faussée.
+    // "depense" catégorie achat_marchandise est du COGS (achat de
+    // marchandise), pas une charge d'exploitation — exclue ici comme sur
+    // le dashboard, sinon la dépense affichée est faussée.
     const totalDepenses = nonRejetes.filter(m => m.type === "depense" && ["salaire","loyer","divers"].includes(m.categorieDepense as string)).reduce((s, m) => s + m.montant, 0);
 
     return NextResponse.json({
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
     const prefix: Record<string, string> = {
       versement_boutique: "VRS", versement_banque: "BNQ",
       avance_caisse: "AVN", remboursement: "RMB",
-      depense: "DEP", achat_direct: "ACH",
+      depense: "DEP",
       depot_tiers: "DPT", retrait_tiers: "RTR",
     };
     const reference = await genererReference(ctx.tenantId, `${prefix[type] || "TRX"}-${new Date().getFullYear()}`);

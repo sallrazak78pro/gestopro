@@ -19,9 +19,20 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
   const [search, setSearch]             = useState("");
   const [dateLivraison, setDateLivraison] = useState("");
   const [note, setNote]                 = useState("");
+  const [achatImmediat, setAchatImmediat] = useState(false);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // "Achat immédiat" (commande créée déjà reçue + payée en une fois) n'a de
+  // sens que pour une boutique secondaire — la principale et les dépôts
+  // passent toujours par le flux classique (créer, réceptionner, payer).
+  const destinationBoutique = boutiques.find((b: any) => b._id === destinationId);
+  const eligibleAchatImmediat = !!destinationBoutique && destinationBoutique.type === "boutique" && !destinationBoutique.estPrincipale;
+
+  useEffect(() => {
+    if (!eligibleAchatImmediat) setAchatImmediat(false);
+  }, [eligibleAchatImmediat]);
 
   useEffect(() => {
     fetch("/api/fournisseurs?actif=true").then(r=>r.json()).then(f => { if (f.success) setFournisseurs(f.data); });
@@ -55,10 +66,15 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
     e.preventDefault();
     if (!lignes.length) { setError("Ajoutez au moins un produit."); return; }
     setError(""); setLoading(true);
-    const res = await fetch("/api/commandes", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ fournisseurId, destinationId, lignes, dateLivraison, note, statut:"envoyee" }),
-    });
+    const res = achatImmediat && eligibleAchatImmediat
+      ? await fetch("/api/commandes/achat-immediat", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ fournisseurId, destinationId, lignes, note }),
+        })
+      : await fetch("/api/commandes", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ fournisseurId, destinationId, lignes, dateLivraison, note, statut:"envoyee" }),
+        });
     const json = await res.json();
     setLoading(false);
     if (!json.success) { setError(json.message); return; }
@@ -95,12 +111,28 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
               </div>
             </div>
 
+            {eligibleAchatImmediat && (
+              <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-warning/30 bg-warning/5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={achatImmediat}
+                  onChange={e => setAchatImmediat(e.target.checked)} />
+                <span>
+                  <span className="block text-sm font-semibold text-warning">⚡ Achat immédiat</span>
+                  <span className="block text-xs text-muted mt-0.5">
+                    Achat local reçu et payé tout de suite — la commande est directement marquée reçue,
+                    le stock est mis à jour, et le montant sort de la caisse de cette boutique.
+                  </span>
+                </span>
+              </label>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="input-label">Date de livraison prévue</label>
-                <input type="date" className="input" value={dateLivraison} onChange={e=>setDateLivraison(e.target.value)} />
-              </div>
-              <div>
+              {!achatImmediat && (
+                <div>
+                  <label className="input-label">Date de livraison prévue</label>
+                  <input type="date" className="input" value={dateLivraison} onChange={e=>setDateLivraison(e.target.value)} />
+                </div>
+              )}
+              <div className={achatImmediat ? "col-span-2" : ""}>
                 <label className="input-label">Note</label>
                 <input className="input" placeholder="Conditions, références..." value={note} onChange={e=>setNote(e.target.value)} />
               </div>
@@ -167,7 +199,11 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
             <button type="button" onClick={onClose} className="btn-ghost flex-1 justify-center">Annuler</button>
             <button type="submit" disabled={loading || !fournisseurId || !destinationId || !lignes.length}
               className="btn-primary flex-1 justify-center disabled:opacity-50">
-              {loading ? "Création..." : `📤 Envoyer la commande (${fmt(total)} F)`}
+              {loading
+                ? "Enregistrement..."
+                : achatImmediat
+                ? `⚡ Achat immédiat — reçu et payé (${fmt(total)} F)`
+                : `📤 Envoyer la commande (${fmt(total)} F)`}
             </button>
           </div>
         </form>

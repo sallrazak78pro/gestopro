@@ -6,7 +6,7 @@
 // propre copie locale, source récurrente de bugs quand la liste canonique
 // change (cf. commentaire dans tests/tresorerie-types.test.ts).
 export const TYPES_ENTREE_CAISSE = ["depot_tiers", "avance_caisse", "ajustement_positif"];
-export const TYPES_SORTIE_CAISSE = ["versement_boutique", "versement_banque", "depense", "achat_direct", "remboursement", "retrait_tiers", "ajustement_negatif"];
+export const TYPES_SORTIE_CAISSE = ["versement_boutique", "versement_banque", "depense", "remboursement", "retrait_tiers", "ajustement_negatif"];
 
 // Un versement (boutique→principale ou principale→banque) est un transfert
 // interne entre comptes de l'entreprise, pas une dépense — il reste dans

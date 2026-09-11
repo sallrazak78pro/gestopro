@@ -11,7 +11,7 @@ import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_VERSEMENT, TYPES_SORTIE
 // d'utiliser TYPES_ENTREE_CAISSE/TYPES_SORTIE_CAISSE.
 const TOUS_LES_TYPES_MOUVEMENT_ARGENT = [
   "versement_boutique", "versement_banque", "avance_caisse", "remboursement",
-  "depense", "achat_direct", "depot_tiers", "retrait_tiers",
+  "depense", "depot_tiers", "retrait_tiers",
   "ajustement_positif", "ajustement_negatif",
 ];
 

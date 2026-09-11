@@ -16,7 +16,6 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; flux: "entree" 
   avance_caisse:      { label: "Avance reçue",        icon: "🔄", flux: "entree" },
   remboursement:      { label: "Remboursement",       icon: "↩️", flux: "sortie" },
   depense:            { label: "Dépense",             icon: "💸", flux: "sortie" },
-  achat_direct:       { label: "Achat direct",        icon: "🛍️", flux: "sortie" },
   depot_tiers:        { label: "Dépôt tiers",         icon: "👤", flux: "entree" },
   retrait_tiers:      { label: "Retrait tiers",       icon: "💼", flux: "sortie" },
   ajustement_positif: { label: "Ajustement (excédent)", icon: "➕", flux: "entree" },

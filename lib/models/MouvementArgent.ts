@@ -8,7 +8,6 @@ import mongoose, { Schema, Document, Model } from "mongoose";
  * - avance_caisse      : boutique principale → boutique secondaire (avance)
  * - remboursement      : boutique secondaire rembourse une avance à la principale
  * - depense            : sortie d'argent d'une boutique (salaire, loyer, divers)
- * - achat_direct       : achat local occasionnel par une boutique secondaire
  * - depot_tiers        : une personne extérieure dépose de l'argent
  * - retrait_tiers      : une personne extérieure retire son argent
  * - ajustement_positif : excédent constaté au comptage réel à la fermeture de caisse
@@ -20,7 +19,6 @@ export type TypeMouvementArgent =
   | "avance_caisse"
   | "remboursement"
   | "depense"
-  | "achat_direct"
   | "depot_tiers"
   | "retrait_tiers"
   | "ajustement_positif"
@@ -58,7 +56,7 @@ const MouvementArgentSchema = new Schema<IMouvementArgent>(
     reference: { type: String, required: true },
     type: {
       type: String,
-      enum: ["versement_boutique","versement_banque","avance_caisse","remboursement","depense","achat_direct","depot_tiers","retrait_tiers","ajustement_positif","ajustement_negatif"],
+      enum: ["versement_boutique","versement_banque","avance_caisse","remboursement","depense","depot_tiers","retrait_tiers","ajustement_positif","ajustement_negatif"],
       required: true,
     },
     boutique: { type: Schema.Types.ObjectId, ref: "Boutique", required: true },

@@ -54,10 +54,10 @@ export async function GET(req: NextRequest) {
       .lean();
 
     // ── Charges d'exploitation (salaires, loyer, divers) ──────────────────────
-    // Exclut volontairement categorieDepense "achat_marchandise" et le type
-    // "achat_direct" : ce sont des achats de marchandise, déjà comptés dans le
-    // coût d'achat (prixAchat) ci-dessous — les compter aussi ici doublerait
-    // cette charge et fausserait la marge nette.
+    // Exclut volontairement categorieDepense "achat_marchandise" : c'est un
+    // achat de marchandise, déjà compté dans le coût d'achat (prixAchat)
+    // ci-dessous — le compter aussi ici doublerait cette charge et
+    // fausserait la marge nette.
     const depQuery: any = {
       tenantId: ctx.tenantId,
       type: "depense",

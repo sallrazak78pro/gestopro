@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
       // Dépenses période + précédente, sur la (les) boutique(s) sélectionnée(s)
       // uniquement — sans ce filtre, une boutique secondaire voyait les
       // dépenses de tout le tenant. "depense" avec categorieDepense
-      // achat_marchandise et le type achat_direct sont exclus : ce sont des
-      // achats de marchandise (COGS), pas des charges d'exploitation (cf. Marges).
+      // achat_marchandise est exclue : c'est un achat de marchandise (COGS),
+      // pas une charge d'exploitation (cf. Marges).
       MouvementArgent.aggregate([
         { $match: { tenantId: tid, ...boutiqueFilter, createdAt: { $gte: debutPrec, $lte: fin },
             type: "depense", categorieDepense: { $in: ["salaire", "loyer", "divers"] } } },

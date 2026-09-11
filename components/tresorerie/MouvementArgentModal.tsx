@@ -38,13 +38,6 @@ const TYPES = [
     roles: ["all"],
   },
   {
-    value: "achat_direct",
-    icon: "🛍️", label: "Achat direct de marchandise",
-    desc: "Achat local occasionnel — boutique secondaire en manque de stock",
-    color: "border-warning/50 bg-warning/5", flux: "sortie",
-    roles: ["all"],
-  },
-  {
     value: "depot_tiers",
     icon: "👤", label: "Dépôt d'un tiers",
     desc: "Une personne extérieure dépose son argent dans une boutique",
@@ -91,7 +84,7 @@ export default function MouvementArgentModal({
 
   // Charger le solde de la boutique pour les types qui nécessitent une vérification
   useEffect(() => {
-    const typesAvecControle = ["versement_banque", "depense", "achat_direct", "remboursement"];
+    const typesAvecControle = ["versement_banque", "depense", "remboursement"];
     if (!form.boutiqueId || !typesAvecControle.includes(type)) { setSoldeCaisse(null); return; }
     setSoldeLoading(true);
     fetch(`/api/tresorerie/solde?boutiqueId=${form.boutiqueId}`)
@@ -117,7 +110,6 @@ export default function MouvementArgentModal({
     avance_caisse:      "Boutique qui reçoit l'avance (secondaire)",
     remboursement:      "Boutique qui rembourse (secondaire)",
     depense:            "Boutique qui dépense",
-    achat_direct:       "Boutique qui achète",
     depot_tiers:        "Boutique du dépôt",
     retrait_tiers:      "Boutique du retrait",
   };
@@ -136,7 +128,6 @@ export default function MouvementArgentModal({
   const showDestination = ["avance_caisse", "remboursement"].includes(type);
   const showBanque      = type === "versement_banque";
   const showCategorie   = type === "depense";
-  const showAchat       = type === "achat_direct";
   const showTiers       = ["depot_tiers", "retrait_tiers"].includes(type);
   const showAvanceRef   = type === "remboursement";
 
@@ -154,7 +145,7 @@ export default function MouvementArgentModal({
         boutiqueId: form.boutiqueId,
         boutiqueDestinationId: showDestination ? form.boutiqueDestinationId : undefined,
         montant: parseFloat(form.montant),
-        categorieDepense: (showCategorie || showAchat) ? (showAchat ? "achat_marchandise" : form.categorieDepense) : undefined,
+        categorieDepense: showCategorie ? form.categorieDepense : undefined,
         banqueNom: showBanque ? form.banqueNom : undefined,
         tiersId: showTiers ? form.tiersId : undefined,
         motif: form.motif,
@@ -254,7 +245,7 @@ export default function MouvementArgentModal({
             </div>
 
             {/* ── Solde de caisse disponible ─────────────────── */}
-            {soldeCaisse !== null && !soldeLoading && ["versement_banque","depense","achat_direct","remboursement"].includes(type) && (
+            {soldeCaisse !== null && !soldeLoading && ["versement_banque","depense","remboursement"].includes(type) && (
               <div className={`flex items-center justify-between px-4 py-3 rounded-xl border font-mono text-sm
                 ${form.montant && parseFloat(form.montant) > soldeCaisse
                   ? "bg-danger/10 border-danger/30 text-danger"
@@ -293,17 +284,6 @@ export default function MouvementArgentModal({
                   onChange={e => set("banqueNom", e.target.value)} required />
                 <p className="text-[10px] font-mono text-muted mt-1">
                   Ce montant sort de la boutique principale et est déposé en banque
-                </p>
-              </div>
-            )}
-
-            {/* Achat direct marchandise */}
-            {showAchat && (
-              <div className="bg-warning/5 border border-warning/20 rounded-xl px-4 py-3">
-                <p className="text-xs font-semibold text-warning mb-1">⚠️ Achat local occasionnel</p>
-                <p className="text-xs text-muted">
-                  Réservé aux achats urgents quand le stock manque. Précisez le détail dans le motif.
-                  N&apos;oubliez pas d&apos;ajuster le stock manuellement après.
                 </p>
               </div>
             )}

@@ -21,7 +21,6 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; badge: string; 
   avance_caisse:      { label: "Avance de caisse",      icon: "🔄", badge: "badge-orange", flux: "entree" },
   remboursement:      { label: "Remboursement",         icon: "↩️", badge: "badge-blue",   flux: "sortie" },
   depense:            { label: "Dépense",               icon: "💳", badge: "badge-red",    flux: "sortie" },
-  achat_direct:       { label: "Achat direct",          icon: "🛍️", badge: "badge-orange", flux: "sortie" },
   depot_tiers:        { label: "Dépôt tiers",           icon: "👤", badge: "badge-purple", flux: "entree" },
   retrait_tiers:      { label: "Retrait tiers",         icon: "👤", badge: "badge-orange", flux: "sortie" },
   ajustement_positif: { label: "Ajustement (excédent)", icon: "➕", badge: "badge-green",  flux: "entree" },
@@ -209,7 +208,11 @@ export default function TresoreriePage() {
       {/* Actions rapides — le versement boutique → principale se fait
           exclusivement depuis la page dédiée /versements, pas d'ici.
           Les ajustements (excédent/manquant) sont générés automatiquement
-          à la fermeture de caisse en cas d'écart — pas de saisie manuelle. */}
+          à la fermeture de caisse en cas d'écart — pas de saisie manuelle.
+          "Achat direct" a été retiré : un achat local par une boutique
+          secondaire passe maintenant par Commandes → "Achat immédiat"
+          (commande + réception + paiement en une fois, avec fournisseur et
+          produits identifiés). */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {Object.entries(TYPE_CONFIG)
           .filter(([type]) => !["versement_boutique", "ajustement_positif", "ajustement_negatif"].includes(type))
