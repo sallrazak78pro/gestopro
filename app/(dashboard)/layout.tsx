@@ -127,6 +127,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (!isDesktop) setSidebarOpen(false);
   }, [pathname, isDesktop]);
 
+  // Un champ number focus réagit par défaut au scroll/geste deux-doigts du
+  // trackpad en incrémentant/décrémentant sa valeur — surprenant et source
+  // d'erreurs de saisie (prix, quantités...). On désactive ce comportement
+  // partout : la valeur ne doit changer que par saisie clavier ou boutons.
+  useEffect(() => {
+    const blurNumberInputOnWheel = (e: WheelEvent) => {
+      const el = e.target as HTMLElement;
+      if (el instanceof HTMLInputElement && el.type === "number") el.blur();
+    };
+    document.addEventListener("wheel", blurNumberInputOnWheel, { passive: true });
+    return () => document.removeEventListener("wheel", blurNumberInputOnWheel);
+  }, []);
+
   const nbDanger  = notifications.filter(n => n.severity === "danger").length;
   const nbWarning = notifications.filter(n => n.severity === "warning").length;
   const nbTotal   = notifications.length;
