@@ -11,6 +11,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "fournisseurs", "view");
+    if (denied) return denied;
     await connectDB();
     const f = await Fournisseur.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!f) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });

@@ -3,12 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Fournisseur from "@/lib/models/Fournisseur";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { hasPermission } from "@/lib/utils/permissions";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    // Le sélecteur de fournisseur de la modale "nouvelle commande" a besoin
+    // de cette liste — qui peut passer commande peut donc la lire, même sans
+    // accès à la page Fournisseurs elle-même.
+    if (!hasPermission(ctx.role, ctx.tenantPermissions, "commandes", "create")) {
+      const denied = requirePermission(ctx, "fournisseurs", "view");
+      if (denied) return denied;
+    }
     await connectDB();
     const { searchParams } = new URL(req.url);
     const query: any = { tenantId: ctx.tenantId };
