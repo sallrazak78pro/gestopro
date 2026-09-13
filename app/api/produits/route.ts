@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "stock", "view");
+    if (denied) return denied;
     await connectDB();
     const { searchParams } = new URL(req.url);
     const query: any = { tenantId: ctx.tenantId, actif: true };

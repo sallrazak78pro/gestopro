@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "stock", "view");
+    if (denied) return denied;
     await connectDB();
     // Le prix d'achat (prix de revient) ne doit être visible qu'à l'admin.
     const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
@@ -31,6 +33,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "stock", "edit");
+    if (denied) return denied;
     await connectDB();
     const body = await req.json();
     const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
@@ -62,6 +66,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "stock", "delete");
+    if (denied) return denied;
     await connectDB();
     const produit = await Produit.findOneAndUpdate({ _id: id, tenantId: ctx.tenantId }, { actif: false });
 
