@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "mouvements", "view");
+    if (denied) return denied;
     await connectDB();
 
     const tenant = await Tenant.findById(ctx.tenantId).lean() as any;

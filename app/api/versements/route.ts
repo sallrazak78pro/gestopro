@@ -1,7 +1,7 @@
 // app/api/versements/route.ts — Versements boutique → caisse centrale
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "versements", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "versements", "create");
+    if (denied) return denied;
     await connectDB();
 
     const { montant, boutiqueId, date } = await req.json();
