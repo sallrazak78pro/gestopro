@@ -80,7 +80,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
-    <html lang="fr" className={`${syne.variable} ${dmMono.variable}`}>
+    <html lang="fr" className={`${syne.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Anti-flash thème : applique la classe avant le rendu */}
         <script dangerouslySetInnerHTML={{ __html: `
