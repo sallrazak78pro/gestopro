@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 // GET — session active d'une boutique + ses chiffres en temps réel
@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "caisse", "view");
+    if (denied) return denied;
     await connectDB();
 
     const boutiqueId = new URL(req.url).searchParams.get("boutiqueId");

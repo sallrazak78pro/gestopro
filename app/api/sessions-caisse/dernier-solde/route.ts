@@ -4,12 +4,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "caisse", "view");
+    if (denied) return denied;
     await connectDB();
 
     const boutiqueId = new URL(req.url).searchParams.get("boutiqueId");

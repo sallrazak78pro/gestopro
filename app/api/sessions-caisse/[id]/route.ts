@@ -4,13 +4,15 @@ import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE } from "@/lib/utils/tresorerie";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "caisse", "view");
+    if (denied) return denied;
     await connectDB();
 
     const session = await SessionCaisse.findOne({ _id: (await params).id, tenantId: ctx.tenantId })

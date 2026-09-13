@@ -10,6 +10,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "boutiques", "view");
+    if (denied) return denied;
     await connectDB();
     const boutique = await Boutique.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!boutique)

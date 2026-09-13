@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 // GET — historique des sessions (avec filtre boutique)
@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "caisse", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -40,6 +42,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "caisse", "create");
+    if (denied) return denied;
     await connectDB();
 
     const { boutiqueId, fondOuverture, noteOuverture } = await req.json();

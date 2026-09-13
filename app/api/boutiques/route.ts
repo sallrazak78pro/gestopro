@@ -5,6 +5,12 @@ import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
+// Volontairement sans requirePermission("boutiques","view") : cette liste est
+// une donnée de référence chargée par AppDataContext pour toute l'application
+// (sélecteur de boutique d'une vente, filtres, destination d'un transfert...).
+// La permission "boutiques" gouverne la page d'administration des boutiques,
+// donc la création/modification/suppression ci-dessous — pas la simple lecture
+// des noms, sans quoi les listes déroulantes se videraient partout.
 export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
