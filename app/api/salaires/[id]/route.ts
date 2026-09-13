@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import PaiementSalaire from "@/lib/models/PaiementSalaire";
 import AvanceSalaire from "@/lib/models/AvanceSalaire";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "salaires", "view");
+    if (denied) return denied;
     await connectDB();
 
     const paiement = await PaiementSalaire.findOne({ _id: (await params).id, tenantId: ctx.tenantId })
