@@ -7,7 +7,7 @@ import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
 import Employe from "@/lib/models/Employe";
 import User from "@/lib/models/User";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { genererReference } from "@/lib/utils/reference";
@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "ventes", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "ventes", "create");
+    if (denied) return denied;
     await connectDB();
 
     const { boutiqueId, client, lignes, modePaiement, montantRecu, note, statut, employeId } = await req.json();

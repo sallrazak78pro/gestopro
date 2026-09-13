@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Vente from "@/lib/models/Vente";
 import Stock from "@/lib/models/Stock";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "ventes", "view");
+    if (denied) return denied;
     await connectDB();
     const vente = await Vente.findOne({ _id: id, tenantId: ctx.tenantId })
       .populate("boutique", "nom adresse telephone logo")
@@ -28,6 +30,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "ventes", "edit");
+    if (denied) return denied;
     await connectDB();
     const { statut, montantRecu } = await req.json();
 
