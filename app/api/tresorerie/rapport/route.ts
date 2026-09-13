@@ -5,7 +5,7 @@ import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
 
@@ -13,6 +13,8 @@ export async function GET() {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "tresorerie", "view");
+    if (denied) return denied;
     await connectDB();
 
     const tid = new mongoose.Types.ObjectId(ctx.tenantId);

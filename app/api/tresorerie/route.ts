@@ -5,7 +5,7 @@ import MouvementArgent from "@/lib/models/MouvementArgent";
 import CompteTiers from "@/lib/models/CompteTiers";
 import Boutique from "@/lib/models/Boutique";
 import SessionCaisse from "@/lib/models/SessionCaisse";
-import { getTenantContext, canAccessBoutique } from "@/lib/utils/tenant";
+import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_SORTIE_REPORTING } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "tresorerie", "view");
+    if (denied) return denied;
     await connectDB();
 
     const { searchParams } = new URL(req.url);
@@ -97,6 +99,8 @@ export async function POST(req: NextRequest) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "tresorerie", "create");
+    if (denied) return denied;
     await connectDB();
 
     const body = await req.json();

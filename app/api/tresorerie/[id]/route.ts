@@ -2,12 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import MouvementArgent from "@/lib/models/MouvementArgent";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { ctx, error } = await getTenantContext();
     if (error) return error;
+    const denied = requirePermission(ctx, "tresorerie", "view");
+    if (denied) return denied;
     await connectDB();
     const { id } = await params;
     const m = await MouvementArgent.findOne({ _id: id, tenantId: ctx.tenantId })
