@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import clsx from "clsx";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
 import { useSession } from "next-auth/react";
-import { formatMontant } from "@/lib/utils/devise";
+import { formatMontant, arrondirFCFA, PAS_FCFA } from "@/lib/utils/devise";
 import { useAppData } from "@/lib/context/AppDataContext";
 
 interface Produit  { _id: string; reference: string; nom: string; prixVente: number; unite: string; image?: string; }
@@ -121,11 +121,11 @@ export default function NouvelleVenteModal({
   useEffect(() => { fetchProduits(); }, [fetchProduits]);
 
   const total   = panier.reduce((s, l) => s + l.sousTotal, 0);
-  // Le franc CFA n'a pas de centimes : une quantité ou un prix décimal peut
-  // donner un total comme 11 999,5 F, affiché partout arrondi (12 000 F) —
-  // c'est donc ce montant arrondi qui est encaissé et sert au rendu de monnaie.
-  const totalARegler = Math.round(total);
-  const monnaie = montantRecu !== "" ? Math.round(+montantRecu) - totalARegler : 0;
+  // En FCFA la plus petite pièce est de 5 F : une quantité ou un prix décimal
+  // peut donner un total comme 15 172,21 F, mais on encaisse et on rend la
+  // monnaie au multiple de 5 le plus proche (15 170 F).
+  const totalARegler = arrondirFCFA(total);
+  const monnaie = montantRecu !== "" ? arrondirFCFA(+montantRecu) - totalARegler : 0;
 
   // Un clic accidentel en dehors (ou sur ✕) ne doit pas faire perdre un
   // panier déjà constitué — seule une confirmation explicite, ou une
@@ -226,7 +226,7 @@ export default function NouvelleVenteModal({
     const printTab = window.open("", "_blank");
     const body = {
       boutiqueId, client, lignes: panier,
-      modePaiement, montantRecu: montantRecu !== "" ? Math.round(+montantRecu) : totalARegler,
+      modePaiement, montantRecu: montantRecu !== "" ? arrondirFCFA(+montantRecu) : totalARegler,
       note, statut, employeId,
     };
     const result = await submit({
@@ -661,9 +661,14 @@ export default function NouvelleVenteModal({
             {statut === "payee" && modePaiement === "especes" && (
               <div>
                 <label className="input-label">Montant reçu (FCFA)</label>
-                <input type="number" min={0} step="1" className="input text-lg font-bold font-mono"
+                <input type="number" min={0} step={PAS_FCFA} className="input text-lg font-bold font-mono"
                   placeholder={String(totalARegler)} value={montantRecu}
                   onChange={e => setMontantRecu(e.target.value)} />
+                {Math.abs(totalARegler - total) >= 0.005 && (
+                  <p className="mt-1 text-[11px] font-mono text-muted">
+                    Total {formatMontant(total)} arrondi à {formatMontant(totalARegler)} (multiple de {PAS_FCFA} F)
+                  </p>
+                )}
                 {montantRecu !== "" && (
                   <div className={clsx(
                     "mt-2 flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-mono",

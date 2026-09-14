@@ -12,6 +12,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { genererReference } from "@/lib/utils/reference";
 import { ficheEmployePourCompte } from "@/lib/utils/ficheCompte";
+import { arrondirFCFA } from "@/lib/utils/devise";
 
 export async function GET(req: NextRequest) {
   try {
@@ -186,10 +187,10 @@ export async function POST(req: NextRequest) {
         quantite: l.quantite, prixUnitaire: l.prixUnitaire, sousTotal: l.sousTotal,
       })),
       montantTotal,
-      // Encaissement en francs entiers (pas de centimes en FCFA) — cf. la
-      // modale de vente, qui arrondit de la même façon le montant à régler.
-      montantRecu: montantRecu ? Math.round(montantRecu) : Math.round(montantTotal),
-      monnaie: (montantRecu ? Math.round(montantRecu) : Math.round(montantTotal)) - Math.round(montantTotal),
+      // Encaissement au multiple de 5 F (plus petite pièce FCFA) — même
+      // arrondi que la modale de vente pour le montant à régler et la monnaie.
+      montantRecu: arrondirFCFA(montantRecu || montantTotal),
+      monnaie: arrondirFCFA(montantRecu || montantTotal) - arrondirFCFA(montantTotal),
       statut: statut || "payee",
       modePaiement: modePaiement || "especes",
       note: note || "",
