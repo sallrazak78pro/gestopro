@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import PrintButton from "@/components/ui/PrintButton";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+// Francs entiers (pas de centimes en FCFA) — une vente ancienne enregistrée
+// avec un total décimal (ex. 11 999,5) s'affiche comme partout ailleurs.
+const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n);
 const STATUT_BADGE: Record<string, string> = {
   payee: "badge-green", en_attente: "badge-orange", annulee: "badge-red",
 };

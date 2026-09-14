@@ -121,7 +121,11 @@ export default function NouvelleVenteModal({
   useEffect(() => { fetchProduits(); }, [fetchProduits]);
 
   const total   = panier.reduce((s, l) => s + l.sousTotal, 0);
-  const monnaie = montantRecu !== "" ? +montantRecu - total : 0;
+  // Le franc CFA n'a pas de centimes : une quantité ou un prix décimal peut
+  // donner un total comme 11 999,5 F, affiché partout arrondi (12 000 F) —
+  // c'est donc ce montant arrondi qui est encaissé et sert au rendu de monnaie.
+  const totalARegler = Math.round(total);
+  const monnaie = montantRecu !== "" ? Math.round(+montantRecu) - totalARegler : 0;
 
   // Un clic accidentel en dehors (ou sur ✕) ne doit pas faire perdre un
   // panier déjà constitué — seule une confirmation explicite, ou une
@@ -222,7 +226,7 @@ export default function NouvelleVenteModal({
     const printTab = window.open("", "_blank");
     const body = {
       boutiqueId, client, lignes: panier,
-      modePaiement, montantRecu: montantRecu || total,
+      modePaiement, montantRecu: montantRecu !== "" ? Math.round(+montantRecu) : totalARegler,
       note, statut, employeId,
     };
     const result = await submit({
@@ -657,8 +661,8 @@ export default function NouvelleVenteModal({
             {statut === "payee" && modePaiement === "especes" && (
               <div>
                 <label className="input-label">Montant reçu (FCFA)</label>
-                <input type="number" className="input text-lg font-bold font-mono"
-                  placeholder={String(total)} value={montantRecu}
+                <input type="number" min={0} step="1" className="input text-lg font-bold font-mono"
+                  placeholder={String(totalARegler)} value={montantRecu}
                   onChange={e => setMontantRecu(e.target.value)} />
                 {montantRecu !== "" && (
                   <div className={clsx(

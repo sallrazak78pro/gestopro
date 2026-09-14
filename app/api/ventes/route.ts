@@ -186,8 +186,10 @@ export async function POST(req: NextRequest) {
         quantite: l.quantite, prixUnitaire: l.prixUnitaire, sousTotal: l.sousTotal,
       })),
       montantTotal,
-      montantRecu: montantRecu || montantTotal,
-      monnaie: (montantRecu || montantTotal) - montantTotal,
+      // Encaissement en francs entiers (pas de centimes en FCFA) — cf. la
+      // modale de vente, qui arrondit de la même façon le montant à régler.
+      montantRecu: montantRecu ? Math.round(montantRecu) : Math.round(montantTotal),
+      monnaie: (montantRecu ? Math.round(montantRecu) : Math.round(montantTotal)) - Math.round(montantTotal),
       statut: statut || "payee",
       modePaiement: modePaiement || "especes",
       note: note || "",
