@@ -5,8 +5,29 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import EmployeModal from "@/components/employes/EmployeModal";
+import { toLocalISODate } from "@/lib/utils/date";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
+
+type PresetPeriode = "jour" | "semaine" | "mois";
+const PRESETS: { key: PresetPeriode; label: string }[] = [
+  { key: "jour",    label: "Aujourd'hui" },
+  { key: "semaine", label: "Cette semaine" },
+  { key: "mois",    label: "Ce mois" },
+];
+
+/** Plage de dates (AAAA-MM-JJ, heure locale) d'un raccourci — la semaine commence le lundi. */
+function plagePreset(preset: PresetPeriode): { debut: string; fin: string } {
+  const now = new Date();
+  const fin = toLocalISODate(now);
+  if (preset === "jour") return { debut: fin, fin };
+  if (preset === "semaine") {
+    const lundi = new Date(now);
+    lundi.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    return { debut: toLocalISODate(lundi), fin };
+  }
+  return { debut: toLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1)), fin };
+}
 
 export default function EmployesPage() {
   const { data: session } = useSession();
@@ -26,9 +47,19 @@ export default function EmployesPage() {
   // Classement des ventes par employé
   const [classement, setClassement] = useState<any[]>([]);
   const [classementLoading, setClassementLoading] = useState(true);
-  const [statsDebut, setStatsDebut] = useState("");
-  const [statsFin,   setStatsFin]   = useState("");
+  // Par défaut : aujourd'hui. Le raccourci actif est oublié dès qu'une date
+  // est saisie à la main ("" = plage personnalisée ou toute la période).
+  const [statsPreset, setStatsPreset] = useState<PresetPeriode | "">("jour");
+  const [statsDebut, setStatsDebut] = useState(() => plagePreset("jour").debut);
+  const [statsFin,   setStatsFin]   = useState(() => plagePreset("jour").fin);
   const [statsBoutique, setStatsBoutique] = useState("");
+
+  function appliquerPreset(preset: PresetPeriode) {
+    const { debut, fin } = plagePreset(preset);
+    setStatsPreset(preset);
+    setStatsDebut(debut);
+    setStatsFin(fin);
+  }
 
   // Migration des anciennes ventes dont employe pointait vers User au lieu d'Employe
   const [toMigrer, setToMigrer]     = useState<number | null>(null);
@@ -250,20 +281,30 @@ export default function EmployesPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-xl border border-border overflow-hidden">
+              {PRESETS.map(p => (
+                <button key={p.key} type="button" onClick={() => appliquerPreset(p.key)}
+                  className={`px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    statsPreset === p.key ? "bg-accent text-white" : "text-muted hover:bg-surface2"
+                  }`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <select className="select w-44" value={statsBoutique} onChange={e => setStatsBoutique(e.target.value)}>
               <option value="">Toutes les boutiques</option>
               {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
             </select>
             <input type="date" className="input w-36" value={statsDebut}
               max={statsFin || undefined}
-              onChange={e => setStatsDebut(e.target.value)} />
+              onChange={e => { setStatsPreset(""); setStatsDebut(e.target.value); }} />
             <span className="text-muted text-xs">→</span>
             <input type="date" className="input w-36" value={statsFin}
               min={statsDebut || undefined}
-              onChange={e => setStatsFin(e.target.value)} />
+              onChange={e => { setStatsPreset(""); setStatsFin(e.target.value); }} />
             {(statsDebut || statsFin) && (
-              <button className="btn-ghost btn-sm" title="Réinitialiser les dates"
-                onClick={() => { setStatsDebut(""); setStatsFin(""); }}>✕</button>
+              <button className="btn-ghost btn-sm" title="Toute la période"
+                onClick={() => { setStatsPreset(""); setStatsDebut(""); setStatsFin(""); }}>✕</button>
             )}
           </div>
         </div>

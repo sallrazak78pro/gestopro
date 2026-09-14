@@ -11,7 +11,7 @@ import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/ut
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { genererReference } from "@/lib/utils/reference";
-import { ROLE_LABEL } from "@/lib/utils/roles";
+import { ficheEmployePourCompte } from "@/lib/utils/ficheCompte";
 
 export async function GET(req: NextRequest) {
   try {
@@ -140,16 +140,7 @@ export async function POST(req: NextRequest) {
       const user = await User.findOne({ _id: userId, tenantId: ctx.tenantId }).lean() as any;
       if (!user)
         return NextResponse.json({ success: false, message: "Utilisateur introuvable." }, { status: 404 });
-      employe = await Employe.findOneAndUpdate(
-        { tenantId: ctx.tenantId, boutique: boutiqueId, userId: user._id },
-        { $setOnInsert: {
-            tenantId: ctx.tenantId, boutique: boutiqueId, userId: user._id,
-            nom: user.nom, prenom: user.prenom || "",
-            poste: ROLE_LABEL[user.role] ?? user.role,
-            dateEmbauche: new Date(), salaireBase: 0, actif: true,
-        } },
-        { upsert: true, new: true }
-      );
+      employe = await ficheEmployePourCompte(ctx.tenantId, boutiqueId, user);
     } else {
       employe = await Employe.findOne({ _id: employeId, tenantId: ctx.tenantId });
       if (!employe)

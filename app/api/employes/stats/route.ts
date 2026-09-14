@@ -50,19 +50,15 @@ export async function GET(req: NextRequest) {
       .populate("boutique", "nom").lean();
     const ficheMap = new Map(fiches.map((f: any) => [f._id.toString(), f]));
 
+    // Tous les vendeurs y figurent, y compris les comptes admin/gestionnaire/
+    // caissier (fiche liée, poste = leur rôle) — ces fiches ne sont masquées
+    // que des listes RH (page Employés, Salaires), pas des performances de vente.
     const classement = [...parEmploye.values()]
-      // Une vente rattachée à une fiche "fantôme" (userId défini — un compte
-      // admin/gestionnaire/caissier ayant dépanné une vente, pas un vrai
-      // employé) n'entre pas dans le classement des employés.
-      .filter(e => {
-        const fiche = e.employeId ? ficheMap.get(e.employeId) : null;
-        return !(fiche as any)?.userId;
-      })
       .map(e => {
         const fiche = e.employeId ? ficheMap.get(e.employeId) : null;
         return {
           employeId: e.employeId,
-          nom: fiche ? `${(fiche as any).prenom} ${(fiche as any).nom}` : e.nom,
+          nom: fiche ? `${(fiche as any).prenom ?? ""} ${(fiche as any).nom}`.trim() : e.nom,
           poste: (fiche as any)?.poste ?? null,
           boutique: (fiche as any)?.boutique?.nom ?? null,
           nbVentes: e.nbVentes,
