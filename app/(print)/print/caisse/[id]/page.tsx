@@ -16,7 +16,8 @@ export default function PrintCaissePage() {
       fetch(`/api/sessions-caisse/${id}`).then(r => r.json()),
       fetch("/api/parametres").then(r => r.json()),
     ]).then(([s, p]) => {
-      if (s.success) setSession(s.data);
+      // L'API renvoie { session, ventes, mouvements } : la session n'est pas à plat.
+      if (s.success && s.data?.session) setSession({ ...s.data.session, ventes: s.data.ventes ?? [] });
       if (p.success) setTenant(p.data);
     }).finally(() => setLoading(false));
   }, [id]);
@@ -24,10 +25,10 @@ export default function PrintCaissePage() {
   if (loading) return <div className="print-page" style={{ textAlign:"center", paddingTop:80, color:"#64748b" }}>Chargement...</div>;
   if (!session) return <div className="print-page" style={{ textAlign:"center", paddingTop:80 }}>Session introuvable.</div>;
 
-  const ecart       = (session.montantComptage ?? 0) - (session.montantTheorique ?? 0);
+  const ecart       = session.ecart ?? 0;
   const estFerme    = session.statut === "fermee";
   const totalVentes = session.totalVentes ?? 0;
-  const nbVentes    = session.nbVentes ?? 0;
+  const nbVentes    = session.ventes?.length ?? 0;
 
   return (
     <>
@@ -63,6 +64,12 @@ export default function PrintCaissePage() {
           <div className="doc-kpi">
             <div className="doc-kpi-label">Fond d&apos;ouverture</div>
             <div className="doc-kpi-value">{fmt(session.fondOuverture ?? 0)} F</div>
+            {!!session.ecartOuverture && Math.round(session.ecartOuverture) !== 0 && (
+              <div className="doc-kpi-sub" style={{ color: session.ecartOuverture > 0 ? "#b45309" : "#dc2626" }}>
+                Écart à l&apos;ouverture :{" "}
+                <span style={{ whiteSpace: "nowrap" }}>{session.ecartOuverture > 0 ? "+" : ""}{fmt(session.ecartOuverture)} F</span>
+              </div>
+            )}
           </div>
           <div className="doc-kpi">
             <div className="doc-kpi-label">CA du jour</div>
@@ -71,7 +78,7 @@ export default function PrintCaissePage() {
           </div>
           <div className="doc-kpi">
             <div className="doc-kpi-label">Montant théorique</div>
-            <div className="doc-kpi-value">{fmt(session.montantTheorique ?? 0)} F</div>
+            <div className="doc-kpi-value">{fmt(session.montantAttendu ?? 0)} F</div>
           </div>
           {estFerme && (
             <div className="doc-kpi" style={{ borderColor: ecart !== 0 ? "#fca5a5" : "#86efac" }}>
@@ -130,19 +137,25 @@ export default function PrintCaissePage() {
               <span>Fond d&apos;ouverture</span>
               <span className="mono">{fmt(session.fondOuverture ?? 0)} F</span>
             </div>
+            {!!session.ecartOuverture && Math.round(session.ecartOuverture) !== 0 && (
+              <div className="doc-total-row">
+                <span>Écart à l&apos;ouverture (attendu {fmt(session.fondAttendu ?? 0)} F)</span>
+                <span className="mono">{session.ecartOuverture > 0 ? "+" : ""}{fmt(session.ecartOuverture)} F</span>
+              </div>
+            )}
             <div className="doc-total-row">
               <span>Total ventes</span>
               <span className="mono">{fmt(totalVentes)} F</span>
             </div>
             <div className="doc-total-row">
               <span>Montant théorique</span>
-              <span className="mono">{fmt(session.montantTheorique ?? 0)} F</span>
+              <span className="mono">{fmt(session.montantAttendu ?? 0)} F</span>
             </div>
             {estFerme && (
               <>
                 <div className="doc-total-row">
                   <span>Montant compté</span>
-                  <span className="mono">{fmt(session.montantComptage ?? 0)} F</span>
+                  <span className="mono">{fmt(session.montantReelTotal ?? 0)} F</span>
                 </div>
                 <div className="doc-total-row">
                   <span style={{ color: ecart < 0 ? "#dc2626" : "#16a34a" }}>
@@ -157,13 +170,16 @@ export default function PrintCaissePage() {
           </div>
         </div>
 
-        {session.notesFermeture && (
-          <div className="doc-note"><strong>Observations :</strong> {session.notesFermeture}</div>
+        {session.noteOuverture && (
+          <div className="doc-note"><strong>Note d&apos;ouverture :</strong> {session.noteOuverture}</div>
+        )}
+        {session.noteFermeture && (
+          <div className="doc-note"><strong>Observations :</strong> {session.noteFermeture}</div>
         )}
 
         <div className="doc-footer">
           {tenant?.nomEntreprise || "GestoPro"} · Rapport généré le {new Date().toLocaleString("fr-FR")}
-          {estFerme && session.userFermeture && ` · Fermé par ${session.userFermeture}`}
+          {estFerme && session.ferméPar?.nom && ` · Fermé par ${session.ferméPar.nom}`}
         </div>
       </div>
     </>
