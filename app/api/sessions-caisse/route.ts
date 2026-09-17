@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/utils/tenant";
+import MouvementArgent from "@/lib/models/MouvementArgent";
+import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 // GET — historique des sessions (avec filtre boutique)
@@ -46,10 +48,17 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
     await connectDB();
 
-    const { boutiqueId, fondOuverture, noteOuverture } = await req.json();
+    const body = await req.json();
+    const { boutiqueId, noteOuverture } = body;
+    // "fondOuverture" : repli pour une ouverture mise en file hors-ligne par
+    // une version précédente de l'écran, qui envoyait le fond sous ce nom.
+    const montantCompte = Number(body.montantCompte ?? body.fondOuverture);
 
     if (!boutiqueId)
       return NextResponse.json({ success: false, message: "Boutique requise." }, { status: 400 });
+
+    if (!Number.isFinite(montantCompte) || montantCompte < 0)
+      return NextResponse.json({ success: false, message: "Saisissez le montant compté dans la caisse." }, { status: 400 });
 
     if (!canAccessBoutique(ctx, boutiqueId))
       return NextResponse.json({ success: false, message: "Accès refusé à cette boutique." }, { status: 403 });
@@ -69,15 +78,45 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // Fond attendu = montant compté à la dernière fermeture de cette caisse.
+    const derniereFermee = await SessionCaisse.findOne({
+      tenantId: ctx.tenantId, boutique: boutiqueId, statut: "fermee",
+    }).sort({ dateFermeture: -1 });
+    const fondAttendu = derniereFermee ? derniereFermee.montantReelTotal : null;
+    const ecartOuverture = fondAttendu === null ? 0 : montantCompte - fondAttendu;
+    const instantOuverture = new Date();
+
+    // Le fond de la session est ce qui est réellement compté dans la caisse :
+    // c'est lui qui sert d'ancrage au solde de caisse (cf. lib/utils/tresorerie.ts).
     const session = await SessionCaisse.create({
       tenantId: ctx.tenantId,
       boutique: boutiqueId,
       ouvertPar: ctx.userId,
-      fondOuverture: fondOuverture ?? 0,
+      fondOuverture: montantCompte,
+      fondAttendu,
+      ecartOuverture,
       noteOuverture: noteOuverture ?? "",
       statut: "ouverte",
-      dateOuverture: new Date(),
+      dateOuverture: instantOuverture,
     });
+
+    // Un écart entre la fermeture précédente et le comptage d'ouverture est
+    // tracé en trésorerie comme à la fermeture (ajustement excédent/manquant).
+    // Daté juste AVANT l'ouverture : le solde de la session part déjà du
+    // montant compté, l'ajustement ne doit pas y être compté une seconde fois.
+    if (Math.round(ecartOuverture) !== 0) {
+      const positif = ecartOuverture > 0;
+      await MouvementArgent.create({
+        tenantId: ctx.tenantId,
+        reference: await genererReference(ctx.tenantId, `${positif ? "AJP" : "AJM"}-${instantOuverture.getFullYear()}`),
+        type: positif ? "ajustement_positif" : "ajustement_negatif",
+        boutique: boutiqueId,
+        montant: Math.abs(Math.round(ecartOuverture)),
+        motif: `Écart constaté à l'ouverture de caisse (${session._id})${noteOuverture ? ` — ${noteOuverture}` : ""}`,
+        createdAt: new Date(instantOuverture.getTime() - 1),
+        createdBy: ctx.userId,
+      });
+    }
 
     const populated = await SessionCaisse.findById(session._id)
       .populate("boutique", "nom")
@@ -86,7 +125,9 @@ export async function POST(req: NextRequest) {
     await logActivity({
       tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
       action: ACTIONS.CAISSE_OUVERTE, module: MODULES.CAISSE,
-      details: `Ouverture de caisse — fond ${new Intl.NumberFormat("fr-FR").format(fondOuverture ?? 0)} F`,
+      details: `Ouverture de caisse — compté ${new Intl.NumberFormat("fr-FR").format(montantCompte)} F${
+        fondAttendu === null ? "" : `, écart ${ecartOuverture >= 0 ? "+" : ""}${new Intl.NumberFormat("fr-FR").format(ecartOuverture)} F`
+      }`,
       boutique: boutiqueId,
     });
 

@@ -1,6 +1,7 @@
 // app/api/sessions-caisse/dernier-solde/route.ts
-// Retourne le montant réel de la dernière session fermée d'une boutique
-// Ce montant devient le fond d'ouverture de la prochaine session (bloqué)
+// Retourne le montant réel de la dernière session fermée d'une boutique —
+// c'est le fond ATTENDU à la prochaine ouverture, comparé au montant que la
+// caissière compte réellement dans la caisse (cf. POST /api/sessions-caisse).
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import SessionCaisse from "@/lib/models/SessionCaisse";

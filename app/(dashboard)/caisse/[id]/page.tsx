@@ -104,7 +104,7 @@ export default function RapportCaissePage() {
         <h2 className="card-title mb-4">Bilan financier</h2>
         <div className="space-y-2 mb-5">
           {[
-            { label: "Fond d'ouverture",              value: session.fondOuverture,                          sign: "",  color: "text-muted2" },
+            { label: "Fond d'ouverture (compté)",     value: session.fondOuverture,                          sign: "",  color: "text-muted2" },
             { label: "Entrées d'argent (ventes incl.)", value: session.totalVentes + session.totalEntrees,     sign: "+", color: "text-success" },
             { label: "Sorties d'argent",              value: session.totalSorties,                           sign: "−", color: "text-danger" },
           ].map((row, i) => (
@@ -115,6 +115,25 @@ export default function RapportCaissePage() {
               </span>
             </div>
           ))}
+          {/* Écart constaté au comptage d'ouverture — déjà inclus dans le fond
+              compté ci-dessus, affiché à part pour le suivi, hors calcul. */}
+          {!!session.ecartOuverture && Math.round(session.ecartOuverture) !== 0 && (
+            <div className={clsx("rounded-xl px-4 py-2.5 border text-sm",
+              session.ecartOuverture > 0 ? "bg-warning/10 border-warning/30" : "bg-danger/10 border-danger/30")}>
+              <div className="flex items-center justify-between">
+                <span className={session.ecartOuverture > 0 ? "text-warning" : "text-danger"}>
+                  {session.ecartOuverture > 0 ? "Excédent" : "Manquant"} à l&apos;ouverture
+                  <span className="text-muted"> — attendu {fmt(session.fondAttendu ?? 0)} F</span>
+                </span>
+                <span className={clsx("font-mono font-bold", session.ecartOuverture > 0 ? "text-warning" : "text-danger")}>
+                  {session.ecartOuverture > 0 ? "+" : "−"} {fmt(Math.abs(session.ecartOuverture))} F
+                </span>
+              </div>
+              {session.noteOuverture && (
+                <p className="text-[11px] text-muted mt-1">Note : {session.noteOuverture}</p>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between bg-accent/10 border border-accent/30 rounded-xl px-4 py-3 mt-2">
             <span className="font-bold">Montant attendu</span>
             <span className="font-mono font-extrabold text-xl text-accent">{fmt(session.montantAttendu)} F</span>

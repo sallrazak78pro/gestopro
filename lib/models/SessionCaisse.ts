@@ -10,7 +10,9 @@ export interface ISessionCaisse extends Document {
 
   // Ouverture
   dateOuverture: Date;
-  fondOuverture: number;        // montant saisi manuellement à l'ouverture
+  fondOuverture: number;        // montant réellement compté dans la caisse à l'ouverture
+  fondAttendu?: number | null;  // montant compté à la fermeture précédente (null : première ouverture)
+  ecartOuverture: number;       // fondOuverture - fondAttendu (0 si première ouverture)
   noteOuverture?: string;
 
   // Fermeture
@@ -50,6 +52,8 @@ const SessionCaisseSchema = new Schema<ISessionCaisse>(
 
     dateOuverture: { type: Date, default: Date.now },
     fondOuverture: { type: Number, default: 0, min: 0 },
+    fondAttendu:    { type: Number, default: null },
+    ecartOuverture: { type: Number, default: 0 },
     noteOuverture: { type: String, default: "" },
 
     dateFermeture: { type: Date, default: null },
