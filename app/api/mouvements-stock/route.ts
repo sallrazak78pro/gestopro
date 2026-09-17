@@ -10,6 +10,7 @@ import Tenant from "@/lib/models/Tenant";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
       if (dateDebut) query.createdAt.$gte = new Date(dateDebut);
       if (dateFin)   { const fin = new Date(dateFin); fin.setHours(23, 59, 59, 999); query.createdAt.$lte = fin; }
     }
+    const periodeLimitee = limiterPeriode(ctx, query);
 
     // Restrict caissier to their boutique
     if (ctx.boutiqueAssignee) query.boutique = ctx.boutiqueAssignee;
@@ -131,6 +133,7 @@ export async function GET(req: NextRequest) {
         balance: entrees.totalMontant - sorties.totalMontant,
         entreesParBoutique,
       },
+      periodeLimitee,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

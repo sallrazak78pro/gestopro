@@ -7,6 +7,7 @@ import NouvelleVenteModal from "@/components/ventes/NouvelleVenteModal";
 import ExportButton from "@/components/ui/ExportButton";
 import Pagination from "@/components/ui/Pagination";
 import { useAppData } from "@/lib/context/AppDataContext";
+import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const todayStr = () => {
@@ -39,6 +40,7 @@ export default function VentesPage() {
   const [page,  setPage]  = useState(1);
   const [total, setTotal] = useState(0);
   const [stockWarning, setStockWarning] = useState("");
+  const [periodeLimitee, setPeriodeLimitee] = useState<PeriodeLimiteeClient | null>(null);
   const LIMIT = 25;
 
   const fetchVentes = useCallback(async () => {
@@ -55,6 +57,7 @@ export default function VentesPage() {
       setVentes(json.data);
       setStats(json.stats);
       setTotal(json.pagination?.total ?? 0);
+      setPeriodeLimitee(json.periodeLimitee ?? null);
     }
     setLoading(false);
   }, [search, filtreStatut, filtreBoutique, dateDebut, dateFin, page]);
@@ -68,6 +71,8 @@ export default function VentesPage() {
 
   return (
     <div className="space-y-6">
+
+      <BandeauPeriodeLimitee limite={periodeLimitee} />
 
       {stockWarning && (
         <div className="bg-warning/10 border border-warning/30 text-warning text-sm px-5 py-3 rounded-xl flex items-center gap-2">
@@ -107,7 +112,7 @@ export default function VentesPage() {
             </select>
             <div className="flex items-center gap-1">
               <input type="date" className="input w-36" value={dateDebut}
-                max={dateFin || undefined}
+                min={dateMinLimite(periodeLimitee)} max={dateFin || undefined}
                 onChange={e => setDateDebut(e.target.value)} />
               <span className="text-muted text-xs">→</span>
               <input type="date" className="input w-36" value={dateFin}

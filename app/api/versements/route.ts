@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
       if (debut) query.createdAt.$gte = new Date(debut + "T00:00:00");
       if (fin)   query.createdAt.$lte = new Date(fin   + "T23:59:59");
     }
+    const periodeLimitee = limiterPeriode(ctx, query);
 
     const versements = await MouvementArgent.find(query)
       .populate("boutique",       "nom")
@@ -71,7 +73,7 @@ export async function GET(req: NextRequest) {
       { $match: {
           tenantId: new mongoose.Types.ObjectId(ctx.tenantId), boutique: { $in: boutiqueIds },
           type: "versement_boutique", statut: { $ne: "rejete" },
-          createdAt: { $gte: debutDuMois },
+          createdAt: { $gte: periodeLimitee && periodeLimitee.depuis > debutDuMois ? periodeLimitee.depuis : debutDuMois },
       } },
       { $group: { _id: "$boutique", total: { $sum: "$montant" } } },
     ]);
@@ -82,7 +84,7 @@ export async function GET(req: NextRequest) {
       verseCeMois: versesCeMoisMap[b._id.toString()] ?? 0,
     }));
 
-    return NextResponse.json({ success: true, data: versements, nbEnAttente, parBoutique });
+    return NextResponse.json({ success: true, data: versements, nbEnAttente, parBoutique, periodeLimitee });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

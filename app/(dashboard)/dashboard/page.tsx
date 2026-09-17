@@ -10,6 +10,7 @@ import {
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
+import BandeauPeriodeLimitee, { dateMinLimite } from "@/components/ui/BandeauPeriodeLimitee";
 
 const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtM = (n: number) =>
@@ -95,6 +96,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
 
+      <BandeauPeriodeLimitee limite={data?.periodeLimitee} />
+
       {/* ── Filtre intervalle de dates ─────────────────────── */}
       <div className="card p-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -115,7 +118,7 @@ export default function DashboardPage() {
           {/* Saisie manuelle */}
           <div className="flex items-center gap-2 flex-wrap">
             <input type="date" value={debut}
-              max={fin}
+              min={dateMinLimite(data?.periodeLimitee)} max={fin}
               onChange={e => applyCustom(e.target.value, fin)}
               className="input py-1.5 text-xs font-mono flex-1 min-w-[150px]" />
             <span className="text-muted text-xs font-mono">→</span>

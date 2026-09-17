@@ -6,6 +6,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import NouvelleCommandeModal from "@/components/fournisseurs/NouvelleCommandeModal";
 import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
+import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
@@ -26,6 +27,7 @@ export default function CommandesPage() {
   const [search, setSearch]       = useState("");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin]     = useState("");
+  const [periodeLimitee, setPeriodeLimitee] = useState<PeriodeLimiteeClient | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [page, setPage]           = useState(1);
   const [total, setTotal]         = useState(0);
@@ -41,7 +43,7 @@ export default function CommandesPage() {
     if (dateFin)        params.set("dateFin",   dateFin);
     const res = await fetch(`/api/commandes?${params}`);
     const json = await res.json();
-    if (json.success) { setCommandes(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
+    if (json.success) { setCommandes(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); setPeriodeLimitee(json.periodeLimitee ?? null); }
     setLoading(false);
   }, [filtreReception, filtrePaiement, search, dateDebut, dateFin, page]);
 
@@ -53,6 +55,7 @@ export default function CommandesPage() {
 
   return (
     <div className="space-y-6">
+      <BandeauPeriodeLimitee limite={periodeLimitee} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Commandes"    value={String(stats.total)}       change="Total"              trend="up"     icon="📋" />
         <KpiCard label="Montant dû"   value={fmt(stats.totalDu) + " F"} change="Reste à payer"      trend={stats.totalDu > 0 ? "down" : "up"} icon="💳" />
@@ -80,7 +83,7 @@ export default function CommandesPage() {
               <option value="paye">✓ Payée intégralement</option>
               <option value="reste">💳 Reste à payer</option>
             </select>
-            <input type="date" className="input w-36" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            <input type="date" className="input w-36" value={dateDebut} min={dateMinLimite(periodeLimitee)} onChange={e => setDateDebut(e.target.value)} />
             <span className="text-muted text-xs">→</span>
             <input type="date" className="input w-36" value={dateFin} onChange={e => setDateFin(e.target.value)} />
             <button className="btn-primary btn-sm" onClick={() => setShowModal(true)}>+ Nouvelle commande</button>

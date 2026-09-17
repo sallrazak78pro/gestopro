@@ -7,6 +7,7 @@ import Produit from "@/lib/models/Produit";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
       if (dateDebut) query.createdAt.$gte = new Date(dateDebut);
       if (dateFin)   { const f = new Date(dateFin); f.setHours(23, 59, 59, 999); query.createdAt.$lte = f; }
     }
+    const periodeLimitee = limiterPeriode(ctx, query);
 
     if (searchParams.get("search")) {
       const regex = { $regex: searchParams.get("search"), $options: "i" };
@@ -75,6 +77,7 @@ export async function GET(req: NextRequest) {
       success: true, data: commandes,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: { total, totalDu, enCours, recuesMois },
+      periodeLimitee,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

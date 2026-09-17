@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
+import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtDate = (d: string) => new Date(d).toLocaleString("fr-FR", {
@@ -37,6 +38,7 @@ export default function VersementsPage() {
   const [filtreBoutique, setFiltreBoutique] = useState("");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin,   setDateFin]   = useState("");
+  const [periodeLimitee, setPeriodeLimitee] = useState<PeriodeLimiteeClient | null>(null);
 
   // Modal nouveau versement
   const [showModal, setShowModal]   = useState(false);
@@ -62,7 +64,7 @@ export default function VersementsPage() {
     if (dateFin)         params.set("fin",      dateFin);
     const res  = await fetch(`/api/versements?${params}`);
     const json = await res.json();
-    if (json.success) { setVersements(json.data); setParBoutique(json.parBoutique ?? []); }
+    if (json.success) { setVersements(json.data); setParBoutique(json.parBoutique ?? []); setPeriodeLimitee(json.periodeLimitee ?? null); }
     setLoading(false);
   }, [filtreStatut, filtreBoutique, dateDebut, dateFin]);
 
@@ -132,6 +134,8 @@ export default function VersementsPage() {
       {error   && <div className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-xl px-4 py-3">⚠ {error}</div>}
       {success && <div className="text-xs text-success bg-success/10 border border-success/20 rounded-xl px-4 py-3">✓ {success}</div>}
 
+      <BandeauPeriodeLimitee limite={periodeLimitee} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4">
         <div className="card p-4 relative overflow-hidden">
@@ -151,7 +155,7 @@ export default function VersementsPage() {
       {parBoutique.length > 0 && (
         <div>
           <p className="text-[11px] font-mono text-muted uppercase tracking-widest mb-2">
-            Versé en {nomMois} — par boutique
+            Versé en {nomMois}{periodeLimitee ? " (période autorisée)" : ""} — par boutique
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {parBoutique.map(b => (
@@ -194,7 +198,7 @@ export default function VersementsPage() {
 
         <div className="flex items-center gap-1">
           <input type="date" className="input w-36" value={dateDebut}
-            max={dateFin || undefined}
+            min={dateMinLimite(periodeLimitee)} max={dateFin || undefined}
             onChange={e => setDateDebut(e.target.value)} />
           <span className="text-muted text-xs">→</span>
           <input type="date" className="input w-36" value={dateFin}

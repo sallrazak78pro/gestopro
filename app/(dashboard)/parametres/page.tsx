@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { MODULES, DEFAULT_PERMISSIONS, type Action, type ConfigurableRole } from "@/lib/utils/permissions";
+import { PERIODES_STATS, periodePourRole, type PeriodeStats } from "@/lib/utils/periodeStats";
 
 const PAYS = [
   { code: "CI", nom: "Côte d'Ivoire" }, { code: "SN", nom: "Sénégal" },
@@ -63,6 +64,9 @@ export default function ParametresPage() {
   const [permMatrix, setPermMatrix] = useState<Matrix | null>(null);
   const [permRole, setPermRole] = useState<ConfigurableRole>("gestionnaire");
   const [permSaving, setPermSaving] = useState(false);
+  const [periodeStats, setPeriodeStats] = useState<Record<ConfigurableRole, PeriodeStats>>({
+    gestionnaire: "illimite", caissier: "illimite",
+  });
 
   // Sécurité form
   const [secForm, setSecForm] = useState({ ancienPassword: "", nouveauPassword: "", confirmer: "" });
@@ -85,6 +89,10 @@ export default function ParametresPage() {
     });
     setMouvementsActifs(tenant.mouvementsActifs ?? true);
     setPermMatrix(buildMatrix(tenant.permissions));
+    setPeriodeStats({
+      gestionnaire: periodePourRole("gestionnaire", tenant.periodeStats),
+      caissier:     periodePourRole("caissier", tenant.periodeStats),
+    });
   }, [tenant]);
 
   function togglePerm(moduleKey: string, action: Action) {
@@ -107,7 +115,7 @@ export default function ParametresPage() {
     const res = await fetch("/api/parametres/permissions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permissions: permMatrix }),
+      body: JSON.stringify({ permissions: permMatrix, periodeStats }),
     });
     const json = await res.json();
     setPermSaving(false);
@@ -353,6 +361,21 @@ export default function ParametresPage() {
             <p className="text-xs text-muted mb-3">
               Admin et Superadmin gardent toujours un accès complet — non modifiable ici.
             </p>
+
+            {/* Période de statistiques visible pour ce rôle */}
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3 mb-2 border-b border-border">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Période des statistiques visibles</p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  Tableau de bord, ventes, trésorerie, versements, mouvements et commandes —
+                  période glissante, calculée chaque jour à partir d&apos;aujourd&apos;hui.
+                </p>
+              </div>
+              <select className="select w-56" value={periodeStats[permRole]}
+                onChange={e => setPeriodeStats(prev => ({ ...prev, [permRole]: e.target.value as PeriodeStats }))}>
+                {PERIODES_STATS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
             {MODULES.map(mod => (
               <div key={mod.key}
                 className="flex items-center justify-between gap-4 py-2.5 border-b border-border/50 last:border-0">

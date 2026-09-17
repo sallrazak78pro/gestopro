@@ -17,6 +17,9 @@ export interface ITenant extends Document {
   // Permissions par rôle configurables depuis Paramètres — voir
   // lib/utils/permissions.ts pour la forme exacte et les valeurs par défaut.
   permissions: Record<string, unknown>;
+  // Période de statistiques visible par rôle ({ gestionnaire, caissier }) —
+  // voir lib/utils/periodeStats.ts. Absent ou {} : illimitée.
+  periodeStats: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -35,6 +38,7 @@ const TenantSchema = new Schema<ITenant>(
     nbUsersMax:     { type: Number, default: 10 },
     mouvementsActifs: { type: Boolean, default: true }, // activé par défaut
     permissions: { type: Schema.Types.Mixed, default: {} },
+    periodeStats: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

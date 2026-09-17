@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_REPORTING, TYPES_VERSEMENT } from "@/lib/utils/mouvementArgentTypes";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
@@ -47,6 +48,7 @@ export default function TresoreriePage() {
   const [dateFin, setDateFin]         = useState("");
   const [page, setPage]               = useState(1);
   const [total, setTotal]             = useState(0);
+  const [periodeLimitee, setPeriodeLimitee] = useState<PeriodeLimiteeClient | null>(null);
   const LIMIT = 50;
 
   const fetchData = useCallback(async () => {
@@ -62,7 +64,7 @@ export default function TresoreriePage() {
       fetch("/api/tresorerie/rapport"),
     ]);
     const [json, rapJson] = await Promise.all([res.json(), rapRes.json()]);
-    if (json.success)   { setMouvements(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); }
+    if (json.success)   { setMouvements(json.data); setStats(json.stats); setTotal(json.pagination?.total ?? 0); setPeriodeLimitee(json.periodeLimitee ?? null); }
     if (rapJson.success) setRapport(rapJson.data);
     setLoading(false);
   }, [search, filtreType, filtreBoutique, dateDebut, dateFin, page]);
@@ -79,6 +81,8 @@ export default function TresoreriePage() {
 
   return (
     <div className="space-y-6">
+
+      <BandeauPeriodeLimitee limite={periodeLimitee} />
 
       {/* KPIs — versement traité comme sa propre catégorie, jamais mélangé
           aux "Sorties" : c'est un transfert interne (boutique→principale,
@@ -278,7 +282,7 @@ export default function TresoreriePage() {
               <option value="">Toutes boutiques</option>
               {boutiques.map(b => <option key={b._id} value={b._id}>{b.nom}</option>)}
             </select>
-            <input type="date" className="input w-36" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            <input type="date" className="input w-36" value={dateDebut} min={dateMinLimite(periodeLimitee)} onChange={e => setDateDebut(e.target.value)} />
             <span className="text-muted text-xs">→</span>
             <input type="date" className="input w-36" value={dateFin} onChange={e => setDateFin(e.target.value)} />
             <ExportButton type="tresorerie" />

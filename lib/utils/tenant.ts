@@ -15,6 +15,8 @@ export interface TenantContext {
   // Matrice de permissions du tenant (Gestionnaire/Caissier) — voir
   // lib/utils/permissions.ts. {} si le tenant n'a rien personnalisé.
   tenantPermissions: Record<string, unknown>;
+  // Période de statistiques visible par rôle — voir lib/utils/periodeStats.ts.
+  periodeStats?: Record<string, unknown>;
 }
 
 export async function getTenantContext(): Promise<
@@ -43,6 +45,7 @@ export async function getTenantContext(): Promise<
   // Vérifier que le tenant est actif (sauf superadmin), et récupérer sa
   // matrice de permissions au passage — aucune requête DB supplémentaire.
   let tenantPermissions: Record<string, unknown> = {};
+  let periodeStats: Record<string, unknown> = {};
   if (!isSuperAdmin && user.tenantId) {
     const { connectDB } = await import("@/lib/mongodb");
     const Tenant = (await import("@/lib/models/Tenant")).default;
@@ -56,6 +59,7 @@ export async function getTenantContext(): Promise<
       }, { status: 403 }) };
     }
     tenantPermissions = tenant?.permissions ?? {};
+    periodeStats = tenant?.periodeStats ?? {};
   }
 
   // boutiqueAssignee = la boutique spécifique assignée au user (null = accès global)
@@ -76,6 +80,7 @@ export async function getTenantContext(): Promise<
       isSuperAdmin,
       boutiqueAssignee,
       tenantPermissions,
+      periodeStats,
     },
     error: null,
   };

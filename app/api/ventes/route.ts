@@ -13,6 +13,7 @@ import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 import { genererReference } from "@/lib/utils/reference";
 import { ficheEmployePourCompte } from "@/lib/utils/ficheCompte";
 import { arrondirFCFA } from "@/lib/utils/devise";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
       if (debut) query.createdAt.$gte = new Date(debut);
       if (fin)   query.createdAt.$lte = new Date(fin + "T23:59:59");
     }
+    const periodeLimitee = limiterPeriode(ctx, query);
 
     const page  = parseInt(searchParams.get("page")  || "1");
     const limit = parseInt(searchParams.get("limit") || "25");
@@ -83,6 +85,7 @@ export async function GET(req: NextRequest) {
       success: true, data: ventes,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: { totalCA, total: totalToutes, nbPayees, nbAttente },
+      periodeLimitee,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

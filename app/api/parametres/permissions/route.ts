@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Tenant from "@/lib/models/Tenant";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { MODULES, type Action, type ConfigurableRole } from "@/lib/utils/permissions";
+import { estPeriodeStats, type PeriodeStats } from "@/lib/utils/periodeStats";
 
 const ROLES: ConfigurableRole[] = ["gestionnaire", "caissier"];
 
@@ -39,11 +40,20 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const tenant = await Tenant.findByIdAndUpdate(
-      ctx.tenantId,
-      { permissions: sanitized },
-      { new: true }
-    );
+    const update: Record<string, unknown> = { permissions: sanitized };
+
+    // Période de statistiques visible par rôle — seulement si elle est envoyée,
+    // et en ne gardant que des valeurs connues (illimitée sinon).
+    if (body?.periodeStats && typeof body.periodeStats === "object") {
+      const periodeStats: Record<string, PeriodeStats> = {};
+      for (const role of ROLES) {
+        const v = body.periodeStats[role];
+        periodeStats[role] = estPeriodeStats(v) ? v : "illimite";
+      }
+      update.periodeStats = periodeStats;
+    }
+
+    const tenant = await Tenant.findByIdAndUpdate(ctx.tenantId, update, { new: true });
     return NextResponse.json({ success: true, data: tenant });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

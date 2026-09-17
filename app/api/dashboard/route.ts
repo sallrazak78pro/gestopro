@@ -13,6 +13,7 @@ import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,8 +29,14 @@ export async function GET(req: NextRequest) {
     const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
     const rawDebut  = searchParams.get("debut");
     const rawFin    = searchParams.get("fin");
-    const debut = rawDebut ? new Date(rawDebut + "T00:00:00") : debutMois;
+    let   debut = rawDebut ? new Date(rawDebut + "T00:00:00") : debutMois;
     const fin   = rawFin   ? new Date(rawFin   + "T23:59:59") : now;
+    // Période de statistiques autorisée pour ce rôle (Paramètres → Permissions) :
+    // le début ne remonte jamais avant — et les évolutions (%) sont masquées plus
+    // bas, puisqu'elles comparent à une période précédente hors limite.
+    const bornes: Record<string, any> = { createdAt: { $gte: debut } };
+    const periodeLimitee = limiterPeriode(ctx, bornes);
+    debut = bornes.createdAt.$gte;
     const dureeMs   = fin.getTime() - debut.getTime();
     const debutPrec = new Date(debut.getTime() - dureeMs - 1000);
     const finPrec   = new Date(debut.getTime() - 1000);
@@ -398,12 +405,13 @@ export async function GET(req: NextRequest) {
       success: true,
       data: {
         periode: { debut: debut.toISOString(), fin: fin.toISOString(), nbJours },
+        periodeLimitee,
         kpis: {
-          caPeriode, caNb, caEvolution,
-          depenses: dep, depEvolution,
-          versements: vers, versementsNb: 0, versEvolution, versLabel,
-          stockEntrees, stockEntreesNb, stockEntreesEvolution,
-          stockSorties, stockSortiesNb, stockSortiesEvolution,
+          caPeriode, caNb, caEvolution: periodeLimitee ? null : caEvolution,
+          depenses: dep, depEvolution: periodeLimitee ? null : depEvolution,
+          versements: vers, versementsNb: 0, versEvolution: periodeLimitee ? null : versEvolution, versLabel,
+          stockEntrees, stockEntreesNb, stockEntreesEvolution: periodeLimitee ? null : stockEntreesEvolution,
+          stockSorties, stockSortiesNb, stockSortiesEvolution: periodeLimitee ? null : stockSortiesEvolution,
           soldeTresorerie,
           nbAlertes: nbAlertes + nbRuptures, nbRuptures, nbAlertesSeulement: nbAlertes,
           masseSalariale, nbEmployes: employeRes.length,

@@ -9,6 +9,7 @@ import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/ut
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_SORTIE_REPORTING } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
       if (dateDebut) query.createdAt.$gte = new Date(dateDebut);
       if (dateFin)   { const f = new Date(dateFin); f.setHours(23, 59, 59, 999); query.createdAt.$lte = f; }
     }
+    const periodeLimitee = limiterPeriode(ctx, query);
 
     const page  = parseInt(searchParams.get("page")  ?? "1");
     const limit = parseInt(searchParams.get("limit") ?? "50");
@@ -89,6 +91,7 @@ export async function GET(req: NextRequest) {
         versementsBanque,
         totalVersements: versementsRecus + versementsBanque,
       },
+      periodeLimitee,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

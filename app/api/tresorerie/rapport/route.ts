@@ -8,6 +8,7 @@ import SessionCaisse from "@/lib/models/SessionCaisse";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET() {
   try {
@@ -30,6 +31,11 @@ export async function GET() {
 
     const boutiqueFilter = ctx.boutiqueAssignee
       ? { boutique: new mongoose.Types.ObjectId(ctx.boutiqueAssignee) } : {};
+
+    // Période de statistiques autorisée pour ce rôle : les comparaisons
+    // semaine/mois précédents sont masquées, les versements affichés bornés.
+    const periodeLimitee = limiterPeriode(ctx, {});
+    const debutVersements = periodeLimitee && periodeLimitee.depuis > debutMois ? periodeLimitee.depuis : debutMois;
 
     // ── 1. Comparaisons — tout en parallèle ────────────────────
     // Une seule agrégation par collection avec $facet pour les 4 périodes
@@ -88,14 +94,15 @@ export async function GET() {
       // Dernier versement PAR boutique (agrégation groupée) — un versement
       // rejeté n'a jamais eu lieu, il ne doit jamais apparaître ici.
       MouvementArgent.aggregate([
-        { $match: { tenantId: tid, type: "versement_boutique", statut: { $ne: "rejete" } } },
+        { $match: { tenantId: tid, type: "versement_boutique", statut: { $ne: "rejete" },
+            ...(periodeLimitee ? { createdAt: { $gte: periodeLimitee.depuis } } : {}) } },
         { $sort: { createdAt: -1 } },
         { $group: { _id: "$boutique", montant: { $first: "$montant" }, date: { $first: "$createdAt" } } },
       ]),
 
       // Versements du mois (rejetés exclus, comme partout ailleurs)
       MouvementArgent.find({ tenantId: ctx.tenantId, type: "versement_boutique",
-          statut: { $ne: "rejete" }, createdAt: { $gte: debutMois } })
+          statut: { $ne: "rejete" }, createdAt: { $gte: debutVersements } })
         .populate("boutique", "nom estPrincipale")
         .populate("boutiqueDestination", "nom estPrincipale")
         .sort({ createdAt: -1 }).lean(),
@@ -162,7 +169,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        comparaison: {
+        comparaison: periodeLimitee ? null : {
           semaine: {
             courant: semCour, precedent: semPrec,
             evolutions: { caVentes: evo(semCour.caVentes, semPrec.caVentes), versements: evo(semCour.versements, semPrec.versements), depenses: evo(semCour.depenses, semPrec.depenses), soldeFinal: evo(semCour.soldeFinal, semPrec.soldeFinal) },
@@ -173,11 +180,12 @@ export async function GET() {
           },
         },
         soldesParBoutique,
+        periodeLimitee,
         versementsMois: {
           liste: versementsMois,
           total: totalVersementsMois,
           nb: versementsMois.length,
-          periode: `${debutMois.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — aujourd'hui`,
+          periode: `${debutVersements.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} — aujourd'hui`,
         },
       },
     });

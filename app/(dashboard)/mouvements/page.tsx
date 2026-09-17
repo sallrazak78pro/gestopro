@@ -7,6 +7,7 @@ import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
+import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 
 const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
@@ -36,6 +37,7 @@ export default function MouvementsPage() {
   const [filtreType,     setFiltreType]     = useState("");
   const [dateDebut,      setDateDebut]      = useState(defaultDebut);
   const [dateFin,        setDateFin]        = useState(defaultFin);
+  const [periodeLimitee, setPeriodeLimitee] = useState<PeriodeLimiteeClient | null>(null);
   const [search,         setSearch]         = useState("");
   const [confirmDel,     setConfirmDel]     = useState<string | null>(null);
   const [deleting,       setDeleting]       = useState(false);
@@ -66,6 +68,7 @@ export default function MouvementsPage() {
       setMouvements(json.data);
       setStats(json.stats);
       setTotal(json.pagination?.total ?? 0);
+      setPeriodeLimitee(json.periodeLimitee ?? null);
     }
     setLoading(false);
   }, [search, filtreBoutique, filtreType, dateDebut, dateFin, page]);
@@ -132,6 +135,8 @@ export default function MouvementsPage() {
 
   return (
     <div className="space-y-6">
+
+      <BandeauPeriodeLimitee limite={periodeLimitee} />
 
       {/* ── Bandeau migration ──────────────────────────────────────────── */}
       {["admin","superadmin"].includes(role) && !!toMigrate && (
@@ -221,7 +226,7 @@ export default function MouvementsPage() {
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-mono text-muted uppercase tracking-wider">Du</label>
-            <input type="date" className="input" value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            <input type="date" className="input" value={dateDebut} min={dateMinLimite(periodeLimitee)} onChange={e => setDateDebut(e.target.value)} />
           </div>
 
           <div className="flex flex-col gap-1">
