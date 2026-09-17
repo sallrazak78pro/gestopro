@@ -8,6 +8,7 @@ import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/ut
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { arrondirFCFA } from "@/lib/utils/devise";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { montant, motif, moisDeduction, anneeDeduction, boutiqueId } = await req.json();
     if (!montant || montant <= 0)
       return NextResponse.json({ success: false, message: "Montant invalide." }, { status: 400 });
+    // Avance remise en espèces : multiple de 5 F (cf. lib/utils/devise.ts).
+    const montantArrondi = arrondirFCFA(montant);
 
     const employe = await Employe.findOne({ _id: id, tenantId: ctx.tenantId });
     if (!employe)
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Une avance retire physiquement de l'argent de la caisse de la boutique
     // source — on ne peut pas avancer plus que ce qui y est disponible.
     const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueSource);
-    if (montant > soldeCaisse)
+    if (montantArrondi > soldeCaisse)
       return NextResponse.json({
         success: false,
         message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       tenantId: ctx.tenantId,
       employe: id,
       boutique: boutiqueId || employe.boutique,
-      montant, motif: motif || "",
+      montant: montantArrondi, motif: motif || "",
       date: new Date(),
       moisDeduction, anneeDeduction,
       statut: "en_attente",
@@ -77,7 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       reference,
       type: "depense",
       boutique: boutiqueId || employe.boutique,
-      montant,
+      montant: montantArrondi,
       categorieDepense: "salaire",
       motif: `Avance sur salaire — ${employe.prenom} ${employe.nom}${motif ? ` — ${motif}` : ""}`,
       createdBy: ctx.userId,
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await logActivity({
       tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
       action: ACTIONS.AVANCE_CREEE, module: MODULES.EMPLOYES,
-      details: `Avance sur salaire — ${employe.prenom} ${employe.nom} — ${new Intl.NumberFormat("fr-FR").format(montant)} F`,
+      details: `Avance sur salaire — ${employe.prenom} ${employe.nom} — ${new Intl.NumberFormat("fr-FR").format(montantArrondi)} F`,
       reference, boutique: (boutiqueId || employe.boutique)?.toString(),
     });
 

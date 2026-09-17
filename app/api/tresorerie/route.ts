@@ -9,6 +9,7 @@ import { getTenantContext, canAccessBoutique, requirePermission } from "@/lib/ut
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse, TYPES_ENTREE_CAISSE, TYPES_SORTIE_CAISSE, TYPES_SORTIE_REPORTING } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { arrondirFCFA } from "@/lib/utils/devise";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
@@ -112,6 +113,8 @@ export async function POST(req: NextRequest) {
     let boutiqueDestinationId = body.boutiqueDestinationId;
 
     if (!montant || montant <= 0) return NextResponse.json({ success: false, message: "Montant invalide." }, { status: 400 });
+    // Un mouvement de caisse se règle en espèces : multiple de 5 F (cf. lib/utils/devise.ts).
+    const montantArrondi = arrondirFCFA(montant);
     if (!boutiqueId) return NextResponse.json({ success: false, message: "Boutique requise." }, { status: 400 });
 
     // Vérifier accès boutique
@@ -155,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     // Vérification solde caisse pour les types qui retirent de l'argent
     const { soldeCaisse } = await calculerSoldeCaisse(ctx.tenantId, boutiqueId);
-    if (TYPES_SORTIE_CAISSE.includes(type) && montant > soldeCaisse) {
+    if (TYPES_SORTIE_CAISSE.includes(type) && montantArrondi > soldeCaisse) {
       return NextResponse.json({
         success: false,
         message: `Solde insuffisant. Disponible en caisse : ${new Intl.NumberFormat("fr-FR").format(soldeCaisse)} F.`,
@@ -166,11 +169,11 @@ export async function POST(req: NextRequest) {
     if (tiersId) {
       const tiers = await CompteTiers.findOne({ _id: tiersId, tenantId: ctx.tenantId });
       if (!tiers) return NextResponse.json({ success: false, message: "Compte tiers introuvable." }, { status: 404 });
-      if (type === "retrait_tiers" && tiers.solde < montant)
+      if (type === "retrait_tiers" && tiers.solde < montantArrondi)
         return NextResponse.json({ success: false, message: `Solde tiers insuffisant (${new Intl.NumberFormat("fr-FR").format(tiers.solde)} F).` }, { status: 400 });
       tiersNom = tiers.nom;
-      if (type === "depot_tiers")   await CompteTiers.findByIdAndUpdate(tiersId, { $inc: { solde: +montant } });
-      if (type === "retrait_tiers") await CompteTiers.findByIdAndUpdate(tiersId, { $inc: { solde: -montant } });
+      if (type === "depot_tiers")   await CompteTiers.findByIdAndUpdate(tiersId, { $inc: { solde: +montantArrondi } });
+      if (type === "retrait_tiers") await CompteTiers.findByIdAndUpdate(tiersId, { $inc: { solde: -montantArrondi } });
     }
 
     const prefix: Record<string, string> = {
@@ -184,7 +187,7 @@ export async function POST(req: NextRequest) {
     const mouvement = await MouvementArgent.create({
       tenantId: ctx.tenantId, reference, type,
       boutique: boutiqueId, boutiqueDestination: boutiqueDestinationId || null,
-      montant, categorieDepense: categorieDepense || null,
+      montant: montantArrondi, categorieDepense: categorieDepense || null,
       banqueNom: banqueNom || "",
       tiers: tiersId || null, tiersNom, motif: motif || "",
       avanceRef: avanceRef || "", createdBy: ctx.userId,
@@ -196,7 +199,7 @@ export async function POST(req: NextRequest) {
     await logActivity({
       tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
       action: ACTIONS.MOUVEMENT_CREE, module: MODULES.TRESORERIE,
-      details: `${type} — ${new Intl.NumberFormat("fr-FR").format(montant)} F${tiersNom ? ` — ${tiersNom}` : ""}${motif ? ` — ${motif}` : ""}`,
+      details: `${type} — ${new Intl.NumberFormat("fr-FR").format(montantArrondi)} F${tiersNom ? ` — ${tiersNom}` : ""}${motif ? ` — ${motif}` : ""}`,
       reference, boutique: boutiqueId,
     });
 

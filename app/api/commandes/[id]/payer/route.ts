@@ -9,6 +9,7 @@ import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { arrondirFCFA, PAS_FCFA } from "@/lib/utils/devise";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,7 +28,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!commande)
       return NextResponse.json({ success: false, message: "Commande introuvable." }, { status: 404 });
 
-    const montantAPayer = Math.min(montant, commande.montantDu);
+    // Paiement en espèces : multiple de 5 F, borné au reste dû. Un reliquat
+    // inférieur à 5 F ne pouvant pas être payé, il solde la commande.
+    let montantAPayer = Math.min(arrondirFCFA(montant), commande.montantDu);
+    const reste = commande.montantDu - montantAPayer;
+    if (reste > 0 && reste < PAS_FCFA) montantAPayer = commande.montantDu;
     if (montantAPayer <= 0)
       return NextResponse.json({ success: false, message: "Cette commande est déjà entièrement réglée." }, { status: 400 });
 

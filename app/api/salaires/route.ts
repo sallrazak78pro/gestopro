@@ -9,6 +9,7 @@ import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { arrondirFCFA } from "@/lib/utils/devise";
 
 const MOIS_NOM = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
@@ -75,7 +76,8 @@ export async function POST(req: NextRequest) {
     });
 
     const totalAvances = avancesADeduire.reduce((s, a) => s + a.montant, 0);
-    const montantNet   = Math.max(0, employe.salaireBase - totalAvances);
+    // Salaire versé en espèces : multiple de 5 F (cf. lib/utils/devise.ts).
+    const montantNet   = arrondirFCFA(Math.max(0, employe.salaireBase - totalAvances));
 
     // Un paiement de salaire retire physiquement de l'argent de la caisse
     // source — on ne peut pas payer plus que ce qui y est disponible.

@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import { genererReference } from "@/lib/utils/reference";
 import { calculerSoldeCaisse } from "@/lib/utils/tresorerie";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { arrondirFCFA } from "@/lib/utils/devise";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
       type:                "versement_boutique",
       boutique:            sourceBoutiqueId,
       boutiqueDestination: depot?._id ?? null,
-      montant:             Math.round(montant),
+      montant:             arrondirFCFA(montant),
       statut:              "en_attente",      // ← toujours en attente à la création
       createdBy:           ctx.userId,
       createdAt,
@@ -180,7 +181,7 @@ export async function POST(req: NextRequest) {
     await logActivity({
       tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,
       action: ACTIONS.VERSEMENT_CREE, module: MODULES.VERSEMENTS,
-      details: `Versement soumis — ${new Intl.NumberFormat("fr-FR").format(Math.round(montant))} F`,
+      details: `Versement soumis — ${new Intl.NumberFormat("fr-FR").format(arrondirFCFA(montant))} F`,
       reference, boutique: sourceBoutiqueId,
     });
 
