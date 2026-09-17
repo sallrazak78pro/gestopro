@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { getTenantContext } from "@/lib/utils/tenant";
+import { hasPermission } from "@/lib/utils/permissions";
 import Vente from "@/lib/models/Vente";
 import Produit from "@/lib/models/Produit";
 import Employe, { SANS_COMPTE_UTILISATEUR } from "@/lib/models/Employe";
@@ -23,17 +24,21 @@ export async function GET(req: NextRequest) {
     const tid   = ctx.tenantId;
     const limit = 5;
 
+    // La recherche ne doit pas contourner les permissions : chaque collection
+    // n'est interrogée que si le rôle a le droit de voir le module concerné.
+    const peut = (mod: string) => hasPermission(ctx.role, ctx.tenantPermissions, mod, "view");
+
     const [ventes, produits, employes, tiers, fournisseurs] = await Promise.all([
-      Vente.find({ tenantId: tid, $or: [{ reference: regex }, { client: regex }, { employeNom: regex }] })
-        .select("reference client montantTotal statut createdAt").sort({ createdAt: -1 }).limit(limit).lean(),
-      Produit.find({ tenantId: tid, $or: [{ nom: regex }, { reference: regex }] })
-        .select("nom reference prixVente categorie").limit(limit).lean(),
-      Employe.find({ tenantId: tid, ...SANS_COMPTE_UTILISATEUR, $or: [{ nom: regex }, { prenom: regex }, { poste: regex }] })
-        .select("nom prenom poste").limit(limit).lean(),
-      CompteTiers.find({ tenantId: tid, $or: [{ nom: regex }, { telephone: regex }] })
-        .select("nom type solde telephone").limit(limit).lean(),
-      Fournisseur.find({ tenantId: tid, $or: [{ nom: regex }, { contact: regex }] })
-        .select("nom contact telephone").limit(limit).lean(),
+      peut("ventes") ? Vente.find({ tenantId: tid, $or: [{ reference: regex }, { client: regex }, { employeNom: regex }] })
+        .select("reference client montantTotal statut createdAt").sort({ createdAt: -1 }).limit(limit).lean() : [],
+      peut("stock") ? Produit.find({ tenantId: tid, $or: [{ nom: regex }, { reference: regex }] })
+        .select("nom reference prixVente categorie").limit(limit).lean() : [],
+      peut("employes") ? Employe.find({ tenantId: tid, ...SANS_COMPTE_UTILISATEUR, $or: [{ nom: regex }, { prenom: regex }, { poste: regex }] })
+        .select("nom prenom poste").limit(limit).lean() : [],
+      peut("tiers") ? CompteTiers.find({ tenantId: tid, $or: [{ nom: regex }, { telephone: regex }] })
+        .select("nom type solde telephone").limit(limit).lean() : [],
+      peut("fournisseurs") ? Fournisseur.find({ tenantId: tid, $or: [{ nom: regex }, { contact: regex }] })
+        .select("nom contact telephone").limit(limit).lean() : [],
     ]);
 
     const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);

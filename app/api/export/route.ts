@@ -1,7 +1,9 @@
 // app/api/export/route.ts — Export CSV universel
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { getTenantContext } from "@/lib/utils/tenant";
+import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { hasPermission } from "@/lib/utils/permissions";
+import { limiterPeriode } from "@/lib/utils/periodeStats";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import MouvementStock from "@/lib/models/MouvementStock";
@@ -36,8 +38,23 @@ export async function GET(req: NextRequest) {
     const debut = searchParams.get("debut") ? new Date(searchParams.get("debut")! + "T00:00:00") : null;
     const fin   = searchParams.get("fin")   ? new Date(searchParams.get("fin")!   + "T23:59:59") : null;
 
+    // Un export donne les mêmes données que la page correspondante : il exige
+    // le même droit de lecture, sinon il suffisait de l'appeler pour tout voir.
+    const MODULE_PAR_TYPE: Record<string, string> = {
+      ventes: "ventes", tresorerie: "tresorerie", stock: "stock",
+      "mouvements-stock": "mouvements", employes: "employes",
+    };
+    const moduleRequis = MODULE_PAR_TYPE[type];
+    if (!moduleRequis)
+      return NextResponse.json({ success: false, message: "Type d'export inconnu." }, { status: 400 });
+    const denied = requirePermission(ctx, moduleRequis, "view");
+    if (denied) return denied;
+
     const boutiqueFilter = ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {};
-    const dateFilter = debut && fin ? { createdAt: { $gte: debut, $lte: fin } } : {};
+    // Même période autorisée que les pages de statistiques — sans quoi l'export
+    // permettrait de récupérer tout l'historique malgré la limite.
+    const dateFilter: Record<string, any> = debut && fin ? { createdAt: { $gte: debut, $lte: fin } } : {};
+    limiterPeriode(ctx, dateFilter);
 
     let csv = "";
     let filename = "export";
@@ -156,17 +173,23 @@ export async function GET(req: NextRequest) {
       const employes = await Employe.find({ tenantId: ctx.tenantId, ...boutiqueFilter, ...SANS_COMPTE_UTILISATEUR })
         .populate("boutique", "nom").lean();
 
+      // Le salaire est une donnée de paie : colonne incluse seulement pour qui
+      // a accès au module Salaires (l'admin, ou un rôle explicitement autorisé).
+      const voitSalaires = hasPermission(ctx.role, ctx.tenantPermissions, "salaires", "view");
+
       const rows = employes.map((e: any) => [
         e.nom, e.prenom, e.poste ?? "",
         e.boutique?.nom ?? "",
-        fmtNum(e.salaireBase),
+        ...(voitSalaires ? [fmtNum(e.salaireBase)] : []),
         e.telephone ?? "",
         e.actif ? "Actif" : "Inactif",
         fmtDate(e.createdAt),
       ]);
 
       csv = toCSV(
-        ["Nom","Prénom","Poste","Boutique","Salaire (F)","Téléphone","Statut","Date embauche"],
+        ["Nom","Prénom","Poste","Boutique",
+          ...(voitSalaires ? ["Salaire (F)"] : []),
+          "Téléphone","Statut","Date embauche"],
         rows
       );
       filename = "employes";
