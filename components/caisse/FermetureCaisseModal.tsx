@@ -3,6 +3,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Props {
   session: any;
@@ -15,7 +16,6 @@ interface Props {
   onSaved: () => void;
 }
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function FermetureCaisseModal({ session, live, onClose, onSaved }: Props) {
   const [montants, setMontants] = useState({

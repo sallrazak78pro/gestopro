@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 const MODE_ICON: Record<string, string> = {
   especes: "💵", mobile_money: "📱", virement: "🏦", cheque: "📝",

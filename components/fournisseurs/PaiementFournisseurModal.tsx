@@ -1,6 +1,7 @@
 // components/fournisseurs/PaiementFournisseurModal.tsx
 "use client";
 import { useState, useEffect } from "react";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Props {
   commande:   any;
@@ -9,7 +10,6 @@ interface Props {
   onSaved:    () => void;
 }
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 const MODES = [
   { value: "especes",  label: "Espèces",  icon: "💵" },

@@ -5,8 +5,8 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import PaiementSalaireModal from "@/components/employes/PaiementSalaireModal";
 import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const MOIS = ["","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
 export default function SalairesPage() {

@@ -3,6 +3,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Props {
   boutiqueId:   string;
@@ -11,7 +12,6 @@ interface Props {
   onSaved:  () => void;
 }
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 export default function OuvertureCaisseModal({ boutiqueId, boutiqueName, onClose, onSaved }: Props) {
   // Fond attendu = montant compté à la dernière fermeture (null : première ouverture).

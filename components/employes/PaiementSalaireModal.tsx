@@ -3,6 +3,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Props {
   employe: any;
@@ -14,7 +15,6 @@ interface Props {
 }
 
 const MOIS = ["","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function PaiementSalaireModal({ employe, mois, annee, boutiques, onClose, onSaved }: Props) {
   const [avances, setAvances]         = useState<any[]>([]);

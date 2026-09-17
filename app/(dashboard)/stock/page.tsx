@@ -9,6 +9,7 @@ import AjustementModal from "@/components/stock/AjustementModal";
 import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Boutique { _id: string; nom: string; type: string; }
 interface StockRow {
@@ -18,7 +19,6 @@ interface StockRow {
   total: number; enAlerte: boolean;
 }
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 // Les quantités en stock (litres, mètres, kg...) accumulent parfois des
 // imprécisions flottantes (ex: 88.39999999999999 après plusieurs mouvements) —
 // on affiche toujours au plus 2 décimales, jamais la valeur brute.

@@ -6,8 +6,8 @@ import { useSession } from "next-auth/react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import EmployeModal from "@/components/employes/EmployeModal";
 import { toLocalISODate } from "@/lib/utils/date";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 type PresetPeriode = "jour" | "semaine" | "mois";
 const PRESETS: { key: PresetPeriode; label: string }[] = [

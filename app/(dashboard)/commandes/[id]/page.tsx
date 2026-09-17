@@ -6,8 +6,8 @@ import ReceptionModal from "@/components/fournisseurs/ReceptionModal";
 import PaiementFournisseurModal from "@/components/fournisseurs/PaiementFournisseurModal";
 import clsx from "clsx";
 import PrintButton from "@/components/ui/PrintButton";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 const STATUT_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   brouillon:           { label: "Brouillon",          color: "text-warning",  icon: "📝" },

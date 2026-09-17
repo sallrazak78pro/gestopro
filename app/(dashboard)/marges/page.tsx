@@ -7,8 +7,8 @@ import {
 } from "recharts";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const pct  = (n: number) => `${n.toFixed(1)}%`;
 const fmtDate = (d: string) => {
   const [, m, j] = d.split("-");

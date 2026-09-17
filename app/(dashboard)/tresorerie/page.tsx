@@ -13,8 +13,8 @@ import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 import { TYPES_ENTREE_CAISSE, TYPES_SORTIE_REPORTING, TYPES_VERSEMENT } from "@/lib/utils/mouvementArgentTypes";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 const TYPE_CONFIG: Record<string, { label: string; icon: string; badge: string; flux: "entree" | "sortie" | "neutre" }> = {
   versement_boutique: { label: "Versement boutique",   icon: "💸", badge: "badge-green",  flux: "sortie" },

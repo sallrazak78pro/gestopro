@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { formatQuantite as fmt } from "@/lib/utils/devise";
 
 interface Produit  { _id: string; nom: string; reference: string; unite: string; prixAchat: number; }
 
@@ -14,7 +15,6 @@ interface LigneUI {
   quantite:  number;
 }
 
-const fmt    = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const newKey = () => Math.random().toString(36).slice(2);
 
 export const SOURCE_EXTERNE = "__externe__";

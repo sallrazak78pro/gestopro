@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
 import FournisseurModal from "@/components/fournisseurs/FournisseurModal";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string }> = {
   brouillon:           { label: "Brouillon",  badge: "badge-orange" },

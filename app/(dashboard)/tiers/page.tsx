@@ -7,8 +7,8 @@ import Pagination from "@/components/ui/Pagination";
 import MouvementArgentModal from "@/components/tresorerie/MouvementArgentModal";
 import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function TiersPage() {
   const [tiers, setTiers]         = useState<any[]>([]);

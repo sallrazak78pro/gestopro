@@ -7,8 +7,8 @@ import NouvelleCommandeModal from "@/components/fournisseurs/NouvelleCommandeMod
 import Pagination from "@/components/ui/Pagination";
 import clsx from "clsx";
 import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: string }> = {
   brouillon:           { label: "Brouillon",          badge: "badge-orange", icon: "📝" },

@@ -8,8 +8,8 @@ import ExportButton from "@/components/ui/ExportButton";
 import Pagination from "@/components/ui/Pagination";
 import { useAppData } from "@/lib/context/AppDataContext";
 import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const todayStr = () => {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");

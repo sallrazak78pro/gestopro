@@ -7,8 +7,8 @@ import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
 import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt     = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtDate = (d: string) => new Date(d).toLocaleString("fr-FR", {
   day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });

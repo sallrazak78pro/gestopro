@@ -3,11 +3,11 @@
 import React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useAppData } from "@/lib/context/AppDataContext";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
 interface Produit { _id: string; nom: string; reference: string; prixAchat: number; unite: string; }
 interface Ligne { produitId: string; nomProduit: string; quantite: number; prixUnitaire: number; sousTotal: number; }
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: ()=>void; onSaved: ()=>void }) {
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);

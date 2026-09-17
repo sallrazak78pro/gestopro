@@ -9,6 +9,20 @@ export function arrondirFCFA(montant: number): number {
   return Math.round(montant / PAS_FCFA) * PAS_FCFA;
 }
 
+/**
+ * Montant sans le symbole, en francs entiers — le format commun à toutes les
+ * pages. Évite que chacune redéfinisse le sien : plusieurs oubliaient
+ * l'arrondi et affichaient des montants à virgule (ex. « 11 999,5 F »).
+ */
+export function formatNombre(montant: number): string {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(montant);
+}
+
+/** Quantité (kg, litre, pièce…) — décimales conservées, au plus deux. */
+export function formatQuantite(quantite: number): string {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(quantite);
+}
+
 export function formatMontant(montant: number): string {
   const nombre = new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,

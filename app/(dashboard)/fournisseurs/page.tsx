@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { KpiCard } from "@/components/ui/KpiCard";
 import FournisseurModal from "@/components/fournisseurs/FournisseurModal";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function FournisseursPage() {
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);

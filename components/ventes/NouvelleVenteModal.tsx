@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import clsx from "clsx";
 import { useOfflineQueue } from "@/lib/offline/useOfflineQueue";
 import { useSession } from "next-auth/react";
-import { formatMontant, arrondirFCFA, PAS_FCFA } from "@/lib/utils/devise";
+import { formatMontant, arrondirFCFA, PAS_FCFA, formatNombre as fmt } from "@/lib/utils/devise";
 import { useAppData } from "@/lib/context/AppDataContext";
 
 interface Produit  { _id: string; reference: string; nom: string; prixVente: number; unite: string; image?: string; }
@@ -18,7 +18,6 @@ interface Ligne {
   sousTotal: number;
 }
 
-const fmt    = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 const fmtQte = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2);
 // Mémorise la dernière boutique choisie (admin multi-boutiques) pour ne pas
 // avoir à la resélectionner à chaque nouvelle vente.

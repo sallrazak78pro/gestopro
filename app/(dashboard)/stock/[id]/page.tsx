@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import ProduitModal from "@/components/stock/ProduitModal";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
 export default function ProduitDetailPage() {
   const { id } = useParams();

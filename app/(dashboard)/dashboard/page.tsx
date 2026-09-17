@@ -11,8 +11,8 @@ import clsx from "clsx";
 import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
 import BandeauPeriodeLimitee, { dateMinLimite } from "@/components/ui/BandeauPeriodeLimitee";
+import { formatNombre as fmt, formatQuantite } from "@/lib/utils/devise";
 
-const fmt  = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 const fmtM = (n: number) =>
   n >= 1_000_000 ? (n / 1_000_000).toFixed(1) + "M"
   : n >= 1_000   ? (n / 1_000).toFixed(0) + "k"
@@ -302,7 +302,7 @@ export default function DashboardPage() {
                             </p>
                             {c.qteCommandee > 0 && (
                               <p className="text-[10px] font-mono text-muted whitespace-nowrap">
-                                📦 {fmt(c.qteRecue)} / {fmt(c.qteCommandee)} unités reçues
+                                📦 {formatQuantite(c.qteRecue)} / {formatQuantite(c.qteCommandee)} unités reçues
                               </p>
                             )}
                           </div>

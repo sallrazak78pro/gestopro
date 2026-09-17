@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import clsx from "clsx";
+import { formatNombre as fmt } from "@/lib/utils/devise";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   depot_tiers:    { label: "Dépôt",         icon: "📥", color: "text-success" },
