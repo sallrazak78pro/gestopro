@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { hasPermission } from "@/lib/utils/permissions";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 import Vente from "@/lib/models/Vente";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import MouvementStock from "@/lib/models/MouvementStock";
@@ -49,6 +50,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Type d'export inconnu." }, { status: 400 });
     const denied = requirePermission(ctx, moduleRequis, "view");
     if (denied) return denied;
+
+    // Colonnes valorisées au prix de revient : réservées au droit dédié.
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
 
     const boutiqueFilter = ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {};
     // Même période autorisée que les pages de statistiques — sans quoi l'export
@@ -124,14 +128,14 @@ export async function GET(req: NextRequest) {
         if (stocks.length === 0) {
           rows.push([
             (p as any).reference, (p as any).nom, (p as any).categorie,
-            fmtNum((p as any).prixAchat), fmtNum((p as any).prixVente),
+            ...(voitCout ? [fmtNum((p as any).prixAchat)] : []), fmtNum((p as any).prixVente),
             "—", "0", fmtNum((p as any).seuilAlerte),
           ]);
         } else {
           stocks.forEach((s: any) => {
             rows.push([
               (p as any).reference, (p as any).nom, (p as any).categorie,
-              fmtNum((p as any).prixAchat), fmtNum((p as any).prixVente),
+              ...(voitCout ? [fmtNum((p as any).prixAchat)] : []), fmtNum((p as any).prixVente),
               s.boutique?.nom ?? "", fmtNum(s.quantite), fmtNum((p as any).seuilAlerte),
             ]);
           });
@@ -139,7 +143,9 @@ export async function GET(req: NextRequest) {
       }
 
       csv = toCSV(
-        ["Référence","Nom","Catégorie","Prix achat (F)","Prix vente (F)","Boutique","Stock","Seuil alerte"],
+        ["Référence","Nom","Catégorie",
+          ...(voitCout ? ["Prix achat (F)"] : []),
+          "Prix vente (F)","Boutique","Stock","Seuil alerte"],
         rows
       );
       filename = "stock";
@@ -157,14 +163,16 @@ export async function GET(req: NextRequest) {
           m.boutique?.nom ?? "",
           l.produit?.nom ?? "",
           fmtNum(l.quantite),
-          fmtNum(l.montant),
+          ...(voitCout ? [fmtNum(l.montant)] : []),
           m.motif ?? "",
           m.createdBy ? `${m.createdBy.prenom} ${m.createdBy.nom}` : "",
         ])
       );
 
       csv = toCSV(
-        ["Référence","Date","Type","Boutique","Produit","Qté","Montant (F)","Motif","Créé par"],
+        ["Référence","Date","Type","Boutique","Produit","Qté",
+          ...(voitCout ? ["Montant (F)"] : []),
+          "Motif","Créé par"],
         rows
       );
       filename = "mouvements-stock";

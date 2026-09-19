@@ -110,8 +110,8 @@ export default function PrintCommandePage() {
                 <td className="mono right" style={{ color: l.quantiteRecue >= l.quantiteCommandee ? "#16a34a" : l.quantiteRecue > 0 ? "#d97706" : "#94a3b8" }}>
                   {l.quantiteRecue}
                 </td>
-                <td className="mono right">{fmt(l.prixUnitaire)} F</td>
-                <td className="mono right">{fmt(l.sousTotal)} F</td>
+                <td className="mono right">{l.prixUnitaire == null ? "—" : `${fmt(l.prixUnitaire)} F`}</td>
+                <td className="mono right">{l.sousTotal == null ? "—" : `${fmt(l.sousTotal)} F`}</td>
               </tr>
             ))}
           </tbody>

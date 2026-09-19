@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
 import Stock from "@/lib/models/Stock";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,10 +16,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (denied) return denied;
     await connectDB();
     // Le prix d'achat (prix de revient) ne doit être visible qu'à l'admin.
-    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
     const produit = await Produit.findOne(
       { _id: id, tenantId: ctx.tenantId },
-      isAdminRole ? "-image" : "-image -prixAchat"
+      voitCout ? "-image" : "-image -prixAchat"
     ).lean();
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
     const stocks = await Stock.find({ produit: id, tenantId: ctx.tenantId }).populate("boutique", "nom type").lean();
@@ -37,15 +38,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (denied) return denied;
     await connectDB();
     const body = await req.json();
-    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
     // Le prix d'achat (prix de revient) ne doit être ni lu ni modifié par un
     // rôle non-admin — on l'ignore silencieusement plutôt que de rejeter la
     // requête, la modale ne l'envoie de toute façon plus pour ces rôles.
-    if (!isAdminRole) delete body.prixAchat;
+    if (!voitCout) delete body.prixAchat;
     const produit = await Produit.findOneAndUpdate(
       { _id: id, tenantId: ctx.tenantId },
       body, { new: true, runValidators: true }
-    ).select(isAdminRole ? undefined : "-prixAchat");
+    ).select(voitCout ? undefined : "-prixAchat");
     if (!produit) return NextResponse.json({ success: false, message: "Produit introuvable" }, { status: 404 });
 
     await logActivity({

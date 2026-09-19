@@ -170,6 +170,11 @@ export default function DashboardPage() {
 
       {!loading && data && (() => {
         const { kpis, graphData, repartitionPDV, dernieresVentes, alertesStock, sessionsOuvertes, vueFinanciere } = data;
+        // Sans le droit « Marges et prix de revient », l'API omet la valeur du
+        // stock (et donc le total d'actif) : on n'additionne que la trésorerie.
+        const totalActifAffiche = vueFinanciere
+          ? vueFinanciere.totalActif ?? (vueFinanciere.soldeCaisseTotal + vueFinanciere.soldeBanqueTotal)
+          : 0;
 
         return (
           <>
@@ -259,7 +264,11 @@ export default function DashboardPage() {
                 </p>
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                   {[
-                    { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", sub: "Stock au prix d'achat",           color: "" },
+                    // Le stock est valorisé au prix de revient : l'API ne renvoie ce
+                    // montant qu'avec le droit « Marges et prix de revient ».
+                    ...(vueFinanciere.valeurStock !== undefined
+                      ? [{ icon: "📦", label: "Valeur stock", value: fmt(vueFinanciere.valeurStock) + " F", sub: "Stock au prix d'achat", color: "" }]
+                      : []),
                     { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: selectedBoutique ? "Espèces confirmées" : "Espèces confirmées, boutiques",  color: "text-success" },
                     { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: `${vueFinanciere.commandesEnCours.nb} commande${vueFinanciere.commandesEnCours.nb > 1 ? "s" : ""} en cours`, color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
                     { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", sub: "Dépôts bancaires cumulés",       color: "text-accent" },
@@ -312,20 +321,24 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Barre total actif */}
+                {/* Barre total actif — sans le droit « Marges et prix de revient »,
+                    la valeur du stock est absente : la carte se limite alors à la
+                    trésorerie (caisse + banque) plutôt que de mentir sur l'actif. */}
                 <div className="card p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="card-title">Total actif</h3>
-                    <p className="text-2xl font-extrabold font-mono text-accent">{fmt(vueFinanciere.totalActif)} F</p>
+                    <h3 className="card-title">{vueFinanciere.valeurStock !== undefined ? "Total actif" : "Trésorerie"}</h3>
+                    <p className="text-2xl font-extrabold font-mono text-accent">{fmt(totalActifAffiche)} F</p>
                   </div>
-                  {vueFinanciere.totalActif > 0 && (
+                  {totalActifAffiche > 0 && (
                     <div className="space-y-3">
                       {[
-                        { label: "Stock",   val: vueFinanciere.valeurStock,     color: "#00d4ff" },
+                        ...(vueFinanciere.valeurStock !== undefined
+                          ? [{ label: "Stock", val: vueFinanciere.valeurStock, color: "#00d4ff" }]
+                          : []),
                         { label: "Caisse",  val: vueFinanciere.soldeCaisseTotal, color: "#10b981" },
                         { label: "Banque",  val: vueFinanciere.soldeBanqueTotal, color: "#7c3aed" },
                       ].map((item, i) => {
-                        const pct = Math.round((item.val / vueFinanciere.totalActif) * 100);
+                        const pct = Math.round((item.val / totalActifAffiche) * 100);
                         return (
                           <div key={i}>
                             <div className="flex justify-between text-xs font-mono mb-1">
@@ -342,6 +355,7 @@ export default function DashboardPage() {
                   )}
                   {/* Détail par boutique */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4" style={{ borderTop: "1px solid var(--color-border)" }}>
+                    {vueFinanciere.valeurStockParBoutique !== undefined && (
                     <div>
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-2">Stock par boutique</p>
                       {vueFinanciere.valeurStockParBoutique.map((b: any, i: number) => (
@@ -351,6 +365,7 @@ export default function DashboardPage() {
                         </div>
                       ))}
                     </div>
+                    )}
                     <div>
                       <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-2">Caisse par boutique</p>
                       {vueFinanciere.soldesCaisseParBoutique.map((b: any, i: number) => (

@@ -7,6 +7,7 @@ import Produit from "@/lib/models/Produit";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
 
 export async function GET(req: NextRequest) {
@@ -73,8 +74,17 @@ export async function GET(req: NextRequest) {
     const recuesMois = toutesLesCommandes.filter(c => c.statut === "recue"
       && new Date(c.dateReception ?? c.createdAt).getMonth() === now.getMonth()
       && new Date(c.dateReception ?? c.createdAt).getFullYear() === now.getFullYear()).length;
+    // Le prix unitaire d'une ligne est le prix d'achat négocié : retiré sans
+    // le droit dédié (les totaux dus au fournisseur, eux, restent visibles).
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
+    const donnees = voitCout ? commandes : commandes.map((c: any) => {
+      const o = c.toObject();
+      o.lignes = (o.lignes ?? []).map((l: any) => ({ ...l, prixUnitaire: null, sousTotal: null }));
+      return o;
+    });
+
     return NextResponse.json({
-      success: true, data: commandes,
+      success: true, voitCout, data: donnees,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: { total, totalDu, enCours, recuesMois },
       periodeLimitee,

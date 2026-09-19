@@ -19,7 +19,7 @@ export interface ModuleDef {
 // listée ici, les autres n'ont pas de sens pour ce module).
 export const MODULES: ModuleDef[] = [
   { key: "ventes",       label: "Ventes",              actions: ["view", "create", "edit"] },
-  { key: "marges",       label: "Marges",              actions: ["view"] },
+  { key: "marges",       label: "Marges et prix de revient", actions: ["view"] },
   { key: "stock",        label: "Stock",               actions: ["view", "create", "edit", "delete"] },
   { key: "mouvements",   label: "Mouvements",          actions: ["view", "create", "delete"] },
   { key: "tresorerie",   label: "Trésorerie",          actions: ["view", "create"] },
@@ -96,6 +96,16 @@ function isConfigurableRole(role: string): role is ConfigurableRole {
  * matrice du tenant (`tenantPermissions`), avec repli sur DEFAULT_PERMISSIONS
  * pour toute case non encore configurée explicitement.
  */
+/**
+ * Voir les prix de revient (coûts d'achat) et tout ce qui s'en déduit :
+ * marges, valeur du stock au coût, montants des mouvements de stock, prix
+ * unitaires des commandes. Réservé à l'admin par défaut ; il peut l'accorder
+ * à un gestionnaire ou un caissier via la case « Marges et prix de revient ».
+ */
+export function peutVoirPrixRevient(role: string, tenantPermissions: unknown): boolean {
+  return hasPermission(role, tenantPermissions, "marges", "view");
+}
+
 export function hasPermission(
   role: string,
   tenantPermissions: unknown,

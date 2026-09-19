@@ -50,7 +50,9 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
     setLignes(prev => {
       const exist = prev.find(l=>l.produitId===p._id);
       if (exist) return prev.map(l=>l.produitId===p._id?{...l,quantite:l.quantite+1,sousTotal:(l.quantite+1)*l.prixUnitaire}:l);
-      return [...prev, { produitId:p._id, nomProduit:p.nom, quantite:1, prixUnitaire:p.prixAchat, sousTotal:p.prixAchat }];
+      // Sans le droit « Marges et prix de revient » l'API ne joint pas le prix
+      // d'achat : la ligne démarre à 0 et se saisit à la main.
+      return [...prev, { produitId:p._id, nomProduit:p.nom, quantite:1, prixUnitaire:p.prixAchat ?? 0, sousTotal:p.prixAchat ?? 0 }];
     });
     setSearch(""); searchRef.current?.focus();
   }
@@ -152,7 +154,7 @@ export default function NouvelleCommandeModal({ onClose, onSaved }: { onClose: (
                         <p className="text-sm font-semibold">{p.nom}</p>
                         <p className="text-[10px] font-mono text-muted">{p.reference} · {p.unite}</p>
                       </div>
-                      <span className="text-xs font-mono text-accent">{fmt(p.prixAchat)} F</span>
+                      {p.prixAchat != null && <span className="text-xs font-mono text-accent">{fmt(p.prixAchat)} F</span>}
                     </button>
                   ))}
                 </div>

@@ -5,6 +5,7 @@ import MouvementStock from "@/lib/models/MouvementStock";
 import Stock from "@/lib/models/Stock";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await connectDB();
     const m = await MouvementStock.findOne({ _id: id, tenantId: ctx.tenantId })
       .populate("boutique",       "nom type")
-      .populate("lignes.produit", "nom reference unite prixAchat")
+      .populate("lignes.produit", peutVoirPrixRevient(ctx.role, ctx.tenantPermissions) ? "nom reference unite prixAchat" : "nom reference unite")
       .populate("createdBy",      "nom");
     if (!m) return NextResponse.json({ success: false, message: "Introuvable" }, { status: 404 });
 

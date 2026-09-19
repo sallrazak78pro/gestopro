@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Produit from "@/lib/models/Produit";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     // Le prix d'achat (prix de revient) ne doit être visible qu'à l'admin.
     const exclude = [
       searchParams.get("avecImage") ? null : "image",
-      ["admin", "superadmin"].includes(ctx.role) ? null : "prixAchat",
+      peutVoirPrixRevient(ctx.role, ctx.tenantPermissions) ? null : "prixAchat",
     ].filter(Boolean).map(f => `-${f}`).join(" ");
     const produits = await Produit.find(query, exclude || undefined).sort({ nom: 1 }).lean();
     return NextResponse.json({ success: true, data: produits });
@@ -46,12 +47,12 @@ export async function POST(req: NextRequest) {
     if (!body.reference) {
       body.reference = await genererReference(ctx.tenantId, "PRD");
     }
-    const isAdminRole = ["admin", "superadmin"].includes(ctx.role);
-    // Le prix de revient est réservé à l'admin — un rôle non-admin qui crée
-    // un produit ne le fixe pas ; l'admin le complètera plus tard.
-    if (!isAdminRole) body.prixAchat = 0;
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
+    // Sans le droit « Marges et prix de revient », on ne fixe pas le coût
+    // d'achat à la création : l'admin le complètera plus tard.
+    if (!voitCout) body.prixAchat = 0;
     const produit = await Produit.create({ ...body, tenantId: ctx.tenantId });
-    const data = isAdminRole ? produit : (({ prixAchat, ...rest }) => rest)(produit.toObject());
+    const data = voitCout ? produit : (({ prixAchat, ...rest }) => rest)(produit.toObject());
 
     await logActivity({
       tenantId: ctx.tenantId, userId: ctx.userId, userNom: ctx.userNom, role: ctx.role,

@@ -9,6 +9,7 @@ import { useAppData } from "@/lib/context/AppDataContext";
 import { toLocalISODate } from "@/lib/utils/date";
 import BandeauPeriodeLimitee, { dateMinLimite, type PeriodeLimiteeClient } from "@/components/ui/BandeauPeriodeLimitee";
 import { formatQuantite as fmt } from "@/lib/utils/devise";
+import { usePeutVoirPrixRevient } from "@/lib/hooks/usePeutVoirPrixRevient";
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const fmtTime = (d: string) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -20,6 +21,9 @@ export default function MouvementsPage() {
   const { data: session } = useSession();
   const role           = (session?.user as any)?.role ?? "";
   const peutSupprimer  = ["admin", "superadmin", "gestionnaire"].includes(role);
+  // Un montant de mouvement, c'est quantité × prix de revient : l'API ne le
+  // renvoie qu'avec le droit « Marges et prix de revient ».
+  const voitCout       = usePeutVoirPrixRevient();
 
   const [mouvements,     setMouvements]     = useState<any[]>([]);
   const { boutiques } = useAppData();
@@ -159,6 +163,7 @@ export default function MouvementsPage() {
           sortie de même montant (entrée globale = sortie globale) — un
           total global des deux n'apprend rien. Ce qui compte, c'est quelle
           boutique a reçu quoi sur la période. */}
+      {voitCout && (
       <div>
         <p className="text-[10px] font-mono text-muted uppercase tracking-widest mb-3">
           📥 Entrées par boutique — {dateDebut} → {dateFin}
@@ -178,6 +183,7 @@ export default function MouvementsPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* ── Journal ───────────────────────────────────────────────────── */}
       <div className="card">
@@ -268,7 +274,7 @@ export default function MouvementsPage() {
                   <th>Type</th>
                   <th>Boutique</th>
                   <th>Produits</th>
-                  <th className="text-right">Montant total</th>
+                  {voitCout && <th className="text-right">Montant total</th>}
                   <th>Motif</th>
                   {peutSupprimer && <th></th>}
                 </tr>
@@ -346,6 +352,7 @@ export default function MouvementsPage() {
                       </td>
 
                       {/* Montant total — calculé depuis les lignes si montant top-level est 0 */}
+                      {voitCout && (
                       <td className="text-right">
                         {(() => {
                           const montantLignes = lignes.reduce(
@@ -362,6 +369,7 @@ export default function MouvementsPage() {
                           <p className="text-[10px] font-mono text-muted">{lignes.length} lignes</p>
                         )}
                       </td>
+                      )}
 
                       {/* Motif */}
                       <td className="max-w-[120px]">
@@ -407,8 +415,8 @@ export default function MouvementsPage() {
           <div className="px-5 py-3 border-t border-border flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs font-mono text-muted">
               {total} mouvement{total > 1 ? "s" : ""}
-              <span className="text-success ml-3">+{fmt(stats.entrees.totalMontant)} F entrées</span>
-              <span className="text-danger ml-3">−{fmt(stats.sorties.totalMontant)} F sorties</span>
+              {voitCout && <span className="text-success ml-3">+{fmt(stats.entrees.totalMontant)} F entrées</span>}
+              {voitCout && <span className="text-danger ml-3">−{fmt(stats.sorties.totalMontant)} F sorties</span>}
             </span>
             <button onClick={fetchMouvements} className="btn-ghost btn-sm">🔄 Actualiser</button>
           </div>

@@ -14,6 +14,7 @@ import { getTenantContext } from "@/lib/utils/tenant";
 import { calculerSoldesCaisseParBoutique } from "@/lib/utils/tresorerie";
 import mongoose from "mongoose";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 
 export async function GET(req: NextRequest) {
   try {
@@ -373,13 +374,20 @@ export async function GET(req: NextRequest) {
         .sort((a, b) => b.montant - a.montant);
       const soldeBanqueTotal = detailBanque.reduce((s, b) => s + b.montant, 0);
 
+      // La valeur du stock vaut quantités × prix de revient : elle n'apparaît,
+      // comme le total d'actif qui l'inclut, qu'avec le droit dédié.
+      const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
+
       vueFinanciere = {
-        valeurStock: Math.round(valeurStockTotal),
-        valeurStockParBoutique: boutiquesAll.map(b => ({
-          nom: b.nom,
-          valeur: Math.round(valeurParBoutique[b._id.toString()] ?? 0),
-          estPrincipale: b.estPrincipale,
-        })).sort((a, b) => b.valeur - a.valeur),
+        ...(voitCout ? {
+          valeurStock: Math.round(valeurStockTotal),
+          valeurStockParBoutique: boutiquesAll.map(b => ({
+            nom: b.nom,
+            valeur: Math.round(valeurParBoutique[b._id.toString()] ?? 0),
+            estPrincipale: b.estPrincipale,
+          })).sort((a, b) => b.valeur - a.valeur),
+          totalActif: Math.round(valeurStockTotal + soldeCaisseTotal + soldeBanqueTotal),
+        } : {}),
         soldeCaisseTotal,
         soldesCaisseParBoutique: soldesCaisseRes,
         commandesEnCours: {
@@ -397,7 +405,6 @@ export async function GET(req: NextRequest) {
         },
         soldeBanqueTotal: Math.round(soldeBanqueTotal),
         detailBanque,
-        totalActif: Math.round(valeurStockTotal + soldeCaisseTotal + soldeBanqueTotal),
       };
     }
 

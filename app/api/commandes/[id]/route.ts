@@ -5,6 +5,7 @@ import CommandeFournisseur from "@/lib/models/CommandeFournisseur";
 import Fournisseur from "@/lib/models/Fournisseur";
 import MouvementArgent from "@/lib/models/MouvementArgent";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -25,7 +26,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       .populate("createdBy", "nom")
       .sort({ createdAt: 1 });
 
-    return NextResponse.json({ success: true, data: c, paiements });
+    // Prix unitaires = prix d'achat négociés : retirés sans le droit dédié.
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
+    const commande = voitCout ? c : (() => {
+      const o = c.toObject();
+      o.lignes = (o.lignes ?? []).map((l: any) => ({ ...l, prixUnitaire: null, sousTotal: null }));
+      return o;
+    })();
+
+    return NextResponse.json({ success: true, voitCout, data: commande, paiements });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

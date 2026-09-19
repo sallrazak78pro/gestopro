@@ -10,6 +10,7 @@ import Tenant from "@/lib/models/Tenant";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
 import { genererReference } from "@/lib/utils/reference";
 import { logActivity, ACTIONS, MODULES } from "@/lib/utils/activity";
+import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 import { limiterPeriode } from "@/lib/utils/periodeStats";
 import { randomUUID } from "crypto";
 
@@ -67,6 +68,10 @@ export async function GET(req: NextRequest) {
     // Contrairement à .find(), .aggregate() ne cast pas automatiquement les
     // champs ObjectId — un tenantId/boutique en string ne matche jamais le
     // champ stocké en base et $match ne retourne alors aucun document.
+    // Les montants valorisent la marchandise au prix de revient : ils sont
+    // retirés, comme les totaux qui en découlent, sans le droit dédié.
+    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
+
     const statsQuery: any = { ...query };
     delete statsQuery.type;
     statsQuery.tenantId = new mongoose.Types.ObjectId(ctx.tenantId.toString());
@@ -82,7 +87,7 @@ export async function GET(req: NextRequest) {
     const [mouvements, total, statsAgg, entreesParBoutiqueAgg] = await Promise.all([
       MouvementStock.find(query)
         .populate("boutique",        "nom type")
-        .populate("lignes.produit",  "nom reference unite prixAchat")
+        .populate("lignes.produit",  voitCout ? "nom reference unite prixAchat" : "nom reference unite")
         .populate("createdBy",       "nom")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -123,15 +128,23 @@ export async function GET(req: NextRequest) {
       totalMontant: r.totalMontant,
     }));
 
+    const donnees = voitCout ? mouvements : mouvements.map((m: any) => {
+      const o = m.toObject();
+      o.montant = null;
+      o.lignes  = (o.lignes ?? []).map((l: any) => ({ ...l, prixUnitaire: null, montant: null }));
+      return o;
+    });
+
     return NextResponse.json({
       success: true,
-      data: mouvements,
+      voitCout,
+      data: donnees,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       stats: {
-        entrees: { count: entrees.count, totalMontant: entrees.totalMontant },
-        sorties: { count: sorties.count, totalMontant: sorties.totalMontant },
-        balance: entrees.totalMontant - sorties.totalMontant,
-        entreesParBoutique,
+        entrees: { count: entrees.count, totalMontant: voitCout ? entrees.totalMontant : null },
+        sorties: { count: sorties.count, totalMontant: voitCout ? sorties.totalMontant : null },
+        balance: voitCout ? entrees.totalMontant - sorties.totalMontant : null,
+        entreesParBoutique: voitCout ? entreesParBoutique : [],
       },
       periodeLimitee,
     });

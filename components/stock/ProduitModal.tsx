@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { usePeutVoirPrixRevient } from "@/lib/hooks/usePeutVoirPrixRevient";
 import clsx from "clsx";
 
 interface Props {
@@ -123,8 +123,7 @@ function ChipSelector({ label, items, selected, onSelect, onAdd, onDelete, addPl
 // ── Modal principal ───────────────────────────────────────────
 export default function ProduitModal({ produit, onClose, onSaved }: Props) {
   const isEdit = !!produit;
-  const { data: session } = useSession();
-  const isAdmin = ["admin", "superadmin"].includes((session?.user as any)?.role);
+  const voitCout = usePeutVoirPrixRevient();
   const [form, setForm] = useState({
     reference:   produit?.reference   || "",
     nom:         produit?.nom         || "",
@@ -403,8 +402,8 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
 
             <div className="border-t border-border" />
 
-            <div className={clsx("grid gap-4", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
-              {isAdmin && (
+            <div className={clsx("grid gap-4", voitCout ? "grid-cols-2" : "grid-cols-1")}>
+              {voitCout && (
                 <div>
                   <label className="input-label">Prix d&apos;achat (F) *</label>
                   <input type="number" min={0} step="1" className="input" placeholder="0"
@@ -418,7 +417,7 @@ export default function ProduitModal({ produit, onClose, onSaved }: Props) {
               </div>
             </div>
 
-            {isAdmin && +form.prixAchat > 0 && +form.prixVente > 0 && (
+            {voitCout && +form.prixAchat > 0 && +form.prixVente > 0 && (
               <div className={clsx(
                 "flex items-center justify-between px-4 py-3 rounded-xl border",
                 marge >= 0 ? "bg-success/10 border-success/20 text-success" : "bg-danger/10 border-danger/20 text-danger"
