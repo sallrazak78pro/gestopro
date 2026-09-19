@@ -58,6 +58,9 @@ function EvoTag({ val }: { val: string | null }) {
 export default function DashboardPage() {
   const { data: authSession } = useSession();
   const boutiqueAssignee = (authSession?.user as any)?.boutique;
+  // Stock valorisé au prix d'achat : réservé à l'admin, comme le prix
+  // d'achat lui-même sur la fiche produit.
+  const isAdmin = ["admin", "superadmin"].includes((authSession?.user as any)?.role);
   const { boutiques: boutiquesToutes } = useAppData();
   const boutiques = useMemo(() => boutiquesToutes.filter((b: any) => b.type === "boutique"), [boutiquesToutes]);
 
@@ -200,8 +203,13 @@ export default function DashboardPage() {
                     ? `Cash physique en caisse, ${boutiques.find((b: any) => b._id === selectedBoutique)?.nom ?? "boutique sélectionnée"}`
                     : "Cash physique en caisse, toutes boutiques",
                   evo: null, color: kpis.soldeTresorerie >= 0 ? "text-success" : "text-danger" },
-                { icon: "📥", label: "Marchandise entrée",  value: fmt(kpis.stockEntrees) + " F", sub: `${kpis.stockEntreesNb} mouvement${kpis.stockEntreesNb > 1 ? "s" : ""}`, evo: kpis.stockEntreesEvolution, color: "text-success" },
-                { icon: "📤", label: "Marchandise sortie",  value: fmt(kpis.stockSorties) + " F", sub: `${kpis.stockSortiesNb} mouvement${kpis.stockSortiesNb > 1 ? "s" : ""}`, evo: kpis.stockSortiesEvolution, color: "text-warning" },
+                // Marchandise entrée/sortie = somme des montants des mouvements,
+                // donc quantités × prix de revient : admin seul, comme la
+                // colonne « Montant total » de la page Mouvements.
+                ...(isAdmin ? [
+                  { icon: "📥", label: "Marchandise entrée",  value: fmt(kpis.stockEntrees) + " F", sub: `${kpis.stockEntreesNb} mouvement${kpis.stockEntreesNb > 1 ? "s" : ""}`, evo: kpis.stockEntreesEvolution, color: "text-success" },
+                  { icon: "📤", label: "Marchandise sortie",  value: fmt(kpis.stockSorties) + " F", sub: `${kpis.stockSortiesNb} mouvement${kpis.stockSortiesNb > 1 ? "s" : ""}`, evo: kpis.stockSortiesEvolution, color: "text-warning" },
+                ] : []),
               ].map((k, i) => (
                 <div key={i} className="kpi-card">
                   <span className="kpi-icon">{k.icon}</span>
@@ -259,7 +267,9 @@ export default function DashboardPage() {
                 </p>
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                   {[
-                    { icon: "📦", label: "Valeur stock",     value: fmt(vueFinanciere.valeurStock)    + " F", sub: "Stock au prix d'achat",           color: "" },
+                    ...(isAdmin
+                      ? [{ icon: "📦", label: "Valeur stock", value: fmt(vueFinanciere.valeurStock) + " F", sub: "Stock au prix d'achat", color: "" }]
+                      : []),
                     { icon: "🏧", label: "Solde en caisse",  value: fmt(vueFinanciere.soldeCaisseTotal) + " F", sub: selectedBoutique ? "Espèces confirmées" : "Espèces confirmées, boutiques",  color: "text-success" },
                     { icon: "🛒", label: "Commandes dues",   value: fmt(vueFinanciere.commandesEnCours.totalDu) + " F", sub: `${vueFinanciere.commandesEnCours.nb} commande${vueFinanciere.commandesEnCours.nb > 1 ? "s" : ""} en cours`, color: vueFinanciere.commandesEnCours.totalDu > 0 ? "text-warning" : "" },
                     { icon: "🏦", label: "En banque",        value: fmt(vueFinanciere.soldeBanqueTotal) + " F", sub: "Dépôts bancaires cumulés",       color: "text-accent" },
@@ -312,7 +322,8 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Barre total actif */}
+                {/* Barre total actif — contient la valeur du stock, donc admin seul. */}
+                {isAdmin && (
                 <div className="card p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="card-title">Total actif</h3>
@@ -373,6 +384,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             )}
 

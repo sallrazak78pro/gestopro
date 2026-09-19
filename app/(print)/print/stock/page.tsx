@@ -2,11 +2,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
 
 export default function PrintStockPage() {
   const searchParams = useSearchParams();
+  // Le rôle décide de la valeur du stock ; on attend de le connaître pour
+  // ne pas imprimer un document auquel il manque un bloc.
+  const { data: session, status } = useSession();
+  const isAdmin = ["admin", "superadmin"].includes((session?.user as any)?.role);
   const boutiqueId   = searchParams.get("boutique") || "";
 
   const [lignes,   setLignes]   = useState<any[]>([]);
@@ -26,7 +31,7 @@ export default function PrintStockPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="print-page" style={{ textAlign:"center", paddingTop:80, color:"#64748b" }}>Chargement...</div>;
+  if (loading || status === "loading") return <div className="print-page" style={{ textAlign:"center", paddingTop:80, color:"#64748b" }}>Chargement...</div>;
 
   // Colonnes boutiques filtrées
   const colsBoutiques = boutiqueId
@@ -66,7 +71,7 @@ export default function PrintStockPage() {
         </div>
 
         {/* KPIs résumés */}
-        <div className="doc-grid doc-grid-3" style={{ marginBottom:28 }}>
+        <div className={"doc-grid " + (isAdmin ? "doc-grid-3" : "doc-grid-2")} style={{ marginBottom:28 }}>
           <div className="doc-kpi">
             <div className="doc-kpi-label">Produits en catalogue</div>
             <div className="doc-kpi-value">{lignes.length}</div>
@@ -78,10 +83,12 @@ export default function PrintStockPage() {
             </div>
             <div className="doc-kpi-sub">dont {nbRuptures} rupture{nbRuptures > 1 ? "s" : ""}</div>
           </div>
-          <div className="doc-kpi">
-            <div className="doc-kpi-label">Valeur stock estimée</div>
-            <div className="doc-kpi-value">{fmt(valeurTotal)} F</div>
-          </div>
+          {isAdmin && (
+            <div className="doc-kpi">
+              <div className="doc-kpi-label">Valeur stock estimée</div>
+              <div className="doc-kpi-value">{fmt(valeurTotal)} F</div>
+            </div>
+          )}
         </div>
 
         {/* Tableau */}

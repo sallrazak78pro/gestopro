@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
     const denied = requirePermission(ctx, moduleRequis, "view");
     if (denied) return denied;
 
+    // Colonnes valorisées au prix de revient : admin seul, comme à l'écran.
+    const isAdmin = ["admin", "superadmin"].includes(ctx.role);
+
     const boutiqueFilter = ctx.boutiqueAssignee ? { boutique: ctx.boutiqueAssignee } : {};
     // Même période autorisée que les pages de statistiques — sans quoi l'export
     // permettrait de récupérer tout l'historique malgré la limite.
@@ -124,14 +127,14 @@ export async function GET(req: NextRequest) {
         if (stocks.length === 0) {
           rows.push([
             (p as any).reference, (p as any).nom, (p as any).categorie,
-            fmtNum((p as any).prixAchat), fmtNum((p as any).prixVente),
+            ...(isAdmin ? [fmtNum((p as any).prixAchat)] : []), fmtNum((p as any).prixVente),
             "—", "0", fmtNum((p as any).seuilAlerte),
           ]);
         } else {
           stocks.forEach((s: any) => {
             rows.push([
               (p as any).reference, (p as any).nom, (p as any).categorie,
-              fmtNum((p as any).prixAchat), fmtNum((p as any).prixVente),
+              ...(isAdmin ? [fmtNum((p as any).prixAchat)] : []), fmtNum((p as any).prixVente),
               s.boutique?.nom ?? "", fmtNum(s.quantite), fmtNum((p as any).seuilAlerte),
             ]);
           });
@@ -139,7 +142,9 @@ export async function GET(req: NextRequest) {
       }
 
       csv = toCSV(
-        ["Référence","Nom","Catégorie","Prix achat (F)","Prix vente (F)","Boutique","Stock","Seuil alerte"],
+        ["Référence","Nom","Catégorie",
+          ...(isAdmin ? ["Prix achat (F)"] : []),
+          "Prix vente (F)","Boutique","Stock","Seuil alerte"],
         rows
       );
       filename = "stock";
@@ -157,14 +162,16 @@ export async function GET(req: NextRequest) {
           m.boutique?.nom ?? "",
           l.produit?.nom ?? "",
           fmtNum(l.quantite),
-          fmtNum(l.montant),
+          ...(isAdmin ? [fmtNum(l.montant)] : []),
           m.motif ?? "",
           m.createdBy ? `${m.createdBy.prenom} ${m.createdBy.nom}` : "",
         ])
       );
 
       csv = toCSV(
-        ["Référence","Date","Type","Boutique","Produit","Qté","Montant (F)","Motif","Créé par"],
+        ["Référence","Date","Type","Boutique","Produit","Qté",
+          ...(isAdmin ? ["Montant (F)"] : []),
+          "Motif","Créé par"],
         rows
       );
       filename = "mouvements-stock";

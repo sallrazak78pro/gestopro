@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const alertesOnly = searchParams.get("alertes") === "true";
+    // Prix de revient : joint pour l'admin seul, qui est le seul à voir la
+    // valeur du stock (état imprimé). Sans lui, ce total valait 0.
+    const isAdmin = ["admin", "superadmin"].includes(ctx.role);
 
     // Si l'utilisateur a une boutique assignée, on ne montre que cette boutique
     const boutiqueQuery: any = { tenantId: ctx.tenantId, actif: true };
@@ -47,6 +50,7 @@ export async function GET(req: NextRequest) {
       const row: any = {
         _id: produit._id, reference: produit.reference, nom: produit.nom,
         categorie: produit.categorie, prixVente: produit.prixVente,
+        ...(isAdmin ? { prixAchat: produit.prixAchat ?? 0 } : {}),
         seuilAlerte: produit.seuilAlerte, stocks: {}, total: 0, enAlerte: false,
       };
       boutiques.forEach((b: any) => {
