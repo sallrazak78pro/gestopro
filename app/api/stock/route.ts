@@ -5,7 +5,6 @@ import Stock from "@/lib/models/Stock";
 import Produit from "@/lib/models/Produit";
 import Boutique from "@/lib/models/Boutique";
 import { getTenantContext, requirePermission } from "@/lib/utils/tenant";
-import { peutVoirPrixRevient } from "@/lib/utils/permissions";
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,16 +43,11 @@ export async function GET(req: NextRequest) {
     const qteMap = new Map<string, number>();
     stocks.forEach((s: any) => { qteMap.set(`${s.produit}_${s.boutique}`, s.quantite); });
 
-    // Le prix de revient (et donc la valeur du stock au coût) n'est exposé
-    // qu'avec le droit « Marges et prix de revient ».
-    const voitCout = peutVoirPrixRevient(ctx.role, ctx.tenantPermissions);
-
     const vue = produits.map((produit: any) => {
       const row: any = {
         _id: produit._id, reference: produit.reference, nom: produit.nom,
         categorie: produit.categorie, prixVente: produit.prixVente,
         seuilAlerte: produit.seuilAlerte, stocks: {}, total: 0, enAlerte: false,
-        ...(voitCout ? { prixAchat: produit.prixAchat ?? 0 } : {}),
       };
       boutiques.forEach((b: any) => {
         const qte = qteMap.get(`${produit._id}_${b._id}`) ?? 0;
@@ -65,7 +59,7 @@ export async function GET(req: NextRequest) {
     });
 
     const result = alertesOnly ? vue.filter(r => r.enAlerte) : vue;
-    return NextResponse.json({ success: true, data: result, boutiques, voitCout });
+    return NextResponse.json({ success: true, data: result, boutiques });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

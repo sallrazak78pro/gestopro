@@ -10,9 +10,6 @@ export default function PrintStockPage() {
   const boutiqueId   = searchParams.get("boutique") || "";
 
   const [lignes,   setLignes]   = useState<any[]>([]);
-  // L'API ne joint les prix d'achat qu'avec le droit « Marges et prix de
-  // revient » ; sans eux la valeur du stock ne veut rien dire, on la masque.
-  const [voitCout, setVoitCout] = useState(true);
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [tenant,   setTenant]   = useState<any>(null);
   const [loading,  setLoading]  = useState(true);
@@ -23,7 +20,7 @@ export default function PrintStockPage() {
       fetch("/api/boutiques").then(r => r.json()),
       fetch("/api/parametres").then(r => r.json()),
     ]).then(([s, b, p]) => {
-      if (s.success) { setLignes(s.data); setVoitCout(s.voitCout !== false); }
+      if (s.success) setLignes(s.data);
       if (b.success) setBoutiques(b.data);
       if (p.success) setTenant(p.data);
     }).finally(() => setLoading(false));
@@ -69,7 +66,7 @@ export default function PrintStockPage() {
         </div>
 
         {/* KPIs résumés */}
-        <div className={"doc-grid " + (voitCout ? "doc-grid-3" : "doc-grid-2")} style={{ marginBottom:28 }}>
+        <div className="doc-grid doc-grid-3" style={{ marginBottom:28 }}>
           <div className="doc-kpi">
             <div className="doc-kpi-label">Produits en catalogue</div>
             <div className="doc-kpi-value">{lignes.length}</div>
@@ -81,12 +78,10 @@ export default function PrintStockPage() {
             </div>
             <div className="doc-kpi-sub">dont {nbRuptures} rupture{nbRuptures > 1 ? "s" : ""}</div>
           </div>
-          {voitCout && (
-            <div className="doc-kpi">
-              <div className="doc-kpi-label">Valeur stock estimée</div>
-              <div className="doc-kpi-value">{fmt(valeurTotal)} F</div>
-            </div>
-          )}
+          <div className="doc-kpi">
+            <div className="doc-kpi-label">Valeur stock estimée</div>
+            <div className="doc-kpi-value">{fmt(valeurTotal)} F</div>
+          </div>
         </div>
 
         {/* Tableau */}

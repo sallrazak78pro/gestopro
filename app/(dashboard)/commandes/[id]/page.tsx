@@ -177,8 +177,8 @@ export default function CommandeDetailPage() {
                   <td className="font-mono text-sm">{l.quantiteCommandee}</td>
                   <td className={clsx("font-mono font-bold text-sm", l.quantiteRecue>0?"text-success":"text-muted")}>{l.quantiteRecue}</td>
                   <td className={clsx("font-mono text-sm", restant>0?"text-warning":"text-success")}>{restant>0?restant:"✓"}</td>
-                  <td className="font-mono text-sm">{l.prixUnitaire == null ? "—" : `${fmt(l.prixUnitaire)} F`}</td>
-                  <td className="font-mono font-bold text-sm">{l.sousTotal == null ? "—" : `${fmt(l.sousTotal)} F`}</td>
+                  <td className="font-mono text-sm">{fmt(l.prixUnitaire)} F</td>
+                  <td className="font-mono font-bold text-sm">{fmt(l.sousTotal)} F</td>
                   <td>
                     {l.quantiteRecue===0 ? <span className="badge-orange">En attente</span>
                     : l.quantiteRecue >= l.quantiteCommandee ? <span className="badge-green">✓ Complet</span>

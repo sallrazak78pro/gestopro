@@ -2,16 +2,17 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import clsx from "clsx";
 import ProduitModal from "@/components/stock/ProduitModal";
-import { usePeutVoirPrixRevient } from "@/lib/hooks/usePeutVoirPrixRevient";
 import { formatNombre as fmt } from "@/lib/utils/devise";
 
 
 export default function ProduitDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const voitCout = usePeutVoirPrixRevient();
+  const { data: session } = useSession();
+  const isAdmin = ["admin", "superadmin"].includes((session?.user as any)?.role);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -39,10 +40,10 @@ export default function ProduitDetailPage() {
 
   const { produit, stocks } = data;
   const totalQte = stocks.reduce((s: number, st: any) => s + st.quantite, 0);
-  // Le prix d'achat (prix de revient) n'est renvoyé par l'API qu'avec le droit
-  // « Marges et prix de revient » — absent sinon, donc pas de marge à calculer.
-  const marge = voitCout ? produit.prixVente - produit.prixAchat : null;
-  const margePct = voitCout && produit.prixAchat > 0 ? ((marge! / produit.prixAchat) * 100).toFixed(1) : null;
+  // Le prix d'achat (prix de revient) n'est renvoyé par l'API qu'à l'admin —
+  // absent pour tout autre rôle, donc la marge ne se calcule pas pour eux.
+  const marge = isAdmin ? produit.prixVente - produit.prixAchat : null;
+  const margePct = isAdmin && produit.prixAchat > 0 ? ((marge! / produit.prixAchat) * 100).toFixed(1) : null;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -70,10 +71,9 @@ export default function ProduitDetailPage() {
         {/* Stats produit */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
           {[
-            ...(voitCout ? [
+            ...(isAdmin ? [
               { label: "Prix d'achat", value: fmt(produit.prixAchat) + " F", color: "text-muted2" },
-              { label: "Marge brute", value: margePct !== null ? `${marge! >= 0 ? "+" : ""}${fmt(marge!)} F (${margePct}%)` : "—",
-                color: margePct !== null && marge! < 0 ? "text-danger" : "text-success" },
+              { label: "Marge brute", value: margePct !== null ? `+${fmt(marge!)} F (${margePct}%)` : "—", color: "text-success" },
             ] : []),
             { label: "Prix de vente", value: fmt(produit.prixVente) + " F", color: "text-white" },
             { label: "Unité", value: produit.unite, color: "text-accent" },

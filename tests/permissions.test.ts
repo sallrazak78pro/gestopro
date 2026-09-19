@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasPermission, peutVoirPrixRevient, DEFAULT_PERMISSIONS } from "@/lib/utils/permissions";
+import { hasPermission, DEFAULT_PERMISSIONS } from "@/lib/utils/permissions";
 
 describe("hasPermission", () => {
   it("always grants admin and superadmin, regardless of tenantPermissions", () => {
@@ -33,21 +33,5 @@ describe("hasPermission", () => {
     for (const role of Object.keys(DEFAULT_PERMISSIONS) as (keyof typeof DEFAULT_PERMISSIONS)[]) {
       expect(DEFAULT_PERMISSIONS[role]).toBeTruthy();
     }
-  });
-});
-
-describe("peutVoirPrixRevient", () => {
-  it("reserves cost prices to the admin by default", () => {
-    expect(peutVoirPrixRevient("admin", {})).toBe(true);
-    expect(peutVoirPrixRevient("superadmin", undefined)).toBe(true);
-    expect(peutVoirPrixRevient("gestionnaire", {})).toBe(false);
-    expect(peutVoirPrixRevient("caissier", {})).toBe(false);
-  });
-
-  it("lets the admin grant it to a gestionnaire or a caissier", () => {
-    expect(peutVoirPrixRevient("caissier", { caissier: { marges: { view: true } } })).toBe(true);
-    expect(peutVoirPrixRevient("gestionnaire", { gestionnaire: { marges: { view: true } } })).toBe(true);
-    // Le droit accordé au caissier ne déborde pas sur le gestionnaire.
-    expect(peutVoirPrixRevient("gestionnaire", { caissier: { marges: { view: true } } })).toBe(false);
   });
 });

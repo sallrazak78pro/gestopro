@@ -410,8 +410,7 @@ function LigneRow({ ligne, idx, allProduits, stockMap, showStock, canRemove, onU
               <div>
                 <p className="text-sm font-bold">{ligne.produit.nom}</p>
                 <p className="text-[10px] font-mono text-muted">
-                  {ligne.produit.reference} · {ligne.produit.unite}
-                  {ligne.produit.prixAchat != null && ` · ${fmt(ligne.produit.prixAchat)} F/u`}
+                  {ligne.produit.reference} · {ligne.produit.unite} · {fmt(ligne.produit.prixAchat)} F/u
                 </p>
               </div>
               <button type="button" onClick={onClear}
